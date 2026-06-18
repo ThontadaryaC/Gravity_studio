@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gravity Studios | Premium Entertainment & Tech Ecosystem</title>
+  
+  <!-- SEO Meta Tags -->
+  <meta name="description" content="Explore the multi-colored leadership roadmap, organizational chart, and 18 diverse creative/tech departments of Gravity Studios. Pushing boundaries in Anime, VFX, Game Development, and AI Research.">
+  <meta name="keywords" content="Gravity Studios, Ajay Raj BK, Shashank Raj BK, Media Gallery, VFX, Anime, AI Research, Game Development, Tech Startup, Accessibility">
+  <meta name="author" content="Gravity Studios">
+  
+  <!-- Style Sheet -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- Script to load theme early and prevent flash of default theme -->
+  <script>
+    if (localStorage.getItem('gravity-theme') === 'dark') {
+      document.body.classList.add('dark-theme');
+    }
+  </script>
+
+  <!-- Three.js Cosmic Background Canvas -->
+  <div id="three-canvas" aria-hidden="true"></div>
+
+  <!-- Kids Playful drawing canvas (Active when toggled in header) -->
+  <canvas id="magic-paint-canvas" aria-hidden="true" style="display: none;"></canvas>
+
+  <!-- 10-SECOND INTRO LOADER OVERLAY -->
+  <div id="intro-loader" role="dialog" aria-modal="true" aria-label="Gravity Studios Loading Screen">
+    <video class="intro-video-container" id="intro-video" muted playsinline></video>
+    <script>
+      (function() {
+        var isDark = localStorage.getItem('gravity-theme') === 'dark';
+        document.getElementById('intro-video').src = isDark ? 'assets/video/gallery/Intro_dark_theme.mp4' : 'assets/video/gallery/intro.mp4';
+      })();
+    </script>
+    <canvas id="intro-canvas-fallback" class="intro-canvas-fallback"></canvas>
+    
+    <div class="intro-content">
+      <h1 class="intro-logo" id="intro-logo">Gravity Studios</h1>
+      <p class="intro-subtitle">Defying limits, defining futures</p>
+      
+      <div class="intro-progress-container">
+        <div class="intro-progress-bar" id="intro-progress"></div>
+      </div>
+      <div class="intro-timer">GRAVITATIONAL SYNC... 10S</div>
+      
+      <button class="skip-intro-btn" id="skip-intro" aria-label="Skip introduction animation">Skip Intro</button>
+    </div>
+  </div>
+
+  <!-- HEADER & NAVIGATION -->
+  <header>
+    <div class="logo-container">
+      <span class="logo-text">Gravity Studios</span>
+      <span class="logo-dot" aria-hidden="true"></span>
+    </div>
+    
+    <div class="nav-wrap">
+      <nav aria-label="Main Navigation">
+        <ul class="nav-links">
+          <li><a href="#hero" class="active">Home</a></li>
+          <li><a href="#leadership">Leadership</a></li>
+          <li><a href="#gallery">Media Showcase</a></li>
+          <li><a href="#revenue">Revenue & Growth</a></li>
+          <li><a href="#hierarchy">Org Chart</a></li>
+          <li><a href="#timeline">Timeline</a></li>
+          <li><a href="#departments">Departments</a></li>
+        </ul>
+      </nav>
+
+      <!-- Accessibility / Fun controls for kids & elders -->
+      <div class="accessibility-controls">
+        <button class="control-btn" data-action="theme-toggle" data-tooltip="Switch Theme" aria-pressed="false" aria-label="Toggle Dark/Light Theme">
+          <i data-lucide="sun" class="icon-sun"></i>
+          <i data-lucide="moon" class="icon-moon"></i>
+        </button>
+        <button class="control-btn" data-action="readability" data-tooltip="Senior Friendly Text Mode" aria-pressed="false" aria-label="Toggle Senior Friendly Big Text Mode">
+          <i data-lucide="eye"></i>
+        </button>
+        <button class="control-btn" data-action="magicpaint" data-tooltip="Kids Magic Star Paint" aria-pressed="false" aria-label="Toggle Kids Magic Star Paint Brush">
+          <i data-lucide="wand-2"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <main>
+
+    <!-- SECTION 1: HERO -->
+    <section id="hero" aria-labelledby="hero-title">
+      <div class="hero-content">
+        <div class="hero-subtitle">
+          <span class="hero-subtitle-dot" aria-hidden="true"></span>
+          Gravity Studios Ecosystem
+        </div>
+        <h2 class="hero-title" id="hero-title">
+          <span>Welcome to Gravity,</span>
+          <span class="glow-text">Defining Entertainment</span>
+        </h2>
+        <p class="hero-description">
+          A high-performance startup ecosystem merging cutting-edge software engineering, custom artificial intelligence systems, hyper-realistic VFX production, and next-generation animation studios under a singular visionary directive.
+        </p>
+        <div class="hero-cta">
+          <a href="#leadership" class="btn-primary" id="cta-leadership">Explore Leadership</a>
+          <a href="#gallery" class="btn-secondary" id="cta-gallery">Media Arena</a>
+        </div>
+      </div>
+      
+      <div class="scroll-indicator" onclick="document.querySelector('#leadership').scrollIntoView({behavior: 'smooth'})" role="button" aria-label="Scroll down">
+        <span class="scroll-text">Scroll Down</span>
+        <div class="scroll-line" aria-hidden="true"></div>
+      </div>
+    </section>
+
+    <!-- SECTION 2: LEADERSHIP TEAM -->
+    <section id="leadership" aria-labelledby="leadership-title">
+      <div class="section-header">
+        <span class="section-subtitle">Board & Leadership</span>
+        <h2 class="section-title" id="leadership-title">Executive Officers</h2>
+      </div>
+
+      <div class="leadership-grid">
+        <!-- 1. AJAY RAJ B.K (Vibrant Purple highlight) -->
+        <article class="exec-card glow-purple" id="card-ajay">
+          <div class="exec-avatar-container">
+            <div class="exec-avatar">
+              <!-- Automatically switches to real photo if drop-in loaded, else falls back to user icon -->
+              <img src="assets/images/ajay.png" alt="Ajay Raj B.K" class="exec-photo" onerror="this.style.display='none';">
+              <div class="exec-avatar-fallback"><i data-lucide="user"></i></div>
+            </div>
+          </div>
+          <h3 class="exec-name">Ajay Raj B.K</h3>
+          <p class="exec-role">Founder & Creative Director</p>
+          <ul class="exec-responsibilities">
+            <li>Vision & Strategy</li>
+            <li>Creative Direction</li>
+            <li>Brand Development</li>
+            <li>Business Growth</li>
+            <li>Innovation Leadership</li>
+          </ul>
+          <div class="exec-socials">
+            <a href="https://linkedin.com" target="_blank" rel="noopener" class="social-link" aria-label="Ajay Raj B.K LinkedIn"><i data-lucide="linkedin"></i></a>
+            <a href="https://twitter.com" target="_blank" rel="noopener" class="social-link" aria-label="Ajay Raj B.K Twitter"><i data-lucide="twitter"></i></a>
+            <a href="https://github.com" target="_blank" rel="noopener" class="social-link" aria-label="Ajay Raj B.K GitHub"><i data-lucide="github"></i></a>
+          </div>
+        </article>
+
+        <!-- 2. SHASHANK RAJ B.K (Vibrant Gold highlight) -->
+        <article class="exec-card glow-amber" id="card-shashank">
+          <div class="exec-avatar-container">
+            <div class="exec-avatar">
+              <img src="assets/images/shashank.png" alt="Shashank Raj B.K" class="exec-photo" onerror="this.style.display='none';">
+              <div class="exec-avatar-fallback"><i data-lucide="user"></i></div>
+            </div>
+          </div>
+          <h3 class="exec-name">Shashank Raj B.K</h3>
+          <p class="exec-role">Co-Founder & CEO</p>
+          <ul class="exec-responsibilities">
+            <li>Business Operations</li>
+            <li>Company Management</li>
+            <li>Partnerships</li>
+            <li>Client Relations</li>
+            <li>Company Expansion</li>
+          </ul>
+          <div class="exec-socials">
+            <a href="https://linkedin.com" target="_blank" rel="noopener" class="social-link" aria-label="Shashank Raj B.K LinkedIn"><i data-lucide="linkedin"></i></a>
+            <a href="https://twitter.com" target="_blank" rel="noopener" class="social-link" aria-label="Shashank Raj B.K Twitter"><i data-lucide="twitter"></i></a>
+            <a href="https://github.com" target="_blank" rel="noopener" class="social-link" aria-label="Shashank Raj B.K GitHub"><i data-lucide="github"></i></a>
+          </div>
+        </article>
+
+        <!-- 3. THONTADARAYA (Vibrant Cyan highlight) -->
+        <article class="exec-card glow-cyan" id="card-thontadaraya">
+          <div class="exec-avatar-container">
+            <div class="exec-avatar">
+              <img src="assets/images/thontadarya.png" alt="Thontadaraya" class="exec-photo" onerror="this.style.display='none';">
+              <div class="exec-avatar-fallback"><i data-lucide="user"></i></div>
+            </div>
+          </div>
+          <h3 class="exec-name">Thontadaraya</h3>
+          <p class="exec-role">CTO (Technology Head)</p>
+          <ul class="exec-responsibilities">
+            <li>Software Development</li>
+            <li>AI Systems</li>
+            <li>Technical Architecture</li>
+            <li>Product Development</li>
+            <li>Innovation</li>
+          </ul>
+          <div class="exec-socials">
+            <a href="https://linkedin.com" target="_blank" rel="noopener" class="social-link" aria-label="Thontadaraya LinkedIn"><i data-lucide="linkedin"></i></a>
+            <a href="https://twitter.com" target="_blank" rel="noopener" class="social-link" aria-label="Thontadaraya Twitter"><i data-lucide="twitter"></i></a>
+            <a href="https://github.com" target="_blank" rel="noopener" class="social-link" aria-label="Thontadaraya GitHub"><i data-lucide="github"></i></a>
+          </div>
+        </article>
+
+        <!-- 4. MUNISH (Vibrant Pink highlight) -->
+        <article class="exec-card glow-pink" id="card-munish">
+          <div class="exec-avatar-container">
+            <div class="exec-avatar">
+              <img src="assets/images/munish.png" alt="Munish" class="exec-photo" onerror="this.style.display='none';">
+              <div class="exec-avatar-fallback"><i data-lucide="user"></i></div>
+            </div>
+          </div>
+          <h3 class="exec-name">Munish</h3>
+          <p class="exec-role">CMO (Marketing Head)</p>
+          <ul class="exec-responsibilities">
+            <li>Marketing Strategy</li>
+            <li>Social Media</li>
+            <li>Advertising</li>
+            <li>Content Marketing</li>
+            <li>Brand Awareness</li>
+          </ul>
+          <div class="exec-socials">
+            <a href="https://linkedin.com" target="_blank" rel="noopener" class="social-link" aria-label="Munish LinkedIn"><i data-lucide="linkedin"></i></a>
+            <a href="https://twitter.com" target="_blank" rel="noopener" class="social-link" aria-label="Munish Twitter"><i data-lucide="twitter"></i></a>
+            <a href="https://github.com" target="_blank" rel="noopener" class="social-link" aria-label="Munish GitHub"><i data-lucide="github"></i></a>
+          </div>
+        </article>
+
+        <!-- 5. PAVAN KRISHNA (Vibrant Green highlight) -->
+        <article class="exec-card glow-green" id="card-pavan">
+          <div class="exec-avatar-container">
+            <div class="exec-avatar">
+              <img src="assets/images/pavan.png" alt="Pavan Krishna" class="exec-photo" onerror="this.style.display='none';">
+              <div class="exec-avatar-fallback"><i data-lucide="user"></i></div>
+            </div>
+          </div>
+          <h3 class="exec-name">Pavan Krishna</h3>
+          <p class="exec-role">CHRO (HR Head)</p>
+          <ul class="exec-responsibilities">
+            <li>Recruitment</li>
+            <li>Talent Management</li>
+            <li>Team Building</li>
+            <li>Employee Development</li>
+            <li>Company Culture</li>
+          </ul>
+          <div class="exec-socials">
+            <a href="https://linkedin.com" target="_blank" rel="noopener" class="social-link" aria-label="Pavan Krishna LinkedIn"><i data-lucide="linkedin"></i></a>
+            <a href="https://twitter.com" target="_blank" rel="noopener" class="social-link" aria-label="Pavan Krishna Twitter"><i data-lucide="twitter"></i></a>
+            <a href="https://github.com" target="_blank" rel="noopener" class="social-link" aria-label="Pavan Krishna GitHub"><i data-lucide="github"></i></a>
+          </div>
+        </article>
+
+        <!-- 6. PRUTHVI RAJ (Vibrant Cyan highlight) -->
+        <article class="exec-card glow-cyan" id="card-pruthvi">
+          <div class="exec-avatar-container">
+            <div class="exec-avatar">
+              <img src="assets/images/pruthvi.png" alt="Pruthvi Raj" class="exec-photo" onerror="this.style.display='none';">
+              <div class="exec-avatar-fallback"><i data-lucide="user"></i></div>
+            </div>
+          </div>
+          <h3 class="exec-name">Pruthvi Raj</h3>
+          <p class="exec-role">CIO (IT Head)</p>
+          <ul class="exec-responsibilities">
+            <li>IT Infrastructure</li>
+            <li>Security Systems</li>
+            <li>Data Management</li>
+            <li>Network Operations</li>
+            <li>Technology Support</li>
+          </ul>
+          <div class="exec-socials">
+            <a href="https://linkedin.com" target="_blank" rel="noopener" class="social-link" aria-label="Pruthvi Raj LinkedIn"><i data-lucide="linkedin"></i></a>
+            <a href="https://twitter.com" target="_blank" rel="noopener" class="social-link" aria-label="Pruthvi Raj Twitter"><i data-lucide="twitter"></i></a>
+            <a href="https://github.com" target="_blank" rel="noopener" class="social-link" aria-label="Pruthvi Raj GitHub"><i data-lucide="github"></i></a>
+          </div>
+        </article>
+
+        <!-- 7. SHREYAS (Vibrant Purple highlight) -->
+        <article class="exec-card glow-purple" id="card-shreyas">
+          <div class="exec-avatar-container">
+            <div class="exec-avatar">
+              <img src="assets/images/shreyas.png" alt="Shreyas" class="exec-photo" onerror="this.style.display='none';">
+              <div class="exec-avatar-fallback"><i data-lucide="user"></i></div>
+            </div>
+          </div>
+          <h3 class="exec-name">Shreyas</h3>
+          <p class="exec-role">COO & Site Engineer</p>
+          <ul class="exec-responsibilities">
+            <li>Operations Management</li>
+            <li>Project Coordination</li>
+            <li>Site Supervision</li>
+            <li>Quality Control</li>
+            <li>Construction Management</li>
+          </ul>
+          <div class="exec-socials">
+            <a href="https://linkedin.com" target="_blank" rel="noopener" class="social-link" aria-label="Shreyas LinkedIn"><i data-lucide="linkedin"></i></a>
+            <a href="https://twitter.com" target="_blank" rel="noopener" class="social-link" aria-label="Shreyas Twitter"><i data-lucide="twitter"></i></a>
+            <a href="https://github.com" target="_blank" rel="noopener" class="social-link" aria-label="Shreyas GitHub"><i data-lucide="github"></i></a>
+          </div>
+        </article>
+
+        <!-- 8. SUBHASH (Vibrant Gold highlight) -->
+        <article class="exec-card glow-amber" id="card-subhash">
+          <div class="exec-avatar-container">
+            <div class="exec-avatar">
+              <img src="assets/images/subhash.png" alt="Subhash" class="exec-photo" onerror="this.style.display='none';">
+              <div class="exec-avatar-fallback"><i data-lucide="user"></i></div>
+            </div>
+          </div>
+          <h3 class="exec-name">Subhash</h3>
+          <p class="exec-role">Sales & Pricing Lead</p>
+          <ul class="exec-responsibilities">
+            <li>Sales Management</li>
+            <li>Pricing Strategy</li>
+            <li>Client Acquisition</li>
+            <li>Revenue Generation</li>
+            <li>Business Deals</li>
+          </ul>
+          <div class="exec-socials">
+            <a href="https://linkedin.com" target="_blank" rel="noopener" class="social-link" aria-label="Subhash LinkedIn"><i data-lucide="linkedin"></i></a>
+            <a href="https://twitter.com" target="_blank" rel="noopener" class="social-link" aria-label="Subhash Twitter"><i data-lucide="twitter"></i></a>
+            <a href="https://github.com" target="_blank" rel="noopener" class="social-link" aria-label="Subhash GitHub"><i data-lucide="github"></i></a>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- NEW SECTION 3: MEDIA SHOWCASE GALLERY (Vibrant grid of posters) -->
+    <section id="gallery" aria-labelledby="gallery-title">
+      <div class="section-header">
+        <span class="section-subtitle">Promos & Campaigns</span>
+        <h2 class="section-title" id="gallery-title">Media Arena</h2>
+      </div>
+
+      <div class="gallery-grid">
+        <!-- Card 1: Civil Construction Services (Purple) -->
+        <div class="gallery-card" data-category="posters" data-index="0" role="button" aria-label="View Civil Construction Services Poster">
+          <div class="gallery-media-wrapper">
+            <img src="assets/images/posters/Civil_construction_services.jpeg" alt="Civil Construction Services" onerror="this.style.display='none';">
+            <div class="gallery-placeholder">
+              <div class="gallery-placeholder-icon"><i data-lucide="image"></i></div>
+              <h4 class="gallery-placeholder-title">Civil Construction Services</h4>
+              <span class="gallery-placeholder-tag">Poster</span>
+            </div>
+          </div>
+          <div class="gallery-hover-overlay">
+            <div class="gallery-hover-btn"><i data-lucide="maximize-2"></i></div>
+            <div class="gallery-info">
+              <h3 class="gallery-title">Civil Construction Services</h3>
+              <p class="gallery-desc">Civil site management and execution details.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 2: Logo Designs (Cyan) -->
+        <div class="gallery-card" data-category="posters" data-index="1" role="button" aria-label="View Logo Designs Poster">
+          <div class="gallery-media-wrapper">
+            <img src="assets/images/posters/Logo_designs.jpeg" alt="Logo Designs" onerror="this.style.display='none';">
+            <div class="gallery-placeholder">
+              <div class="gallery-placeholder-icon"><i data-lucide="image"></i></div>
+              <h4 class="gallery-placeholder-title">Logo Designs</h4>
+              <span class="gallery-placeholder-tag">Poster</span>
+            </div>
+          </div>
+          <div class="gallery-hover-overlay">
+            <div class="gallery-hover-btn"><i data-lucide="maximize-2"></i></div>
+            <div class="gallery-info">
+              <h3 class="gallery-title">Logo Designs</h3>
+              <p class="gallery-desc">High-end corporate branding vector assets.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 3: YouTube Thumbnail Creations (Pink) -->
+        <div class="gallery-card" data-category="posters" data-index="2" role="button" aria-label="View YouTube Thumbnail Creations Poster">
+          <div class="gallery-media-wrapper">
+            <img src="assets/images/posters/Youtube_thumbnail_creations.jpeg" alt="YouTube Thumbnail Creations" onerror="this.style.display='none';">
+            <div class="gallery-placeholder">
+              <div class="gallery-placeholder-icon"><i data-lucide="image"></i></div>
+              <h4 class="gallery-placeholder-title">YouTube Thumbnail Creations</h4>
+              <span class="gallery-placeholder-tag">Poster</span>
+            </div>
+          </div>
+          <div class="gallery-hover-overlay">
+            <div class="gallery-hover-btn"><i data-lucide="maximize-2"></i></div>
+            <div class="gallery-info">
+              <h3 class="gallery-title">YouTube Thumbnail Creations</h3>
+              <p class="gallery-desc">Click-through visual cover designs.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 4: Our Services (Green) -->
+        <div class="gallery-card" data-category="posters" data-index="3" role="button" aria-label="View Our Services Poster">
+          <div class="gallery-media-wrapper">
+            <img src="assets/images/posters/our_services.jpeg" alt="Our Services" onerror="this.style.display='none';">
+            <div class="gallery-placeholder">
+              <div class="gallery-placeholder-icon"><i data-lucide="image"></i></div>
+              <h4 class="gallery-placeholder-title">Our Services</h4>
+              <span class="gallery-placeholder-tag">Poster</span>
+            </div>
+          </div>
+          <div class="gallery-hover-overlay">
+            <div class="gallery-hover-btn"><i data-lucide="maximize-2"></i></div>
+            <div class="gallery-info">
+              <h3 class="gallery-title">Our Services</h3>
+              <p class="gallery-desc">Overview of our ecosystem and offerings.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 5: Price Quotations (Gold) -->
+        <div class="gallery-card" data-category="posters" data-index="4" role="button" aria-label="View Price Quotations Poster">
+          <div class="gallery-media-wrapper">
+            <img src="assets/images/posters/price_quations.jpeg" alt="Price Quotations" onerror="this.style.display='none';">
+            <div class="gallery-placeholder">
+              <div class="gallery-placeholder-icon"><i data-lucide="image"></i></div>
+              <h4 class="gallery-placeholder-title">Price Quotations</h4>
+              <span class="gallery-placeholder-tag">Poster</span>
+            </div>
+          </div>
+          <div class="gallery-hover-overlay">
+            <div class="gallery-hover-btn"><i data-lucide="maximize-2"></i></div>
+            <div class="gallery-info">
+              <h3 class="gallery-title">Price Quotations</h3>
+              <p class="gallery-desc">Competitive valuations and packages.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 6: Team & Department Structure (Cyan) -->
+        <div class="gallery-card" data-category="posters" data-index="5" role="button" aria-label="View Team & Department Structure Poster">
+          <div class="gallery-media-wrapper">
+            <img src="assets/images/posters/team_memebers_with_department.jpeg" alt="Team & Department Structure" onerror="this.style.display='none';">
+            <div class="gallery-placeholder">
+              <div class="gallery-placeholder-icon"><i data-lucide="image"></i></div>
+              <h4 class="gallery-placeholder-title">Team & Department Structure</h4>
+              <span class="gallery-placeholder-tag">Poster</span>
+            </div>
+          </div>
+          <div class="gallery-hover-overlay">
+            <div class="gallery-hover-btn"><i data-lucide="maximize-2"></i></div>
+            <div class="gallery-info">
+              <h3 class="gallery-title">Team & Department Structure</h3>
+              <p class="gallery-desc">Complete visualization grid of our active teams.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 4: REVENUE & BUSINESS GROWTH -->
+    <section id="revenue" aria-labelledby="revenue-title">
+      <div class="section-header">
+        <span class="section-subtitle">Commercial Scale</span>
+        <h2 class="section-title" id="revenue-title">Revenue & Growth</h2>
+      </div>
+
+      <div class="revenue-container">
+        <div class="revenue-card">
+          <div class="revenue-card-header">
+            <h3 class="founder-mini-name" style="font-family:var(--font-header); font-size:1.35rem; color:var(--text-pure); margin-bottom:0.5rem;">Joint Commercial Directive</h3>
+            <p style="font-size:0.85rem; color:var(--text-muted);">Guided directly by the founding team to manage strategic scaling, capitalization, and expansion parameters.</p>
+          </div>
+          <div class="revenue-founders">
+            <div class="founder-mini">
+              <div class="founder-mini-avatar">AR</div>
+              <div>
+                <div class="founder-mini-name">Ajay Raj B.K</div>
+                <div class="founder-mini-role">Creative Lead</div>
+              </div>
+            </div>
+            <div class="founder-mini">
+              <div class="founder-mini-avatar">SR</div>
+              <div>
+                <div class="founder-mini-name">Shashank Raj B.K</div>
+                <div class="founder-mini-role">Operations Lead</div>
+              </div>
+            </div>
+          </div>
+          
+          <ul class="revenue-list">
+            <li>
+              <div class="revenue-list-icon">1</div>
+              <div>
+                <h4 class="revenue-list-title">Revenue Strategy</h4>
+                <p class="revenue-list-desc">Optimizing pricing strategies and digital licensing metrics for studio properties.</p>
+              </div>
+            </li>
+            <li>
+              <div class="revenue-list-icon">2</div>
+              <div>
+                <h4 class="revenue-list-title">Enterprise Partnerships</h4>
+                <p class="revenue-list-desc">Brokering joint ventures with streaming platforms, publishing houses, and design hubs.</p>
+              </div>
+            </li>
+            <li>
+              <div class="revenue-list-icon">3</div>
+              <div>
+                <h4 class="revenue-list-title">Expansion Planning</h4>
+                <p class="revenue-list-desc">Directing capital towards multi-regional hubs, global sales, and tech research offices.</p>
+              </div>
+            </li>
+            <li>
+              <div class="revenue-list-icon">4</div>
+              <div>
+                <h4 class="revenue-list-title">Investor Relations</h4>
+                <p class="revenue-list-desc">Conducting investor summits, capitalization events, and debt/equity allocation audits.</p>
+              </div>
+            </li>
+            <li>
+              <div class="revenue-list-icon">5</div>
+              <div>
+                <h4 class="revenue-list-title">Growth Operations</h4>
+                <p class="revenue-list-desc">Fostering high-speed incubation of new departments, studios, and rendering assets.</p>
+              </div>
+            </li>
+          </ul>
+        </div>
+
+        <!-- SVG valuation chart (amber themed) -->
+        <div class="growth-chart-container">
+          <div class="chart-title-wrap">
+            <h3 class="chart-title">Valuation Forecast</h3>
+            <span class="chart-val">$7.5M+ Goal</span>
+          </div>
+          
+          <div class="svg-chart-wrap">
+            <svg viewBox="0 0 500 200" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="chart-gradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="var(--neon-amber)" stop-opacity="0.3"></stop>
+                  <stop offset="100%" stop-color="var(--neon-amber)" stop-opacity="0"></stop>
+                </linearGradient>
+              </defs>
+              <path class="chart-fill-path" d="M 0 200 L 50 170 L 150 130 L 250 85 L 370 50 L 500 20 Z L 500 200 Z"></path>
+              <path class="chart-glow-path" d="M 0 200 L 50 170 L 150 130 L 250 85 L 370 50 L 500 20"></path>
+              
+              <circle class="chart-dot" cx="50" cy="170" data-index="0"></circle>
+              <circle class="chart-dot" cx="150" cy="130" data-index="1"></circle>
+              <circle class="chart-dot" cx="250" cy="85" data-index="2"></circle>
+              <circle class="chart-dot" cx="370" cy="50" data-index="3"></circle>
+              <circle class="chart-dot" cx="500" cy="20" data-index="4"></circle>
+            </svg>
+          </div>
+          
+          <div class="chart-labels">
+            <span class="chart-label">Phase 1</span>
+            <span class="chart-label">Phase 2</span>
+            <span class="chart-label">Phase 3</span>
+            <span class="chart-label">Phase 4</span>
+            <span class="chart-label">Phase 5</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 5: ORGANIZATION HIERARCHY -->
+    <section id="hierarchy" aria-labelledby="hierarchy-title">
+      <div class="section-header">
+        <span class="section-subtitle">System Structure</span>
+        <h2 class="section-title" id="hierarchy-title">Organization Chart</h2>
+      </div>
+
+      <div class="org-chart-wrapper">
+        <div class="org-tree">
+          <!-- Tier 1: Founders -->
+          <div class="org-row">
+            <button class="org-node" data-member="ajay" id="node-ajay">
+              <div class="org-node-role">Founder / Creative Director</div>
+              <div class="org-node-name">Ajay Raj B.K</div>
+            </button>
+            <button class="org-node" data-member="shashank" id="node-shashank">
+              <div class="org-node-role">Co-Founder / CEO</div>
+              <div class="org-node-name">Shashank Raj B.K</div>
+            </button>
+          </div>
+
+          <!-- Connecting line down -->
+          <div style="height: 1.5rem; width: 2px; background: var(--neon-cyan); box-shadow: 0 0 5px var(--neon-cyan-glow);" aria-hidden="true"></div>
+
+          <!-- Tier 2: Department Heads in 3D Carousel -->
+          <div class="org-carousel-container" id="org-carousel-container">
+            <button class="org-carousel-arrow prev" id="carousel-prev" aria-label="Previous Department"><i data-lucide="chevron-left"></i></button>
+            <button class="org-carousel-arrow next" id="carousel-next" aria-label="Next Department"><i data-lucide="chevron-right"></i></button>
+            
+            <div class="org-carousel-viewport">
+              <div class="org-carousel-spinner" id="org-carousel-spinner">
+                <button class="org-node" data-member="thontadaraya" id="node-cto">
+                  <div class="org-node-role">Technology Head</div>
+                  <div class="org-node-name">Thontadaraya</div>
+                </button>
+                <button class="org-node" data-member="munish" id="node-cmo">
+                  <div class="org-node-role">Marketing Head</div>
+                  <div class="org-node-name">Munish</div>
+                </button>
+                <button class="org-node" data-member="pavan" id="node-chro">
+                  <div class="org-node-role">HR Head</div>
+                  <div class="org-node-name">Pavan Krishna</div>
+                </button>
+                <button class="org-node" data-member="pruthvi" id="node-cio">
+                  <div class="org-node-role">IT Head</div>
+                  <div class="org-node-name">Pruthvi Raj</div>
+                </button>
+                <button class="org-node" data-member="shreyas" id="node-coo">
+                  <div class="org-node-role">COO & Site Engineer</div>
+                  <div class="org-node-name">Shreyas</div>
+                </button>
+                <button class="org-node" data-member="subhash" id="node-sales">
+                  <div class="org-node-role">Sales & Pricing Lead</div>
+                  <div class="org-node-name">Subhash</div>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Node details flyout panel -->
+      <div class="node-details-panel" id="node-details-panel" role="region" aria-live="polite" aria-label="Employee details">
+        <button class="node-details-close" id="close-panel" aria-label="Close details panel">&times;</button>
+        <div class="node-details-header">
+          <h3 class="node-details-title">Ajay Raj B.K</h3>
+          <p class="node-details-subtitle">Founder & Creative Director</p>
+        </div>
+        <div class="node-details-body">
+          <h4>Key Responsibilities</h4>
+          <ul class="node-details-list" style="list-style: none; padding-left:0; margin-bottom: 1.5rem;">
+            <!-- Injected via JavaScript -->
+          </ul>
+          <h4>Specialist Core Skills</h4>
+          <div class="node-details-skills">
+            <!-- Injected via JavaScript -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 6: LEADERSHIP TIMELINE (Multi-color theme points) -->
+    <section id="timeline" aria-labelledby="timeline-title">
+      <div class="section-header">
+        <span class="section-subtitle">Milestones</span>
+        <h2 class="section-title" id="timeline-title">Ecosystem Roadmap</h2>
+      </div>
+
+      <div class="timeline-container">
+        <!-- Milestone 1 (Cyan) -->
+        <div class="timeline-item left" id="time-1">
+          <div class="timeline-dot" aria-hidden="true"></div>
+          <div class="timeline-content">
+            <div class="timeline-date">Phase 1</div>
+            <h3 class="timeline-title">Incubation & Foundation</h3>
+            <p class="timeline-desc">Founders Ajay Raj B.K and Shashank Raj B.K launch Gravity Studios, formulating core strategy, structural blueprints, and branding infrastructure.</p>
+          </div>
+        </div>
+
+        <!-- Milestone 2 (Purple) -->
+        <div class="timeline-item right" id="time-2">
+          <div class="timeline-dot" aria-hidden="true"></div>
+          <div class="timeline-content">
+            <div class="timeline-date">Phase 2</div>
+            <h3 class="timeline-title">Creative & Tech Leadership</h3>
+            <p class="timeline-desc">CTO Thontadaraya, CMO Munish and CHRO Pavan join the board. Initiation of AI Research, Software Development architecture, and global talent pipelines.</p>
+          </div>
+        </div>
+
+        <!-- Milestone 3 (Pink) -->
+        <div class="timeline-item left" id="time-3">
+          <div class="timeline-dot" aria-hidden="true"></div>
+          <div class="timeline-content">
+            <div class="timeline-date">Phase 3</div>
+            <h3 class="timeline-title">Infrastructure Scale</h3>
+            <p class="timeline-desc">CIO Pruthvi Raj, COO Shreyas and Sales Lead Subhash expand facilities operations. Building physical studio labs, network arrays, and launching commercial sales campaigns.</p>
+          </div>
+        </div>
+
+        <!-- Milestone 4 (Amber) -->
+        <div class="timeline-item right" id="time-4">
+          <div class="timeline-dot" aria-hidden="true"></div>
+          <div class="timeline-content">
+            <div class="timeline-date">Phase 4</div>
+            <h3 class="timeline-title">Joint Venture Alliances</h3>
+            <p class="timeline-desc">Fusing tech & media operations. Launching collaborative entertainment structures, web client hubs, anime scripting teams, and music-sound pipelines.</p>
+          </div>
+        </div>
+
+        <!-- Milestone 5 (Green) -->
+        <div class="timeline-item left" id="time-5">
+          <div class="timeline-dot" aria-hidden="true"></div>
+          <div class="timeline-content">
+            <div class="timeline-date">Phase 5</div>
+            <h3 class="timeline-title">Ecosystem Projections</h3>
+            <p class="timeline-desc">Capitalizing international expansion operations, running high-value investor deals, and driving the 18 active studio departments at global capacity.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 7: DEPARTMENTS ECOSYSTEM -->
+    <section id="departments" aria-labelledby="departments-title">
+      <div class="section-header">
+        <span class="section-subtitle">Operational Hubs</span>
+        <h2 class="section-title" id="departments-title">Our Departments</h2>
+      </div>
+
+      <div class="dept-explorer-wrap">
+        <!-- Search and Filter Panels -->
+        <div class="dept-search-filter">
+          <input type="text" class="dept-search-input" placeholder="Search departments..." aria-label="Search departments">
+          
+          <div class="dept-category-filters">
+            <button class="dept-filter-btn active" data-filter="all" id="filter-all">All</button>
+            <button class="dept-filter-btn" data-filter="core" id="filter-core">Core Ops</button>
+            <button class="dept-filter-btn" data-filter="creative" id="filter-creative">Creative & Media</button>
+            <button class="dept-filter-btn" data-filter="tech" id="filter-tech">Tech & AI</button>
+          </div>
+        </div>
+
+        <!-- Grid of 18 departments (Color categorized) -->
+        <div class="dept-grid">
+          <!-- 1. Technology & IT (Tech - Cyan) -->
+          <article class="dept-card category-tech" id="dept-1">
+            <div class="dept-icon"><i data-lucide="cpu"></i></div>
+            <h3 class="dept-title">Technology & IT</h3>
+            <p class="dept-description">Directs computing structures, secure network directory pipelines, cloud servers, and technical operations.</p>
+          </article>
+
+          <!-- 2. Marketing (Core - Amber) -->
+          <article class="dept-card category-core" id="dept-2">
+            <div class="dept-icon"><i data-lucide="megaphone"></i></div>
+            <h3 class="dept-title">Marketing</h3>
+            <p class="dept-description">Manages social media spaces, digital branding positioning, advertisement budgets, and client acquisitions.</p>
+          </article>
+
+          <!-- 3. Human Resources (Core - Amber) -->
+          <article class="dept-card category-core" id="dept-3">
+            <div class="dept-icon"><i data-lucide="users"></i></div>
+            <h3 class="dept-title">Human Resources</h3>
+            <p class="dept-description">Leads organizational recruitment operations, talent development plans, and workspace cultural environments.</p>
+          </article>
+
+          <!-- 4. Operations (Core - Amber) -->
+          <article class="dept-card category-core" id="dept-4">
+            <div class="dept-icon"><i data-lucide="sliders"></i></div>
+            <h3 class="dept-title">Operations</h3>
+            <p class="dept-description">Orchestrates cross-department logistics, project timeline calendars, material inventories, and quality controls.</p>
+          </article>
+
+          <!-- 5. Sales & Pricing (Core - Amber) -->
+          <article class="dept-card category-core" id="dept-5">
+            <div class="dept-icon"><i data-lucide="dollar-sign"></i></div>
+            <h3 class="dept-title">Sales & Pricing</h3>
+            <p class="dept-description">Configures product valuation structures, client conversion models, enterprise agreements, and deal negotiations.</p>
+          </article>
+
+          <!-- 6. Revenue & Business Growth (Core - Amber) -->
+          <article class="dept-card category-core" id="dept-6">
+            <div class="dept-icon"><i data-lucide="trending-up"></i></div>
+            <h3 class="dept-title">Revenue & Business Growth</h3>
+            <p class="dept-description">Structures long-term capitalization metrics, venture funding deals, and international market expansions.</p>
+          </article>
+
+          <!-- 7. Support & Administration (Core - Amber) -->
+          <article class="dept-card category-core" id="dept-7">
+            <div class="dept-icon"><i data-lucide="headphones"></i></div>
+            <h3 class="dept-title">Support & Administration</h3>
+            <p class="dept-description">Handles client complaints, support ticket resolutions, administration workflows, and workspace maintenance.</p>
+          </article>
+
+          <!-- 8. Animation Studio (Creative - Pink) -->
+          <article class="dept-card category-creative" id="dept-8">
+            <div class="dept-icon"><i data-lucide="sparkles"></i></div>
+            <h3 class="dept-title">Animation Studio</h3>
+            <p class="dept-description">Produces premium 2D/3D character model rigs, keyframe movement pipelines, and storyboard visuals.</p>
+          </article>
+
+          <!-- 9. Anime Production (Creative - Pink) -->
+          <article class="dept-card category-creative" id="dept-9">
+            <div class="dept-icon"><i data-lucide="palette"></i></div>
+            <h3 class="dept-title">Anime Production</h3>
+            <p class="dept-description">Specializes in Japanese-style cell shaded illustrations, storyboard scriptwritings, and action sequences.</p>
+          </article>
+
+          <!-- 10. AI Research & Innovation (Tech - Cyan) -->
+          <article class="dept-card category-tech" id="dept-10">
+            <div class="dept-icon"><i data-lucide="brain"></i></div>
+            <h3 class="dept-title">AI Research & Innovation</h3>
+            <p class="dept-description">Builds neural network render pipelines, smart design algorithms, and automations for studio tools.</p>
+          </article>
+
+          <!-- 11. VFX Studio (Creative - Pink) -->
+          <article class="dept-card category-creative" id="dept-11">
+            <div class="dept-icon"><i data-lucide="layers"></i></div>
+            <h3 class="dept-title">VFX Studio</h3>
+            <p class="dept-description">Synthesizes hyper-realistic compositor visual assets, environmental weather effects, and green screens.</p>
+          </article>
+
+          <!-- 12. Game Development (Tech - Cyan) -->
+          <article class="dept-card category-tech" id="dept-12">
+            <div class="dept-icon"><i data-lucide="gamepad-2"></i></div>
+            <h3 class="dept-title">Game Development</h3>
+            <p class="dept-description">Engineers console graphics layers, player interaction scripts, multiplayer networks, and game physics.</p>
+          </article>
+
+          <!-- 13. Film Production (Creative - Pink) -->
+          <article class="dept-card category-creative" id="dept-13">
+            <div class="dept-icon"><i data-lucide="clapperboard"></i></div>
+            <h3 class="dept-title">Film Production</h3>
+            <p class="dept-description">Manages live-action film shoot setups, cinema lighting directions, lens positions, and audio recording lines.</p>
+          </article>
+
+          <!-- 14. Music & Sound Production (Creative - Pink) -->
+          <article class="dept-card category-creative" id="dept-14">
+            <div class="dept-icon"><i data-lucide="music"></i></div>
+            <h3 class="dept-title">Music & Sound Production</h3>
+            <p class="dept-description">Records cinematic soundtracks, orchestral foley integrations, voice actor synchings, and auditory filters.</p>
+          </article>
+
+          <!-- 15. Branding & Marketing (Core - Amber) -->
+          <article class="dept-card category-core" id="dept-15">
+            <div class="dept-icon"><i data-lucide="brush"></i></div>
+            <h3 class="dept-title">Branding & Marketing</h3>
+            <p class="dept-description">Crafts corporate styling layouts, logo assets guidelines, and promotional marketing templates.</p>
+          </article>
+
+          <!-- 16. Architecture & Visualization (Creative - Pink) -->
+          <article class="dept-card category-creative" id="dept-16">
+            <div class="dept-icon"><i data-lucide="home"></i></div>
+            <h3 class="dept-title">Architecture & Visualization</h3>
+            <p class="dept-description">Draws detailed digital 3D office plans, lighting environment maps, and blueprints mockups.</p>
+          </article>
+
+          <!-- 17. Website Development (Tech - Cyan) -->
+          <article class="dept-card category-tech" id="dept-17">
+            <div class="dept-icon"><i data-lucide="globe"></i></div>
+            <h3 class="dept-title">Website Development</h3>
+            <p class="dept-description">Codes premium, fluid, interactive browser layouts, user experiences, and backend server endpoints.</p>
+          </article>
+
+          <!-- 18. Mobile App Development (Tech - Cyan) -->
+          <article class="dept-card category-tech" id="dept-18">
+            <div class="dept-icon"><i data-lucide="smartphone"></i></div>
+            <h3 class="dept-title">Mobile App Development</h3>
+            <p class="dept-description">Builds fluid native client interfaces for iOS and Android, notifications integrations, and databases links.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- LIGHTBOX MODAL OVERLAY (Cycling support) -->
+  <div id="lightbox-modal" role="dialog" aria-modal="true" aria-label="Media Showcase Lightbox Viewer">
+    <button class="lightbox-close" aria-label="Close Lightbox">&times;</button>
+    <button class="lightbox-arrow left" aria-label="Previous Media"><i data-lucide="chevron-left"></i></button>
+    <button class="lightbox-arrow right" aria-label="Next Media"><i data-lucide="chevron-right"></i></button>
+    
+    <div class="lightbox-container">
+      <div class="lightbox-content-wrapper">
+        <!-- Injected via JS -->
+      </div>
+      <div class="lightbox-caption"></div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-content">
+      <div class="footer-brand">
+        <div class="footer-logo">
+          <span>Gravity Studios</span>
+          <span class="logo-dot" aria-hidden="true"></span>
+        </div>
+        <p>A premium high-tech creative startup ecosystem combining engineering, design, and entertainment scales to define the future of media.</p>
+        <div class="footer-socials">
+          <a href="https://linkedin.com" target="_blank" rel="noopener" class="social-link" aria-label="LinkedIn"><i data-lucide="linkedin"></i></a>
+          <a href="https://twitter.com" target="_blank" rel="noopener" class="social-link" aria-label="Twitter"><i data-lucide="twitter"></i></a>
+          <a href="https://github.com" target="_blank" rel="noopener" class="social-link" aria-label="GitHub"><i data-lucide="github"></i></a>
+        </div>
+      </div>
+
+      <div>
+        <h4 class="footer-column-title">Sitemap</h4>
+        <ul class="footer-links">
+          <li><a href="#hero">Home</a></li>
+          <li><a href="#leadership">Leadership</a></li>
+          <li><a href="#gallery">Media Showcase</a></li>
+          <li><a href="#revenue">Revenue & Growth</a></li>
+          <li><a href="#hierarchy">Organization Chart</a></li>
+          <li><a href="#timeline">Timeline</a></li>
+          <li><a href="#departments">Departments</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <h4 class="footer-column-title">Contact</h4>
+        <ul class="footer-info">
+          <li><i data-lucide="map-pin"></i> <span>Global Head Office, Bangalore, India</span></li>
+          <li><i data-lucide="mail"></i> <span>contact@gravitystudios.com</span></li>
+          <li><i data-lucide="phone"></i> <span>+91 98765 43210</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <p>&copy; 2026 Gravity Studios. All rights reserved.</p>
+      <ul class="footer-bottom-links">
+        <li><a href="#">Privacy Policy</a></li>
+        <li><a href="#">Terms of Use</a></li>
+      </ul>
+    </div>
+  </footer>
+
+  <!-- SCRIPT HOOKS -->
+  <!-- Three.js (Core WebGL) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <!-- Lucide (SVG Vector Icons) -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Custom Application Scripts -->
+  <script src="js/three-scene.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
