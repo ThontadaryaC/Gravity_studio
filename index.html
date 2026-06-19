@@ -3,15 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Gravity Studios | Premium Entertainment & Tech Ecosystem</title>
+  <title>ANT I Gravity Studios | Premium Entertainment & Tech Ecosystem</title>
   
   <!-- SEO Meta Tags -->
   <meta name="description" content="Explore the multi-colored leadership roadmap, organizational chart, and 18 diverse creative/tech departments of Gravity Studios. Pushing boundaries in Anime, VFX, Game Development, and AI Research.">
   <meta name="keywords" content="Gravity Studios, Ajay Raj BK, Shashank Raj BK, Media Gallery, VFX, Anime, AI Research, Game Development, Tech Startup, Accessibility">
   <meta name="author" content="Gravity Studios">
   
-  <!-- Style Sheet -->
+  <!-- Style Sheets -->
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/chatbot.css?v=2.5">
 </head>
 <body>
   <!-- Script to load theme early and prevent flash of default theme -->
@@ -39,7 +40,7 @@
     <canvas id="intro-canvas-fallback" class="intro-canvas-fallback"></canvas>
     
     <div class="intro-content">
-      <h1 class="intro-logo" id="intro-logo">Gravity Studios</h1>
+      <h1 class="intro-logo" id="intro-logo">ANT I Gravity Studios</h1>
       <p class="intro-subtitle">Defying limits, defining futures</p>
       
       <div class="intro-progress-container">
@@ -54,7 +55,7 @@
   <!-- HEADER & NAVIGATION -->
   <header>
     <div class="logo-container">
-      <span class="logo-text">Gravity Studios</span>
+      <span class="logo-text">Ant I Gravity Studios</span>
       <span class="logo-dot" aria-hidden="true"></span>
     </div>
     
@@ -71,17 +72,14 @@
         </ul>
       </nav>
 
-      <!-- Accessibility / Fun controls for kids & elders -->
+      <!-- Header controls (Theme toggle & Portal settings) -->
       <div class="accessibility-controls">
         <button class="control-btn" data-action="theme-toggle" data-tooltip="Switch Theme" aria-pressed="false" aria-label="Toggle Dark/Light Theme">
           <i data-lucide="sun" class="icon-sun"></i>
           <i data-lucide="moon" class="icon-moon"></i>
         </button>
-        <button class="control-btn" data-action="readability" data-tooltip="Senior Friendly Text Mode" aria-pressed="false" aria-label="Toggle Senior Friendly Big Text Mode">
-          <i data-lucide="eye"></i>
-        </button>
-        <button class="control-btn" data-action="magicpaint" data-tooltip="Kids Magic Star Paint" aria-pressed="false" aria-label="Toggle Kids Magic Star Paint Brush">
-          <i data-lucide="wand-2"></i>
+        <button class="control-btn" data-action="settings" data-tooltip="Portal Settings" aria-label="Open Portal Settings">
+          <i data-lucide="settings">⚙️</i>
         </button>
       </div>
     </div>
@@ -95,10 +93,10 @@
       <div class="hero-content">
         <div class="hero-subtitle">
           <span class="hero-subtitle-dot" aria-hidden="true"></span>
-          Gravity Studios Ecosystem
+          AntIGravity Studios Ecosystem
         </div>
         <h2 class="hero-title" id="hero-title">
-          <span>Welcome to Gravity,</span>
+          <span>Welcome to Ant I Gravity,</span>
           <span class="glow-text">Defining Entertainment</span>
         </h2>
         <p class="hero-description">
@@ -908,10 +906,11 @@
   <!-- SCRIPT HOOKS -->
   <!-- Three.js (Core WebGL) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <!-- Lucide (SVG Vector Icons) -->
-  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Lucide (SVG Vector Icons - Local) -->
+  <script src="js/lucide.min.js"></script>
   <!-- Custom Application Scripts -->
   <script src="js/three-scene.js"></script>
   <script src="js/app.js"></script>
+  <script src="js/chatbot.js?v=2.5"></script>
 </body>
 </html>

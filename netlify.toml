@@ -1,0 +1,10 @@
+# Netlify Configuration File
+# Tells Netlify where to find the static files and the serverless functions.
+
+[build]
+  # Publish the root directory since it is a pure static frontend site
+  publish = "."
+
+[functions]
+  # Tell Netlify to compile and deploy functions from this folder
+  directory = "netlify/functions"

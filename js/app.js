@@ -1,10 +1,17 @@
 // Gravity Studios - UI Interaction & Animation Controller (Vibrant & Family-Friendly)
 
 document.addEventListener('DOMContentLoaded', () => {
-  if (typeof lucide !== 'undefined') {
-    lucide.createIcons();
+  // Safe retry for Lucide icons rendering to avoid race conditions
+  function renderAllIcons() {
+    if (typeof lucide !== 'undefined') {
+      lucide.createIcons();
+    } else {
+      setTimeout(renderAllIcons, 250);
+    }
   }
+  renderAllIcons();
   initThemeToggle();
+  initPortalSettings();
   initIntroLoader();
   initNavbarScroll();
   initAccessibilityControls();
@@ -956,6 +963,18 @@ function initOrgCarousel() {
       }
       startX = 0;
       currentX = 0;
+    });
+  }
+}
+
+/* ==========================================================================
+   X. PORTAL SETTINGS (FUTURE PAYMENTS PLACEHOLDER)
+   ========================================================================== */
+function initPortalSettings() {
+  const settingsBtn = document.querySelector('[data-action="settings"]');
+  if (settingsBtn) {
+    settingsBtn.addEventListener('click', () => {
+      alert("Portal configurations and Payment settings will be available in the next release!");
     });
   }
 }
