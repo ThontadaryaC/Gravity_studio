@@ -15,10 +15,22 @@ exports.handler = async function (event, context) {
     // Read the secure API Key from the Netlify environment variables
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
+      // Filter out any key names that might sound sensitive just to be safe
+      const safeKeys = Object.keys(process.env).filter(k => 
+        !k.toLowerCase().includes("key") && 
+        !k.toLowerCase().includes("secret") && 
+        !k.toLowerCase().includes("password") && 
+        !k.toLowerCase().includes("token") &&
+        !k.toLowerCase().includes("auth")
+      );
       return {
         statusCode: 500,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ error: { message: "Gemini API key is not configured on the server. Please add GEMINI_API_KEY in your Netlify dashboard." } })
+        body: JSON.stringify({ 
+          error: { 
+            message: `Gemini API key is not configured on the server. Please add GEMINI_API_KEY in your Netlify dashboard.\n\nAvailable Env Keys: [${safeKeys.join(', ')}]` 
+          } 
+        })
       };
     }
 
