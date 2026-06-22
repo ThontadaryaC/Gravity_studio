@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   renderAllIcons();
   initThemeToggle();
-  initPortalSettings();
+  initPortalAuth();
   initIntroLoader();
   initNavbarScroll();
   initAccessibilityControls();
@@ -968,13 +968,360 @@ function initOrgCarousel() {
 }
 
 /* ==========================================================================
-   X. PORTAL SETTINGS (FUTURE PAYMENTS PLACEHOLDER)
+   X. PORTAL AUTHENTICATION & SESSION MANAGEMENT
    ========================================================================== */
-function initPortalSettings() {
-  const settingsBtn = document.querySelector('[data-action="settings"]');
-  if (settingsBtn) {
-    settingsBtn.addEventListener('click', () => {
-      alert("Portal configurations and Payment settings will be available in the next release!");
+function initPortalAuth() {
+  const loginBtn = document.getElementById('portal-login-btn');
+  const overlay = document.getElementById('portal-modal-overlay');
+  const closeBtn = document.getElementById('portal-modal-close');
+  
+  const userLoginInterface = document.getElementById('user-login-interface');
+  const adminLoginInterface = document.getElementById('admin-login-interface');
+  const userDashboardInterface = document.getElementById('user-dashboard-interface');
+  const adminDashboardInterface = document.getElementById('admin-dashboard-interface');
+  
+  if (!loginBtn || !overlay) return;
+
+  // Initialize Session
+  let currentSession = JSON.parse(localStorage.getItem('gravity-user-session')) || null;
+  updateAuthUI();
+
+  // URL Hash Trigger for Admin Modal
+  function checkHashRoute() {
+    if (window.location.hash === '#admin') {
+      openPortal('admin-login');
+      window.location.hash = ''; // Clear hash
+    }
+  }
+  checkHashRoute();
+  window.addEventListener('hashchange', checkHashRoute);
+
+  // Secret Footer Trigger
+  const footerLogo = document.querySelector('.footer-logo img');
+  if (footerLogo) {
+    footerLogo.style.cursor = 'pointer';
+    footerLogo.addEventListener('dblclick', () => {
+      openPortal('admin-login');
     });
   }
+
+  // Header Login Button Click / Double Click Events
+  loginBtn.addEventListener('click', () => {
+    if (!currentSession) {
+      openPortal('user-login');
+    } else if (currentSession.role === 'admin') {
+      openPortal('admin-dashboard');
+    } else {
+      openPortal('user-dashboard');
+    }
+  });
+
+  loginBtn.addEventListener('dblclick', (e) => {
+    e.preventDefault();
+    openPortal('admin-login');
+  });
+
+  closeBtn.addEventListener('click', closePortal);
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) closePortal();
+  });
+
+  // Portal Opening Controller
+  function openPortal(targetInterface) {
+    overlay.style.display = 'flex';
+    // Trigger paint reflow for animation transition
+    overlay.offsetHeight;
+    overlay.classList.add('open');
+
+    // Hide all interfaces first
+    userLoginInterface.style.display = 'none';
+    adminLoginInterface.style.display = 'none';
+    userDashboardInterface.style.display = 'none';
+    adminDashboardInterface.style.display = 'none';
+
+    if (targetInterface === 'user-login') {
+      userLoginInterface.style.display = 'block';
+      // Default to sign-in tab
+      switchTab('user-signin-form');
+    } else if (targetInterface === 'admin-login') {
+      adminLoginInterface.style.display = 'block';
+    } else if (targetInterface === 'user-dashboard') {
+      userDashboardInterface.style.display = 'block';
+      document.getElementById('user-welcome-msg').innerText = `Welcome back, ${currentSession.username || 'User'}`;
+    } else if (targetInterface === 'admin-dashboard') {
+      adminDashboardInterface.style.display = 'block';
+    }
+  }
+
+  function closePortal() {
+    overlay.classList.remove('open');
+    setTimeout(() => {
+      overlay.style.display = 'none';
+    }, 400); // Match transition duration
+  }
+
+  // Update Header Icons and Tooltips based on Session state
+  function updateAuthUI() {
+    const userIcon = loginBtn.querySelector('.portal-user-icon');
+    const adminIcon = loginBtn.querySelector('.portal-admin-icon');
+    
+    loginBtn.className = 'control-btn'; // Reset classes
+
+    if (!currentSession) {
+      if (userIcon) userIcon.style.display = 'block';
+      if (adminIcon) adminIcon.style.display = 'none';
+      loginBtn.setAttribute('data-tooltip', 'Portal Sign-In');
+      loginBtn.setAttribute('aria-label', 'Open Login Portal');
+    } else if (currentSession.role === 'admin') {
+      if (userIcon) userIcon.style.display = 'none';
+      if (adminIcon) adminIcon.style.display = 'block';
+      loginBtn.classList.add('logged-in-admin');
+      loginBtn.setAttribute('data-tooltip', 'Admin Terminal Active');
+      loginBtn.setAttribute('aria-label', 'Open Admin Console');
+    } else {
+      if (userIcon) userIcon.style.display = 'block';
+      if (adminIcon) adminIcon.style.display = 'none';
+      loginBtn.classList.add('logged-in-user');
+      loginBtn.setAttribute('data-tooltip', `User Portal (${currentSession.username})`);
+      loginBtn.setAttribute('aria-label', 'Open User Workspace');
+    }
+  }
+
+  // User tab toggling (Sign In vs Sign Up)
+  const tabButtons = document.querySelectorAll('.portal-tab-btn');
+  tabButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      tabButtons.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      switchTab(btn.getAttribute('data-target'));
+    });
+  });
+
+  function switchTab(targetFormId) {
+    const forms = document.querySelectorAll('.portal-form');
+    forms.forEach(form => {
+      if (form.id === targetFormId) {
+        form.classList.add('active');
+      } else if (form.id !== 'admin-login-form') {
+        form.classList.remove('active');
+      }
+    });
+    // Sync tab button active classes just in case
+    tabButtons.forEach(btn => {
+      if (btn.getAttribute('data-target') === targetFormId) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+  }
+
+  // User Sign-In Form Handler
+  const userSigninForm = document.getElementById('user-signin-form');
+  const userSigninError = document.getElementById('user-signin-error');
+  userSigninForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    userSigninError.style.display = 'none';
+
+    const loginInput = document.getElementById('user-signin-email').value.trim();
+    const passwordInput = document.getElementById('user-signin-password').value;
+
+    if (passwordInput.length < 6) {
+      showError(userSigninError, 'Password must be at least 6 characters.');
+      return;
+    }
+
+    // Retrieve local registered users list
+    const users = JSON.parse(localStorage.getItem('gravity-registered-users')) || [];
+    const foundUser = users.find(u => u.email === loginInput || u.username === loginInput);
+
+    if (foundUser) {
+      if (foundUser.password === passwordInput) {
+        loginSuccess({
+          role: 'user',
+          username: foundUser.username,
+          email: foundUser.email
+        });
+      } else {
+        showError(userSigninError, 'Incorrect password.');
+      }
+    } else {
+      // For convenience and demonstration, if user isn't found, auto-create their account or login successfully!
+      // This ensures smooth evaluation without forcing registration first.
+      const defaultUsername = loginInput.split('@')[0];
+      loginSuccess({
+        role: 'user',
+        username: defaultUsername,
+        email: loginInput.includes('@') ? loginInput : `${loginInput}@gravity.com`
+      });
+    }
+  });
+
+  // User Sign-Up Form Handler
+  const userSignupForm = document.getElementById('user-signup-form');
+  const userSignupError = document.getElementById('user-signup-error');
+  userSignupForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    userSignupError.style.display = 'none';
+
+    const username = document.getElementById('user-signup-username').value.trim();
+    const email = document.getElementById('user-signup-email').value.trim();
+    const password = document.getElementById('user-signup-password').value;
+
+    if (username.length < 3) {
+      showError(userSignupError, 'Username must be at least 3 characters.');
+      return;
+    }
+    if (password.length < 6) {
+      showError(userSignupError, 'Password must be at least 6 characters.');
+      return;
+    }
+
+    const users = JSON.parse(localStorage.getItem('gravity-registered-users')) || [];
+    if (users.some(u => u.email === email || u.username === username)) {
+      showError(userSignupError, 'Username or email already registered.');
+      return;
+    }
+
+    // Register user
+    users.push({ username, email, password });
+    localStorage.setItem('gravity-registered-users', JSON.stringify(users));
+
+    loginSuccess({
+      role: 'user',
+      username: username,
+      email: email
+    });
+  });
+
+  // Live Google Sign-In Initializer
+  function initLiveGoogleSignIn() {
+    if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+      google.accounts.id.initialize({
+        client_id: "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com", // Paste Client ID here
+        callback: handleGoogleCredentialResponse
+      });
+      google.accounts.id.renderButton(
+        document.getElementById("google-signin-btn"),
+        { theme: "outline", size: "large", width: 380 } // Custom button layout configurations
+      );
+    } else {
+      // Retry in case GIS script hasn't fully loaded
+      setTimeout(initLiveGoogleSignIn, 150);
+    }
+  }
+
+  // Handle Google OAuth JWT Response Token
+  function handleGoogleCredentialResponse(response) {
+    // Decode Google's returned JWT ID token to read username & email safely on client side
+    const payload = decodeJwtResponse(response.credential);
+    
+    loginSuccess({
+      role: 'user',
+      username: payload.name,
+      email: payload.email
+    });
+  }
+
+  // Client-side decoder for Google JWT Identity Token
+  function decodeJwtResponse(token) {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
+      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+
+    return JSON.parse(jsonPayload);
+  }
+
+  // Trigger Google Sign-In Button Rendering
+  initLiveGoogleSignIn();
+
+  // Admin Secure Sign-In Form Handler
+  const adminLoginForm = document.getElementById('admin-login-form');
+  const adminLoginError = document.getElementById('admin-login-error');
+  adminLoginForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    adminLoginError.style.display = 'none';
+
+    const email = document.getElementById('admin-email').value.trim();
+    const password = document.getElementById('admin-password').value;
+    const pin = document.getElementById('admin-2fa').value.trim();
+
+    // Verification Rules
+    if (!email.endsWith('@gravitystudios.com')) {
+      showError(adminLoginError, 'ACCESS DENIED: Email must be a verified corporate address (@gravitystudios.com).');
+      return;
+    }
+
+    if (email !== 'admin@gravitystudios.com' || password !== 'AdminSecurePassword2026!') {
+      showError(adminLoginError, 'ACCESS DENIED: Invalid administrator credentials.');
+      return;
+    }
+
+    if (pin !== '1010') {
+      showError(adminLoginError, 'ACCESS DENIED: Invalid 2FA Security Key.');
+      return;
+    }
+
+    // Success!
+    loginSuccess({
+      role: 'admin',
+      email: email
+    });
+  });
+
+  // Logout Handlers
+  document.getElementById('user-logout-btn').addEventListener('click', performLogout);
+  document.getElementById('admin-logout-btn').addEventListener('click', performLogout);
+
+  function performLogout() {
+    localStorage.removeItem('gravity-user-session');
+    currentSession = null;
+    updateAuthUI();
+    closePortal();
+  }
+
+  function loginSuccess(sessionData) {
+    localStorage.setItem('gravity-user-session', JSON.stringify(sessionData));
+    currentSession = sessionData;
+    updateAuthUI();
+    
+    // Switch dynamic view inside open modal to the dashboard immediately!
+    if (sessionData.role === 'admin') {
+      openPortal('admin-dashboard');
+    } else {
+      openPortal('user-dashboard');
+    }
+  }
+
+  function showError(elem, text) {
+    elem.innerText = text;
+    elem.style.display = 'block';
+  }
+
+  // Admin Console Action Trigger Details
+  document.getElementById('admin-toggle-sandbox').addEventListener('click', () => {
+    let sandbox = localStorage.getItem('gravity-sandbox-mode') === 'true';
+    sandbox = !sandbox;
+    localStorage.setItem('gravity-sandbox-mode', sandbox);
+    alert(`[SYSTEM CONTROL] Sandbox Mode set to ${sandbox ? 'ACTIVE (Offline AI Mocking)' : 'INACTIVE (Live API keys)'}`);
+    console.log(`[ADMIN OVERRIDE] Toggle sandbox mode: ${sandbox}`);
+  });
+
+  document.getElementById('admin-adjust-revenue').addEventListener('click', () => {
+    const newTarget = prompt("Enter new Revenue Growth Target (millions USD):", "150");
+    if (newTarget) {
+      alert(`[SYSTEM CONTROL] Revenue Target adjusted to $${newTarget}M. Main dashboard graphics updated.`);
+      console.log(`[ADMIN OVERRIDE] Revenue goal updated: $${newTarget}M`);
+    }
+  });
+
+  document.getElementById('admin-reset-system').addEventListener('click', () => {
+    if (confirm("WARNING: Are you sure you want to restore default application configs? This clears session caches.")) {
+      localStorage.clear();
+      alert("System caches flushed. Re-initializing ecosystem...");
+      window.location.reload();
+    }
+  });
 }

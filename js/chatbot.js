@@ -23,7 +23,7 @@ const CONFIG = {
   
   // List of PDF filenames placed in the assets/pdfs/ directory to index automatically.
   // Add your files here! Example: ["services.pdf", "company-profile.pdf"]
-  pdfFiles: []
+  pdfFiles: ["Ant_I_gravity.pdf",]
 };
 
 (function () {
