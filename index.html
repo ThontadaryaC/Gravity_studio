@@ -1051,25 +1051,55 @@
     </div>
   </div>
 
-  <!-- FUTURISTIC DOCK NAVIGATION -->
-  <div class="gravity-control-dock-container" id="gravity-control-dock" style="display: none;">
-    <div class="dock-user-profile">
-      <div class="dock-avatar" id="dock-avatar-placeholder">U</div>
-      <div class="dock-user-details">
-        <h4 id="dock-username">User Name</h4>
-        <span class="badge-tier">Premium Client</span>
+  <!-- USER SIDEBAR DRAWER & BACKDROP -->
+  <div class="sidebar-backdrop" id="user-sidebar-backdrop"></div>
+  <div class="user-sidebar" id="user-sidebar" style="display: none;" aria-modal="true" role="dialog">
+    <div class="sidebar-header">
+      <div class="sidebar-user-profile">
+        <div class="sidebar-avatar" id="sidebar-avatar-placeholder">U</div>
+        <div class="sidebar-user-details">
+          <h3 id="sidebar-username">User Name</h3>
+          <span class="badge-tier">Premium Client</span>
+        </div>
       </div>
+      <button class="sidebar-close-btn" id="sidebar-close-btn" aria-label="Close Sidebar">&times;</button>
     </div>
-    <div class="dock-divider"></div>
-    <nav class="dock-nav" aria-label="Portal Quick Actions">
-      <button class="dock-btn" data-window="profile-settings" data-tooltip="Profile Settings"><i data-lucide="user"></i></button>
-      <button class="dock-btn" data-window="notifications" data-tooltip="Notifications"><i data-lucide="bell"></i><span class="dock-badge" id="dock-notif-count">3</span></button>
-      <button class="dock-btn" data-window="payments" data-tooltip="Your Payments"><i data-lucide="credit-card"></i></button>
-      <button class="dock-btn" data-window="buyed-services" data-tooltip="Buyed Services"><i data-lucide="shopping-bag"></i></button>
-      <button class="dock-btn" data-window="track-services" data-tooltip="Track Services"><i data-lucide="activity"></i></button>
+    
+    <nav class="sidebar-nav" aria-label="Portal Navigation Actions">
+      <button class="sidebar-nav-row-btn dock-btn" data-window="profile-settings">
+        <i data-lucide="user"></i>
+        <span>Profile Settings</span>
+        <i data-lucide="chevron-right" class="arrow-icon"></i>
+      </button>
+      <button class="sidebar-nav-row-btn dock-btn" data-window="notifications">
+        <i data-lucide="bell"></i>
+        <span>Notifications Feed</span>
+        <span class="sidebar-badge-count" id="sidebar-notif-count">3</span>
+        <i data-lucide="chevron-right" class="arrow-icon"></i>
+      </button>
+      <button class="sidebar-nav-row-btn dock-btn" data-window="payments">
+        <i data-lucide="credit-card"></i>
+        <span>Payments & Billing</span>
+        <i data-lucide="chevron-right" class="arrow-icon"></i>
+      </button>
+      <button class="sidebar-nav-row-btn dock-btn" data-window="buyed-services">
+        <i data-lucide="shopping-bag"></i>
+        <span>Purchased Services</span>
+        <i data-lucide="chevron-right" class="arrow-icon"></i>
+      </button>
+      <button class="sidebar-nav-row-btn dock-btn" data-window="track-services">
+        <i data-lucide="activity"></i>
+        <span>Track your service and products</span>
+        <i data-lucide="chevron-right" class="arrow-icon"></i>
+      </button>
     </nav>
-    <div class="dock-divider"></div>
-    <button class="dock-logout-btn" id="dock-logout-btn" data-tooltip="Log Out"><i data-lucide="log-out"></i></button>
+    
+    <div class="sidebar-footer">
+      <button type="button" class="sidebar-logout-row-btn" id="sidebar-logout-btn">
+        <i data-lucide="log-out"></i>
+        <span>Log Out</span>
+      </button>
+    </div>
   </div>
 
   <!-- MULTI-WINDOW DASHBOARD INTERFACES -->

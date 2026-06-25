@@ -3131,166 +3131,241 @@ body.dark-theme .portal-input-group input {
   margin: 0;
 }
 
-/* --- HORIZONTAL DOCK & MULTI-WINDOW DASHBOARD SYSTEM --- */
+/* --- VERTICAL USER SIDEBAR & MULTI-WINDOW DASHBOARD SYSTEM --- */
 
-/* Floating Control Dock */
-.gravity-control-dock-container {
+/* Sidebar Backdrop Overlay */
+.sidebar-backdrop {
   position: fixed;
-  bottom: 24px;
-  left: 50%;
-  transform: translateX(-50%) translateY(120px);
-  background: var(--glass-bg);
-  backdrop-filter: blur(24px);
-  border: 1px solid var(--glass-border);
-  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.25);
-  border-radius: 20px;
-  padding: 0.6rem 1.25rem;
-  display: flex;
-  align-items: center;
-  gap: 1.25rem;
-  z-index: 1050;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(4, 3, 7, 0.4);
+  backdrop-filter: blur(4px);
+  z-index: 1045;
   opacity: 0;
-  transition: transform var(--transition-medium) cubic-bezier(0.16, 1, 0.3, 1), opacity var(--transition-medium) ease;
+  pointer-events: none;
+  transition: opacity var(--transition-medium) ease;
 }
 
-body.dark-theme .gravity-control-dock-container {
-  background: rgba(12, 10, 22, 0.82);
-  border-color: rgba(255, 255, 255, 0.08);
+@media (min-width: 769px) {
+  .sidebar-backdrop {
+    display: none; /* Do not block screen clicks on desktop so users can interact with floating windows */
+  }
 }
 
-.gravity-control-dock-container.open {
-  transform: translateX(-50%) translateY(0);
+.sidebar-backdrop.open {
   opacity: 1;
+  pointer-events: auto;
 }
 
-/* User profile details inside Dock */
-.dock-user-profile {
+/* Sliding Right-Aligned Sidebar Drawer */
+.user-sidebar {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 360px;
+  height: 100vh;
+  background: var(--glass-bg);
+  backdrop-filter: blur(30px);
+  border-left: 1px solid var(--glass-border);
+  box-shadow: -10px 0 40px rgba(0, 0, 0, 0.35);
+  z-index: 1050;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform var(--transition-medium) cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+body.dark-theme .user-sidebar {
+  background: rgba(12, 10, 22, 0.9);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: -10px 0 40px rgba(0, 0, 0, 0.55);
+}
+
+.user-sidebar.open {
+  transform: translateX(0);
+}
+
+/* Sidebar Header */
+.sidebar-header {
+  padding: 2rem 1.5rem 1.5rem;
+  border-bottom: 1px solid var(--glass-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.sidebar-user-profile {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 1rem;
 }
 
-.dock-avatar {
-  width: 38px;
-  height: 38px;
+.sidebar-avatar {
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--neon-cyan), var(--neon-purple));
+  background: linear-gradient(135deg, var(--neon-purple), var(--neon-cyan));
   color: #ffffff;
+  font-family: var(--font-header);
+  font-weight: 700;
+  font-size: 1.25rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: var(--font-header);
-  font-size: 1rem;
-  font-weight: 700;
-  box-shadow: 0 0 8px rgba(0, 240, 255, 0.2);
+  box-shadow: 0 0 15px rgba(176, 38, 255, 0.3);
   text-transform: uppercase;
 }
 
-.dock-user-details h4 {
+.sidebar-user-details h3 {
+  margin: 0;
   font-family: var(--font-header);
-  font-size: 0.8rem;
+  font-size: 1.1rem;
+  font-weight: 600;
   color: var(--text-pure);
   margin-bottom: 0.1rem;
   text-transform: capitalize;
 }
 
-.dock-divider {
-  width: 1px;
-  height: 28px;
-  background-color: var(--glass-border);
-}
-
-/* Navigation items in Dock */
-.dock-nav {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.dock-btn,
-.dock-logout-btn {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
+.sidebar-close-btn {
+  background: none;
   border: none;
-  background: transparent;
   color: var(--text-muted);
+  font-size: 2rem;
   cursor: pointer;
+  line-height: 1;
+  padding: 0 0.5rem;
+  transition: color var(--transition-fast) ease;
+}
+
+.sidebar-close-btn:hover {
+  color: #ff3366;
+}
+
+/* Sidebar Vertical Rows Navigation */
+.sidebar-nav {
+  padding: 1.5rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.sidebar-nav-row-btn {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 1.1rem 1.25rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  color: var(--text-pure);
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast) ease;
+  gap: 1rem;
+  text-align: left;
+}
+
+body.dark-theme .sidebar-nav-row-btn {
+  background: rgba(255, 255, 255, 0.02);
+  border-color: rgba(255, 255, 255, 0.04);
+}
+
+.sidebar-nav-row-btn i {
+  color: var(--neon-purple);
+  width: 18px;
+  height: 18px;
+  transition: color var(--transition-fast) ease;
+  flex-shrink: 0;
+}
+
+.sidebar-nav-row-btn span {
+  flex: 1;
+  font-family: var(--font-header);
+}
+
+.sidebar-nav-row-btn .arrow-icon {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  opacity: 0.4;
+  transition: transform var(--transition-fast) ease, opacity var(--transition-fast) ease;
+}
+
+/* Hover and Active states for Sidebar Buttons */
+.sidebar-nav-row-btn:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(176, 38, 255, 0.25);
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(176, 38, 255, 0.1);
+}
+
+.sidebar-nav-row-btn:hover i {
+  color: var(--neon-cyan);
+}
+
+.sidebar-nav-row-btn:hover .arrow-icon {
+  opacity: 1;
+  transform: translateX(4px);
+  color: var(--neon-cyan);
+}
+
+.sidebar-nav-row-btn.active {
+  background: rgba(176, 38, 255, 0.12);
+  border-color: var(--neon-purple);
+  box-shadow: 0 0 15px rgba(176, 38, 255, 0.15);
+}
+
+.sidebar-nav-row-btn.active i {
+  color: var(--neon-cyan);
+}
+
+.sidebar-badge-count {
+  background: var(--neon-amber);
+  color: #000000;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+  border-radius: 20px;
+  line-height: 1;
+  box-shadow: 0 0 8px var(--neon-amber-glow);
+}
+
+/* Sidebar Footer & Logout */
+.sidebar-footer {
+  padding: 1.25rem;
+  border-top: 1px solid var(--glass-border);
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.sidebar-logout-row-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  position: relative;
-  transition: all var(--transition-fast) ease;
-}
-
-.dock-btn i,
-.dock-logout-btn i {
-  width: 18px;
-  height: 18px;
-}
-
-.dock-btn:hover {
-  color: var(--text-pure);
-  background-color: rgba(255, 255, 255, 0.06);
-}
-
-.dock-btn.active {
-  background-color: var(--neon-cyan);
-  color: #ffffff;
-  box-shadow: 0 4px 12px var(--neon-cyan-glow);
-}
-
-/* Dynamic Tooltip on Dock buttons */
-.dock-btn::before,
-.dock-logout-btn::before {
-  content: attr(data-tooltip);
-  position: absolute;
-  top: -42px;
-  left: 50%;
-  transform: translateX(-50%) translateY(8px);
-  background: var(--bg-deep);
-  border: 1px solid var(--glass-border);
-  color: var(--text-pure);
-  font-size: 0.65rem;
-  padding: 0.35rem 0.6rem;
-  border-radius: 6px;
-  white-space: nowrap;
-  opacity: 0;
-  pointer-events: none;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  transition: opacity var(--transition-fast) ease, transform var(--transition-fast) ease;
-}
-
-body.dark-theme .dock-btn::before,
-body.dark-theme .dock-logout-btn::before {
-  background: rgba(12, 10, 22, 0.92);
-}
-
-.dock-btn:hover::before,
-.dock-logout-btn:hover::before {
-  opacity: 1;
-  transform: translateX(-50%) translateY(0);
-}
-
-.dock-badge {
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  background-color: #ff3366;
-  color: #ffffff;
-  font-size: 0.6rem;
-  font-weight: bold;
-  border-radius: 8px;
-  padding: 0.1rem 0.3rem;
-  line-height: 1;
-}
-
-.dock-logout-btn {
-  color: var(--text-muted);
-}
-
-.dock-logout-btn:hover {
-  background-color: rgba(255, 51, 102, 0.08);
+  width: 100%;
+  padding: 1rem;
+  background: rgba(255, 51, 102, 0.04);
+  border: 1px solid rgba(255, 51, 102, 0.15);
+  border-radius: 12px;
   color: #ff3366;
+  font-family: var(--font-header);
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast) ease;
+  gap: 0.75rem;
+}
+
+.sidebar-logout-row-btn:hover {
+  background: rgba(255, 51, 102, 0.12);
+  border-color: #ff3366;
+  box-shadow: 0 5px 15px rgba(255, 51, 102, 0.2);
+  transform: translateY(-2px);
 }
 
 /* Floating Centered Window Container */
@@ -3396,19 +3471,11 @@ body.dark-theme .window-header {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* Responsive Dock Layouts */
+/* Responsive Sidebar Layouts */
 @media (max-width: 768px) {
-  .gravity-control-dock-container {
-    bottom: 16px;
-    padding: 0.5rem 0.75rem;
-    gap: 0.75rem;
-    border-radius: 16px;
-    width: 90%;
-    justify-content: space-between;
-  }
-  
-  .dock-user-details {
-    display: none; /* Hide username label on mobile to save space */
+  .user-sidebar {
+    width: 100%; /* Take full width on mobile screens */
+    border-left: none;
   }
 
   .dashboard-window-container {
