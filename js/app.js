@@ -1,5 +1,10 @@
 // Gravity Studios - UI Interaction & Animation Controller (Vibrant & Family-Friendly)
 
+// Initialize Supabase Client (Syncs with cloud database)
+const supabaseUrl = 'https://kivfatgytkjqoreltuyu.supabase.co';
+const supabaseKey = 'sb_publishable_NGdByzMeaQrwJPw1YKGjnA_issJf05b';
+const supabaseClient = (typeof supabase !== 'undefined') ? supabase.createClient(supabaseUrl, supabaseKey) : null;
+
 document.addEventListener('DOMContentLoaded', () => {
   // Safe retry for Lucide icons rendering to avoid race conditions
   function renderAllIcons() {
@@ -994,6 +999,31 @@ function initPortalAuth() {
   let currentSession = JSON.parse(localStorage.getItem('gravity-user-session')) || null;
   updateAuthUI();
 
+  // Sync session with Supabase if active
+  if (supabaseClient) {
+    supabaseClient.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        if (!currentSession || currentSession.uid !== session.user.id) {
+          supabaseClient.from('profiles').select('username').eq('id', session.user.id).single().then(({ data: profile }) => {
+            currentSession = {
+              role: 'user',
+              username: profile ? profile.username : session.user.email.split('@')[0],
+              email: session.user.email,
+              uid: session.user.id
+            };
+            localStorage.setItem('gravity-user-session', JSON.stringify(currentSession));
+            updateAuthUI();
+            
+            const usernameElem = document.getElementById('sidebar-username');
+            const avatarElem = document.getElementById('sidebar-avatar-placeholder');
+            if (usernameElem) usernameElem.innerText = currentSession.username;
+            if (avatarElem) avatarElem.innerText = currentSession.username.charAt(0).toUpperCase();
+          });
+        }
+      }
+    });
+  }
+
   // URL Hash Trigger for Admin Modal
   function checkHashRoute() {
     if (window.location.hash === '#admin') {
@@ -1113,12 +1143,25 @@ function initPortalAuth() {
   }
 
   // Profile Form Edit Handler
-  profileForm.addEventListener('submit', (e) => {
+  profileForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const updatedUsername = document.getElementById('profile-username').value.trim();
     if (updatedUsername.length < 3) {
       alert("Username must be at least 3 characters long.");
       return;
+    }
+
+    // Update Supabase profiles table if active
+    if (supabaseClient && currentSession && currentSession.uid) {
+      const { error } = await supabaseClient
+        .from('profiles')
+        .update({ username: updatedUsername })
+        .eq('id', currentSession.uid);
+
+      if (error) {
+        alert(`Failed to update profile in database: ${error.message}`);
+        return;
+      }
     }
 
     currentSession.username = updatedUsername;
@@ -1154,16 +1197,38 @@ function initPortalAuth() {
   }
 
   // Render Notifications
-  function renderNotifications() {
+  async function renderNotifications() {
     const container = document.getElementById('notifications-list-container');
     if (!container) return;
 
-    const notifs = JSON.parse(localStorage.getItem('gravity-system-notifications')) || [];
+    let notifs = [];
+    if (supabaseClient) {
+      const { data, error } = await supabaseClient
+        .from('notifications')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (!error && data) {
+        notifs = data.map(n => ({
+          id: n.id,
+          title: n.title,
+          desc: n.desc_text,
+          time: n.time_label,
+          read: n.is_read
+        }));
+      } else {
+        notifs = JSON.parse(localStorage.getItem('gravity-system-notifications')) || [];
+      }
+    } else {
+      notifs = JSON.parse(localStorage.getItem('gravity-system-notifications')) || [];
+    }
+
     container.innerHTML = '';
 
     if (notifs.length === 0) {
       container.innerHTML = `<p class="text-muted" style="text-align:center; padding: 2rem 0;">No notifications received yet.</p>`;
-      document.getElementById('sidebar-notif-count').style.display = 'none';
+      const badge = document.getElementById('sidebar-notif-count');
+      if (badge) badge.style.display = 'none';
       return;
     }
 
@@ -1188,11 +1253,18 @@ function initPortalAuth() {
         <div class="notif-time" style="font-size:0.75rem; color:var(--neon-cyan);">${notif.time}</div>
       `;
       // Mark as read when clicked or viewed
-      div.addEventListener('click', () => {
+      div.addEventListener('click', async () => {
         if (!notif.read) {
           notif.read = true;
-          localStorage.setItem('gravity-system-notifications', JSON.stringify(notifs));
-          renderNotifications();
+          if (supabaseClient) {
+            await supabaseClient
+              .from('notifications')
+              .update({ is_read: true })
+              .eq('id', notif.id);
+          } else {
+            localStorage.setItem('gravity-system-notifications', JSON.stringify(notifs));
+          }
+          await renderNotifications();
         }
       });
       container.appendChild(div);
@@ -1200,11 +1272,35 @@ function initPortalAuth() {
   }
 
   // Render Payments & Billing Tab
-  function renderPayments() {
+  async function renderPayments() {
     const container = document.getElementById('invoices-list-container');
     if (!container) return;
 
-    const purchases = JSON.parse(localStorage.getItem('gravity-user-purchases')) || [];
+    let purchases = [];
+    if (supabaseClient && currentSession && currentSession.uid) {
+      const { data, error } = await supabaseClient
+        .from('purchases')
+        .select('*')
+        .eq('user_id', currentSession.uid)
+        .order('created_at', { ascending: false });
+
+      if (!error && data) {
+        purchases = data.map(p => ({
+          id: p.id,
+          serviceId: p.service_id,
+          serviceName: p.service_name,
+          totalCost: parseFloat(p.total_cost),
+          paidAmount: parseFloat(p.paid_amount),
+          status: p.status,
+          date: p.date
+        }));
+      } else {
+        purchases = JSON.parse(localStorage.getItem('gravity-user-purchases')) || [];
+      }
+    } else {
+      purchases = JSON.parse(localStorage.getItem('gravity-user-purchases')) || [];
+    }
+
     container.innerHTML = '';
 
     if (purchases.length === 0) {
@@ -1305,11 +1401,35 @@ function initPortalAuth() {
   }
 
   // Render Purchased Services History Tab
-  function renderPurchasedServices() {
+  async function renderPurchasedServices() {
     const container = document.getElementById('purchased-services-list-container');
     if (!container) return;
 
-    const purchases = JSON.parse(localStorage.getItem('gravity-user-purchases')) || [];
+    let purchases = [];
+    if (supabaseClient && currentSession && currentSession.uid) {
+      const { data, error } = await supabaseClient
+        .from('purchases')
+        .select('*')
+        .eq('user_id', currentSession.uid)
+        .order('created_at', { ascending: false });
+
+      if (!error && data) {
+        purchases = data.map(p => ({
+          id: p.id,
+          serviceId: p.service_id,
+          serviceName: p.service_name,
+          totalCost: parseFloat(p.total_cost),
+          paidAmount: parseFloat(p.paid_amount),
+          status: p.status,
+          date: p.date
+        }));
+      } else {
+        purchases = JSON.parse(localStorage.getItem('gravity-user-purchases')) || [];
+      }
+    } else {
+      purchases = JSON.parse(localStorage.getItem('gravity-user-purchases')) || [];
+    }
+
     container.innerHTML = '';
 
     if (purchases.length === 0) {
@@ -1344,11 +1464,35 @@ function initPortalAuth() {
   }
 
   // Render Active Service Tracking Tab
-  function renderServiceTracking() {
+  async function renderServiceTracking() {
     const container = document.getElementById('service-tracking-list-container');
     if (!container) return;
 
-    const purchases = JSON.parse(localStorage.getItem('gravity-user-purchases')) || [];
+    let purchases = [];
+    if (supabaseClient && currentSession && currentSession.uid) {
+      const { data, error } = await supabaseClient
+        .from('purchases')
+        .select('*')
+        .eq('user_id', currentSession.uid)
+        .order('created_at', { ascending: false });
+
+      if (!error && data) {
+        purchases = data.map(p => ({
+          id: p.id,
+          serviceId: p.service_id,
+          serviceName: p.service_name,
+          totalCost: parseFloat(p.total_cost),
+          paidAmount: parseFloat(p.paid_amount),
+          status: p.status,
+          date: p.date
+        }));
+      } else {
+        purchases = JSON.parse(localStorage.getItem('gravity-user-purchases')) || [];
+      }
+    } else {
+      purchases = JSON.parse(localStorage.getItem('gravity-user-purchases')) || [];
+    }
+
     container.innerHTML = '';
 
     // Filter active (non-refunded) services
@@ -1445,7 +1589,7 @@ function initPortalAuth() {
 
     // Attach listeners for dynamic buttons inside tracker
     document.querySelectorAll('.simulate-complete-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', async () => {
         const purchaseId = btn.getAttribute('data-id');
         const purchases = JSON.parse(localStorage.getItem('gravity-user-purchases')) || [];
         const index = purchases.findIndex(p => p.id === purchaseId);
@@ -1453,17 +1597,24 @@ function initPortalAuth() {
           purchases[index].status = 'completed';
           localStorage.setItem('gravity-user-purchases', JSON.stringify(purchases));
           
+          if (supabaseClient) {
+            await supabaseClient
+              .from('purchases')
+              .update({ status: 'completed' })
+              .eq('id', purchaseId);
+          }
+          
           // Add notification
-          addSystemNotification(
+          await addSystemNotification(
             "Project Review Pending",
             `Your project '${purchases[index].serviceName}' has been successfully compiled and is ready for final review. Pay the remaining 50% to complete delivery.`
           );
 
           alert("DEVELOPER SIMULATOR: Project status updated to COMPLETED by the creative team!");
           
-          renderPayments();
-          renderPurchasedServices();
-          renderServiceTracking();
+          await renderPayments();
+          await renderPurchasedServices();
+          await renderServiceTracking();
         }
       });
     });
@@ -1497,7 +1648,7 @@ function initPortalAuth() {
   }
 
   // Add system notifications dynamically
-  function addSystemNotification(title, desc) {
+  async function addSystemNotification(title, desc) {
     const notifs = JSON.parse(localStorage.getItem('gravity-system-notifications')) || [];
     notifs.unshift({
       id: Date.now(),
@@ -1507,7 +1658,19 @@ function initPortalAuth() {
       read: false
     });
     localStorage.setItem('gravity-system-notifications', JSON.stringify(notifs));
-    renderNotifications();
+
+    if (supabaseClient) {
+      await supabaseClient
+        .from('notifications')
+        .insert([{
+          title: title,
+          desc_text: desc,
+          time_label: "Just now",
+          is_read: false
+        }]);
+    }
+    
+    await renderNotifications();
   }
 
   /* ==========================================================================
@@ -1573,13 +1736,13 @@ function initPortalAuth() {
       razorpayPayBtn.disabled = true;
 
       // Simulate network delay
-      setTimeout(() => {
+      setTimeout(async () => {
         const methodUsed = methodUpi.classList.contains('active') ? 'UPI' : 'Card';
-        
-        // Log transaction
-        let txs = JSON.parse(localStorage.getItem('gravity-transactions')) || [];
         const txId = "pay_" + Math.random().toString(36).substring(2, 10).toUpperCase();
-        txs.unshift({
+        
+        // Log transaction locally (Fallback)
+        let txs = JSON.parse(localStorage.getItem('gravity-transactions')) || [];
+        const localTx = {
           id: txId,
           user: currentSession ? currentSession.username : 'User',
           email: currentSession ? currentSession.email : 'anonymous@gravity.com',
@@ -1588,25 +1751,60 @@ function initPortalAuth() {
           method: methodUsed,
           type: activePayment.type,
           date: new Date().toLocaleString()
-        });
+        };
+        txs.unshift(localTx);
         localStorage.setItem('gravity-transactions', JSON.stringify(txs));
+
+        // Sync transaction to Supabase
+        if (supabaseClient) {
+          await supabaseClient
+            .from('transactions')
+            .insert([{
+              reference: txId,
+              username: localTx.user,
+              email: localTx.email,
+              service: localTx.service,
+              amount: localTx.amount,
+              method: localTx.method,
+              type: localTx.type,
+              date: localTx.date
+            }]);
+        }
 
         // Update purchases state
         let purchases = JSON.parse(localStorage.getItem('gravity-user-purchases')) || [];
         
         if (activePayment.type === 'booking') {
-          // New purchase record
-          purchases.unshift({
-            id: "PUR-" + Date.now().toString().substring(8),
+          const purId = "PUR-" + Date.now().toString().substring(8);
+          const newPurchase = {
+            id: purId,
             serviceId: activePayment.serviceId,
             serviceName: activePayment.serviceName,
             totalCost: activePayment.totalCost,
             paidAmount: activePayment.payAmount,
             status: 'advance_paid',
             date: new Date().toLocaleDateString()
-          });
+          };
+          purchases.unshift(newPurchase);
+          localStorage.setItem('gravity-user-purchases', JSON.stringify(purchases));
+
+          // Sync purchase to Supabase
+          if (supabaseClient && currentSession && currentSession.uid) {
+            await supabaseClient
+              .from('purchases')
+              .insert([{
+                id: purId,
+                user_id: currentSession.uid,
+                service_id: newPurchase.serviceId,
+                service_name: newPurchase.serviceName,
+                total_cost: newPurchase.totalCost,
+                paid_amount: newPurchase.paidAmount,
+                status: newPurchase.status,
+                date: newPurchase.date
+              }]);
+          }
           
-          addSystemNotification(
+          await addSystemNotification(
             "Booking Confirmed via Razorpay",
             `Successfully received 50% advance booking payment of $${activePayment.payAmount.toFixed(2)} for '${activePayment.serviceName}'. Work starts immediately.`
           );
@@ -1616,14 +1814,25 @@ function initPortalAuth() {
           if (idx !== -1) {
             purchases[idx].paidAmount = purchases[idx].totalCost;
             purchases[idx].status = 'fully_paid';
+            localStorage.setItem('gravity-user-purchases', JSON.stringify(purchases));
+
+            // Sync update to Supabase
+            if (supabaseClient) {
+              await supabaseClient
+                .from('purchases')
+                .update({
+                  paid_amount: purchases[idx].totalCost,
+                  status: 'fully_paid'
+                })
+                .eq('id', activePayment.purchaseId);
+            }
             
-            addSystemNotification(
+            await addSystemNotification(
               "Project Successfully Delivered",
               `Received final 50% payment of $${activePayment.payAmount.toFixed(2)} for '${activePayment.serviceName}'. Source files are released for download.`
             );
           }
         }
-        localStorage.setItem('gravity-user-purchases', JSON.stringify(purchases));
 
         alert(`Razorpay Payment Complete!\nTransaction Reference: ${txId}\nAmount: $${activePayment.payAmount.toFixed(2)}`);
         
@@ -1633,11 +1842,11 @@ function initPortalAuth() {
         activePayment = null;
 
         // Refresh views
-        renderPayments();
-        renderPurchasedServices();
-        renderServiceTracking();
-        renderAdminDashboard();
-      }, 1500);
+        await renderPayments();
+        await renderPurchasedServices();
+        await renderServiceTracking();
+        await renderAdminDashboard();
+      }, 1200);
     });
   }
 
@@ -1700,7 +1909,7 @@ function initPortalAuth() {
 
   // Submit Dispute Form
   if (disputeForm) {
-    disputeForm.addEventListener('submit', (e) => {
+    disputeForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const purchaseId = document.getElementById('refund-target-purchase-id').value;
       const explanation = document.getElementById('refund-explanation').value.trim();
@@ -1710,19 +1919,19 @@ function initPortalAuth() {
         return;
       }
 
-      // Add to refunds log
+      // Add to refunds log locally (Fallback)
       let refunds = JSON.parse(localStorage.getItem('gravity-refunds')) || [];
       const purchases = JSON.parse(localStorage.getItem('gravity-user-purchases')) || [];
       const item = purchases.find(p => p.id === purchaseId);
       
       if (item) {
-        // Change status to refund_requested
+        // Change status to refund_requested locally
         item.status = 'refund_requested';
         localStorage.setItem('gravity-user-purchases', JSON.stringify(purchases));
 
-        // Record refund claim
-        refunds.unshift({
-          id: "REF-" + Date.now().toString().substring(8),
+        const refId = "REF-" + Date.now().toString().substring(8);
+        const localRefund = {
+          id: refId,
           purchaseId: purchaseId,
           user: currentSession ? currentSession.username : 'User',
           serviceName: item.serviceName,
@@ -1732,10 +1941,51 @@ function initPortalAuth() {
           amount: item.paidAmount,
           status: 'pending',
           date: new Date().toLocaleString()
-        });
+        };
+        refunds.unshift(localRefund);
         localStorage.setItem('gravity-refunds', JSON.stringify(refunds));
 
-        addSystemNotification(
+        // Sync dispute and upload file to Supabase if active
+        let evidenceUrl = null;
+        if (supabaseClient) {
+          const fileExt = selectedFile.name.split('.').pop();
+          const uniqueFileName = `${purchaseId}_${Date.now()}.${fileExt}`;
+          const filePath = `disputes/${uniqueFileName}`;
+          
+          // Upload evidence to 'refund-evidence' bucket
+          const { data: uploadData, error: uploadError } = await supabaseClient.storage
+            .from('refund-evidence')
+            .upload(filePath, selectedFile);
+          
+          if (!uploadError) {
+            const { data: urlData } = supabaseClient.storage
+              .from('refund-evidence')
+              .getPublicUrl(filePath);
+            evidenceUrl = urlData.publicUrl;
+          } else {
+            console.warn("Storage Bucket Warning: File uploaded locally only. (Ensure 'refund-evidence' bucket exists in Supabase Dashboard)");
+            evidenceUrl = `https://mock-storage.supabase.co/refund-evidence/${filePath}`;
+          }
+
+          // Insert refund record
+          await supabaseClient
+            .from('refunds')
+            .insert([{
+              id: refId,
+              purchase_id: purchaseId,
+              explanation: explanation,
+              evidence_url: evidenceUrl,
+              status: 'pending'
+            }]);
+
+          // Update purchase status in Supabase
+          await supabaseClient
+            .from('purchases')
+            .update({ status: 'refund_requested' })
+            .eq('id', purchaseId);
+        }
+
+        await addSystemNotification(
           "Refund Claim Filed",
           `Dispute case filed for '${item.serviceName}'. Evidence file '${selectedFile.name}' uploaded. Under administrative review.`
         );
@@ -1749,10 +1999,10 @@ function initPortalAuth() {
         uploadText.innerText = "Drag & Drop or Click to Select File";
 
         // Refresh
-        renderPayments();
-        renderPurchasedServices();
-        renderServiceTracking();
-        renderAdminDashboard();
+        await renderPayments();
+        await renderPurchasedServices();
+        await renderServiceTracking();
+        await renderAdminDashboard();
       }
     });
   }
@@ -1764,27 +2014,54 @@ function initPortalAuth() {
   // Publish Notification Form
   const adminNotifForm = document.getElementById('admin-notification-form');
   if (adminNotifForm) {
-    adminNotifForm.addEventListener('submit', (e) => {
+    adminNotifForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const title = document.getElementById('admin-notif-title').value.trim();
       const desc = document.getElementById('admin-notif-desc').value.trim();
 
-      addSystemNotification(title, desc);
+      await addSystemNotification(title, desc);
       
       adminNotifForm.reset();
       alert(`[ADMIN MAINFRAME] Notification published successfully! All active users will receive it.`);
-      renderAdminDashboard();
+      await renderAdminDashboard();
     });
   }
 
   // Render Admin Dashboard Lists
-  function renderAdminDashboard() {
+  // Render Admin Dashboard Lists
+  async function renderAdminDashboard() {
     const refundListContainer = document.getElementById('admin-refund-claims-list');
     const paymentsListContainer = document.getElementById('admin-payments-log-list');
 
     // Render Refund Claims
     if (refundListContainer) {
-      const refunds = JSON.parse(localStorage.getItem('gravity-refunds')) || [];
+      let refunds = [];
+      if (supabaseClient) {
+        const { data, error } = await supabaseClient
+          .from('refunds')
+          .select('*, purchases(*, profiles(*))')
+          .order('created_at', { ascending: false });
+
+        if (!error && data) {
+          refunds = data.map(r => ({
+            id: r.id,
+            purchaseId: r.purchase_id,
+            user: r.purchases && r.purchases.profiles ? r.purchases.profiles.username : 'User',
+            serviceName: r.purchases ? r.purchases.service_name : 'Service',
+            explanation: r.explanation,
+            fileName: r.evidence_url ? (r.evidence_url.includes('/') ? r.evidence_url.split('/').pop() : r.evidence_url) : 'Evidence',
+            fileSize: "N/A",
+            amount: r.purchases ? parseFloat(r.purchases.paid_amount) : 0,
+            status: r.status,
+            evidenceUrl: r.evidence_url
+          }));
+        } else {
+          refunds = JSON.parse(localStorage.getItem('gravity-refunds')) || [];
+        }
+      } else {
+        refunds = JSON.parse(localStorage.getItem('gravity-refunds')) || [];
+      }
+
       refundListContainer.innerHTML = '';
 
       if (refunds.length === 0) {
@@ -1809,11 +2086,18 @@ function initPortalAuth() {
             buttonsHtml = `<div style="font-size:0.7rem; color:${ref.status === 'approved' ? 'var(--neon-green)' : 'var(--neon-pink)'}; font-weight:bold; margin-top:0.25rem;">> CLAIM ${ref.status.toUpperCase()}</div>`;
           }
 
+          let proofHtml = '';
+          if (ref.evidenceUrl && ref.evidenceUrl.startsWith('http')) {
+            proofHtml = `<div style="color:var(--neon-amber); font-size:0.75rem; margin-top:0.15rem;">Proof File: <a href="${ref.evidenceUrl}" target="_blank" style="color:var(--neon-amber); text-decoration:underline;">View Evidence Document</a></div>`;
+          } else {
+            proofHtml = `<div style="color:var(--neon-amber); font-size:0.75rem; margin-top:0.15rem;">Proof File: [${ref.fileName}] (${ref.fileSize})</div>`;
+          }
+
           p.innerHTML = `
             <div style="color:#fff; font-weight:bold;">User: ${ref.user} • Claim ID: ${ref.id}</div>
             <div style="color:var(--neon-cyan); font-size:0.8rem;">Service: ${ref.serviceName} ($${ref.amount.toFixed(2)} disputed)</div>
             <div style="color:var(--text-muted); font-size:0.75rem; margin-top:0.15rem;">Reason: "${ref.explanation}"</div>
-            <div style="color:var(--neon-amber); font-size:0.75rem; margin-top:0.15rem;">Proof File: [${ref.fileName}] (${ref.fileSize})</div>
+            ${proofHtml}
             ${buttonsHtml}
           `;
           refundListContainer.appendChild(p);
@@ -1832,7 +2116,31 @@ function initPortalAuth() {
 
     // Render Payments Log
     if (paymentsListContainer) {
-      const txs = JSON.parse(localStorage.getItem('gravity-transactions')) || [];
+      let txs = [];
+      if (supabaseClient) {
+        const { data, error } = await supabaseClient
+          .from('transactions')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (!error && data) {
+          txs = data.map(t => ({
+            id: t.reference,
+            user: t.username,
+            email: t.email,
+            service: t.service,
+            amount: parseFloat(t.amount),
+            method: t.method,
+            type: t.type,
+            date: t.date
+          }));
+        } else {
+          txs = JSON.parse(localStorage.getItem('gravity-transactions')) || [];
+        }
+      } else {
+        txs = JSON.parse(localStorage.getItem('gravity-transactions')) || [];
+      }
+
       paymentsListContainer.innerHTML = '';
 
       if (txs.length === 0) {
@@ -1861,62 +2169,127 @@ function initPortalAuth() {
   }
 
   // Admin processes refund claim
-  function processRefundClaim(claimId, action) {
-    const refunds = JSON.parse(localStorage.getItem('gravity-refunds')) || [];
+  async function processRefundClaim(claimId, action) {
+    let refunds = JSON.parse(localStorage.getItem('gravity-refunds')) || [];
     const refIdx = refunds.findIndex(r => r.id === claimId);
 
-    if (refIdx !== -1) {
-      const claim = refunds[refIdx];
-      const purchases = JSON.parse(localStorage.getItem('gravity-user-purchases')) || [];
-      const purIdx = purchases.findIndex(p => p.id === claim.purchaseId);
+    // Fetch from Supabase if active
+    let claim = null;
+    let purchaseId = null;
+    let serviceName = null;
+    let amount = 0;
+    let username = 'User';
+
+    if (supabaseClient) {
+      const { data: dbClaim, error } = await supabaseClient
+        .from('refunds')
+        .select('*, purchases(*, profiles(*))')
+        .eq('id', claimId)
+        .single();
+      
+      if (!error && dbClaim) {
+        claim = dbClaim;
+        purchaseId = dbClaim.purchase_id;
+        serviceName = dbClaim.purchases ? dbClaim.purchases.service_name : 'Service';
+        amount = dbClaim.purchases ? parseFloat(dbClaim.purchases.paid_amount) : 0;
+        username = dbClaim.purchases && dbClaim.purchases.profiles ? dbClaim.purchases.profiles.username : 'User';
+      }
+    }
+
+    // Fallback to local
+    if (!claim && refIdx !== -1) {
+      claim = refunds[refIdx];
+      purchaseId = claim.purchaseId;
+      serviceName = claim.serviceName;
+      amount = claim.amount;
+      username = claim.user;
+    }
+
+    if (claim) {
+      let purchases = JSON.parse(localStorage.getItem('gravity-user-purchases')) || [];
+      const purIdx = purchases.findIndex(p => p.id === purchaseId);
+      const newStatus = action === 'approve' ? 'refund_approved' : 'refund_denied';
+
+      // Update local purchase state
+      if (purIdx !== -1) {
+        purchases[purIdx].status = newStatus;
+        localStorage.setItem('gravity-user-purchases', JSON.stringify(purchases));
+      }
+
+      // Update local refund status
+      if (refIdx !== -1) {
+        refunds[refIdx].status = action === 'approve' ? 'approved' : 'denied';
+        localStorage.setItem('gravity-refunds', JSON.stringify(refunds));
+      }
+
+      // Sync to Supabase
+      if (supabaseClient) {
+        // Update refund claim status
+        await supabaseClient
+          .from('refunds')
+          .update({ status: action === 'approve' ? 'approved' : 'denied' })
+          .eq('id', claimId);
+
+        // Update purchase status
+        await supabaseClient
+          .from('purchases')
+          .update({ status: newStatus })
+          .eq('id', purchaseId);
+      }
 
       if (action === 'approve') {
-        claim.status = 'approved';
-        if (purIdx !== -1) {
-          purchases[purIdx].status = 'refund_approved';
-        }
-
-        // Add negative refund transaction
+        const txId = "refund_" + Math.random().toString(36).substring(2, 10).toUpperCase();
+        
+        // Log transaction locally
         let txs = JSON.parse(localStorage.getItem('gravity-transactions')) || [];
-        txs.unshift({
-          id: "refund_" + Math.random().toString(36).substring(2, 10).toUpperCase(),
-          user: claim.user,
+        const localTx = {
+          id: txId,
+          user: username,
           email: 'system-refund@gravity.com',
-          service: claim.serviceName,
-          amount: -claim.amount, // Negative amount
+          service: serviceName,
+          amount: -amount, // Negative amount
           method: 'Razorpay Refund Routing',
           type: 'refund',
           date: new Date().toLocaleString()
-        });
+        };
+        txs.unshift(localTx);
         localStorage.setItem('gravity-transactions', JSON.stringify(txs));
 
-        addSystemNotification(
+        // Sync transaction to Supabase
+        if (supabaseClient) {
+          await supabaseClient
+            .from('transactions')
+            .insert([{
+              reference: txId,
+              username: localTx.user,
+              email: localTx.email,
+              service: localTx.service,
+              amount: localTx.amount,
+              method: localTx.method,
+              type: localTx.type,
+              date: localTx.date
+            }]);
+        }
+
+        await addSystemNotification(
           "Refund Approved by Admin",
-          `Dispute case for '${claim.serviceName}' approved. Refund of $${claim.amount.toFixed(2)} returned. Original booking advance fully reversed.`
+          `Dispute case for '${serviceName}' approved. Refund of $${amount.toFixed(2)} returned. Original booking advance fully reversed.`
         );
         alert(`[ADMIN MAINFRAME] Refund dispute case ${claimId} approved! Capital has been returned to the user.`);
 
       } else if (action === 'deny') {
-        claim.status = 'denied';
-        if (purIdx !== -1) {
-          purchases[purIdx].status = 'refund_denied'; // Returns back to awaiting final payment
-        }
-
-        addSystemNotification(
+        await addSystemNotification(
           "Dispute Claim Rejected",
-          `Dispute claim for '${claim.serviceName}' has been reviewed and rejected by system administrators. Awaiting final payment to complete release.`
+          `Dispute claim for '${serviceName}' has been reviewed and rejected by system administrators. Awaiting final payment to complete release.`
         );
         alert(`[ADMIN MAINFRAME] Dispute claim case ${claimId} has been reviewed and denied. Milestone timeline resumed.`);
       }
 
-      localStorage.setItem('gravity-refunds', JSON.stringify(refunds));
-      localStorage.setItem('gravity-user-purchases', JSON.stringify(purchases));
-
       // Refresh
-      renderPayments();
-      renderPurchasedServices();
-      renderServiceTracking();
-      renderAdminDashboard();
+      await renderPayments();
+      await renderPurchasedServices();
+      await renderServiceTracking();
+      await renderAdminDashboard();
     }
   }
 
@@ -2113,7 +2486,7 @@ function initPortalAuth() {
   // User Sign-In Form Handler
   const userSigninForm = document.getElementById('user-signin-form');
   const userSigninError = document.getElementById('user-signin-error');
-  userSigninForm.addEventListener('submit', (e) => {
+  userSigninForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     userSigninError.style.display = 'none';
 
@@ -2125,35 +2498,70 @@ function initPortalAuth() {
       return;
     }
 
-    // Retrieve local registered users list
-    const users = JSON.parse(localStorage.getItem('gravity-registered-users')) || [];
-    const foundUser = users.find(u => u.email === loginInput || u.username === loginInput);
+    if (supabaseClient) {
+      const submitBtn = userSigninForm.querySelector('button[type="submit"]');
+      const originalText = submitBtn ? submitBtn.innerText : "SIGN IN";
+      if (submitBtn) {
+        submitBtn.innerText = "AUTHENTICATING...";
+        submitBtn.disabled = true;
+      }
 
-    if (foundUser) {
-      if (foundUser.password === passwordInput) {
+      const { data, error } = await supabaseClient.auth.signInWithPassword({
+        email: loginInput,
+        password: passwordInput
+      });
+
+      if (submitBtn) {
+        submitBtn.innerText = originalText;
+        submitBtn.disabled = false;
+      }
+
+      if (error) {
+        showError(userSigninError, `AUTH ERROR: ${error.message}`);
+      } else if (data.user) {
+        const { data: profile } = await supabaseClient
+          .from('profiles')
+          .select('username')
+          .eq('id', data.user.id)
+          .single();
+
         loginSuccess({
           role: 'user',
-          username: foundUser.username,
-          email: foundUser.email
+          username: profile ? profile.username : loginInput.split('@')[0],
+          email: data.user.email,
+          uid: data.user.id
         });
-      } else {
-        showError(userSigninError, 'Incorrect password.');
       }
     } else {
-      // For convenience and demonstration, if user isn't found, auto-create their account or login successfully!
-      const defaultUsername = loginInput.split('@')[0];
-      loginSuccess({
-        role: 'user',
-        username: defaultUsername,
-        email: loginInput.includes('@') ? loginInput : `${loginInput}@gravity.com`
-      });
+      // Retrieve local registered users list (Fallback)
+      const users = JSON.parse(localStorage.getItem('gravity-registered-users')) || [];
+      const foundUser = users.find(u => u.email === loginInput || u.username === loginInput);
+
+      if (foundUser) {
+        if (foundUser.password === passwordInput) {
+          loginSuccess({
+            role: 'user',
+            username: foundUser.username,
+            email: foundUser.email
+          });
+        } else {
+          showError(userSigninError, 'Incorrect password.');
+        }
+      } else {
+        const defaultUsername = loginInput.split('@')[0];
+        loginSuccess({
+          role: 'user',
+          username: defaultUsername,
+          email: loginInput.includes('@') ? loginInput : `${loginInput}@gravity.com`
+        });
+      }
     }
   });
 
   // User Sign-Up Form Handler
   const userSignupForm = document.getElementById('user-signup-form');
   const userSignupError = document.getElementById('user-signup-error');
-  userSignupForm.addEventListener('submit', (e) => {
+  userSignupForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     userSignupError.style.display = 'none';
 
@@ -2170,21 +2578,65 @@ function initPortalAuth() {
       return;
     }
 
-    const users = JSON.parse(localStorage.getItem('gravity-registered-users')) || [];
-    if (users.some(u => u.email === email || u.username === username)) {
-      showError(userSignupError, 'Username or email already registered.');
-      return;
+    if (supabaseClient) {
+      const submitBtn = userSignupForm.querySelector('button[type="submit"]');
+      const originalText = submitBtn ? submitBtn.innerText : "CREATE ACCOUNT";
+      if (submitBtn) {
+        submitBtn.innerText = "REGISTERING...";
+        submitBtn.disabled = true;
+      }
+
+      const { data, error } = await supabaseClient.auth.signUp({
+        email: email,
+        password: password,
+        options: {
+          data: {
+            username: username
+          }
+        }
+      });
+
+      if (submitBtn) {
+        submitBtn.innerText = originalText;
+        submitBtn.disabled = false;
+      }
+
+      if (error) {
+        showError(userSignupError, `REGISTRATION ERROR: ${error.message}`);
+      } else if (data.user) {
+        // Upsert user into profiles table
+        await supabaseClient
+          .from('profiles')
+          .upsert({ id: data.user.id, username: username, email: email });
+
+        loginSuccess({
+          role: 'user',
+          username: username,
+          email: email,
+          uid: data.user.id
+        });
+
+        if (data.session === null) {
+          alert("Ecosystem Activation: A verification email has been sent. Please confirm to verify your database credentials.");
+        }
+      }
+    } else {
+      // LocalStorage Fallback
+      const users = JSON.parse(localStorage.getItem('gravity-registered-users')) || [];
+      if (users.some(u => u.email === email || u.username === username)) {
+        showError(userSignupError, 'Username or email already registered.');
+        return;
+      }
+
+      users.push({ username, email, password });
+      localStorage.setItem('gravity-registered-users', JSON.stringify(users));
+
+      loginSuccess({
+        role: 'user',
+        username: username,
+        email: email
+      });
     }
-
-    // Register user
-    users.push({ username, email, password });
-    localStorage.setItem('gravity-registered-users', JSON.stringify(users));
-
-    loginSuccess({
-      role: 'user',
-      username: username,
-      email: email
-    });
   });
 
   // Live Google Sign-In Initializer
@@ -2199,20 +2651,41 @@ function initPortalAuth() {
         { theme: "outline", size: "large", width: 380 }
       );
     } else {
-      // Retry in case GIS script hasn't fully loaded
       setTimeout(initLiveGoogleSignIn, 150);
     }
   }
 
   // Handle Google OAuth JWT Response Token
-  function handleGoogleCredentialResponse(response) {
+  async function handleGoogleCredentialResponse(response) {
     const payload = decodeJwtResponse(response.credential);
     
-    loginSuccess({
-      role: 'user',
-      username: payload.name,
-      email: payload.email
-    });
+    if (supabaseClient) {
+      const { data, error } = await supabaseClient.auth.signInWithIdToken({
+        provider: 'google',
+        token: response.credential,
+      });
+
+      if (error) {
+        alert(`Google Auth Error: ${error.message}`);
+      } else if (data.user) {
+        await supabaseClient
+          .from('profiles')
+          .upsert({ id: data.user.id, username: payload.name, email: payload.email });
+
+        loginSuccess({
+          role: 'user',
+          username: payload.name,
+          email: payload.email,
+          uid: data.user.id
+        });
+      }
+    } else {
+      loginSuccess({
+        role: 'user',
+        username: payload.name,
+        email: payload.email
+      });
+    }
   }
 
   // Client-side decoder for Google JWT Identity Token
