@@ -2280,27 +2280,36 @@ function initPortalAuth() {
   }
 
   // Admin Console Action Trigger Details
-  document.getElementById('admin-toggle-sandbox').addEventListener('click', () => {
-    let sandbox = localStorage.getItem('gravity-sandbox-mode') === 'true';
-    sandbox = !sandbox;
-    localStorage.setItem('gravity-sandbox-mode', sandbox);
-    alert(`[SYSTEM CONTROL] Sandbox Mode set to ${sandbox ? 'ACTIVE (Offline AI Mocking)' : 'INACTIVE (Live API keys)'}`);
-    console.log(`[ADMIN OVERRIDE] Toggle sandbox mode: ${sandbox}`);
-  });
+  const toggleSandboxBtn = document.getElementById('admin-toggle-sandbox');
+  if (toggleSandboxBtn) {
+    toggleSandboxBtn.addEventListener('click', () => {
+      let sandbox = localStorage.getItem('gravity-sandbox-mode') === 'true';
+      sandbox = !sandbox;
+      localStorage.setItem('gravity-sandbox-mode', sandbox);
+      alert(`[SYSTEM CONTROL] Sandbox Mode set to ${sandbox ? 'ACTIVE (Offline AI Mocking)' : 'INACTIVE (Live API keys)'}`);
+      console.log(`[ADMIN OVERRIDE] Toggle sandbox mode: ${sandbox}`);
+    });
+  }
 
-  document.getElementById('admin-adjust-revenue').addEventListener('click', () => {
-    const newTarget = prompt("Enter new Revenue Growth Target (millions USD):", "150");
-    if (newTarget) {
-      alert(`[SYSTEM CONTROL] Revenue Target adjusted to $${newTarget}M. Main dashboard graphics updated.`);
-      console.log(`[ADMIN OVERRIDE] Revenue goal updated: $${newTarget}M`);
-    }
-  });
+  const adjustRevenueBtn = document.getElementById('admin-adjust-revenue');
+  if (adjustRevenueBtn) {
+    adjustRevenueBtn.addEventListener('click', () => {
+      const newTarget = prompt("Enter new Revenue Growth Target (millions USD):", "150");
+      if (newTarget) {
+        alert(`[SYSTEM CONTROL] Revenue Target adjusted to $${newTarget}M. Main dashboard graphics updated.`);
+        console.log(`[ADMIN OVERRIDE] Revenue goal updated: $${newTarget}M`);
+      }
+    });
+  }
 
-  document.getElementById('admin-reset-system').addEventListener('click', () => {
-    if (confirm("WARNING: Are you sure you want to restore default application configs? This clears session caches.")) {
-      localStorage.clear();
-      alert("System caches flushed. Re-initializing ecosystem...");
-      window.location.reload();
-    }
-  });
+  const resetSystemBtn = document.getElementById('admin-reset-system');
+  if (resetSystemBtn) {
+    resetSystemBtn.addEventListener('click', () => {
+      if (confirm("WARNING: Are you sure you want to restore default application configs? This clears session caches.")) {
+        localStorage.clear();
+        alert("System caches flushed. Re-initializing ecosystem...");
+        window.location.reload();
+      }
+    });
+  }
 }
