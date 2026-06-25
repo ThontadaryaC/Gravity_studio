@@ -977,10 +977,16 @@ function initPortalAuth() {
   
   const userLoginInterface = document.getElementById('user-login-interface');
   const adminLoginInterface = document.getElementById('admin-login-interface');
-  const userDashboardInterface = document.getElementById('user-dashboard-interface');
   const adminDashboardInterface = document.getElementById('admin-dashboard-interface');
+
+  // Sidebar Elements
+  const sidebar = document.getElementById('user-sidebar');
+  const sidebarBackdrop = document.getElementById('user-sidebar-backdrop');
+  const sidebarClose = document.getElementById('sidebar-close-btn');
+  const sidebarLogout = document.getElementById('sidebar-logout-btn');
+  const profileForm = document.getElementById('profile-settings-form');
   
-  if (!loginBtn || !overlay) return;
+  if (!loginBtn || !overlay || !sidebar) return;
 
   // Initialize Session
   let currentSession = JSON.parse(localStorage.getItem('gravity-user-session')) || null;
@@ -1012,7 +1018,7 @@ function initPortalAuth() {
     } else if (currentSession.role === 'admin') {
       openPortal('admin-dashboard');
     } else {
-      openPortal('user-dashboard');
+      openSidebar();
     }
   });
 
@@ -1026,28 +1032,107 @@ function initPortalAuth() {
     if (e.target === overlay) closePortal();
   });
 
-  // Portal Opening Controller
+  // Sidebar Open/Close Handlers
+  function openSidebar() {
+    closePortal(); // Ensure modal is closed
+    sidebar.classList.add('open');
+    sidebarBackdrop.classList.add('open');
+    document.body.style.overflow = 'hidden'; // Lock background scroll
+
+    // Update Profile Tab values
+    if (currentSession) {
+      document.getElementById('profile-username').value = currentSession.username || 'User';
+      document.getElementById('profile-email').value = currentSession.email || '';
+      document.getElementById('sidebar-username').innerText = currentSession.username || 'User';
+      
+      // Avatar placeholder letter
+      const firstLetter = (currentSession.username || 'U').charAt(0).toUpperCase();
+      document.getElementById('sidebar-avatar-placeholder').innerText = firstLetter;
+    }
+    
+    // Trigger Lucide SVG rendering inside sidebar
+    if (typeof lucide !== 'undefined') {
+      lucide.createIcons();
+    }
+  }
+
+  function closeSidebar() {
+    sidebar.classList.remove('open');
+    sidebarBackdrop.classList.remove('open');
+    document.body.style.overflow = ''; // Unlock background scroll
+  }
+
+  sidebarClose.addEventListener('click', closeSidebar);
+  sidebarBackdrop.addEventListener('click', closeSidebar);
+  sidebarLogout.addEventListener('click', () => {
+    closeSidebar();
+    performLogout();
+  });
+
+  // Profile Form Edit Handler
+  profileForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const updatedUsername = document.getElementById('profile-username').value.trim();
+    if (updatedUsername.length < 3) {
+      alert("Username must be at least 3 characters long.");
+      return;
+    }
+
+    currentSession.username = updatedUsername;
+    localStorage.setItem('gravity-user-session', JSON.stringify(currentSession));
+    
+    // Update local registrations list if user registered locally
+    const users = JSON.parse(localStorage.getItem('gravity-registered-users')) || [];
+    const userIndex = users.findIndex(u => u.email === currentSession.email);
+    if (userIndex !== -1) {
+      users[userIndex].username = updatedUsername;
+      localStorage.setItem('gravity-registered-users', JSON.stringify(users));
+    }
+
+    // Update UI elements
+    document.getElementById('sidebar-username').innerText = updatedUsername;
+    document.getElementById('sidebar-avatar-placeholder').innerText = updatedUsername.charAt(0).toUpperCase();
+    updateAuthUI();
+    
+    alert("Profile settings updated successfully.");
+  });
+
+  // Sidebar Tab Swapping
+  const sidebarNavItems = document.querySelectorAll('.sidebar-nav-item');
+  sidebarNavItems.forEach(item => {
+    item.addEventListener('click', () => {
+      sidebarNavItems.forEach(i => i.classList.remove('active'));
+      item.classList.add('active');
+
+      const targetTab = item.getAttribute('data-tab');
+      const tabContents = document.querySelectorAll('.sidebar-tab-content');
+      tabContents.forEach(content => {
+        if (content.id === `tab-${targetTab}`) {
+          content.classList.add('active');
+        } else {
+          content.classList.remove('active');
+        }
+      });
+    });
+  });
+
+  // Portal Opening Controller (Modals)
   function openPortal(targetInterface) {
+    closeSidebar(); // Ensure sidebar is closed when opening modals
     overlay.style.display = 'flex';
-    // Trigger paint reflow for animation transition
-    overlay.offsetHeight;
+    overlay.offsetHeight; // Trigger paint reflow for animation transition
     overlay.classList.add('open');
 
     // Hide all interfaces first
     userLoginInterface.style.display = 'none';
     adminLoginInterface.style.display = 'none';
-    userDashboardInterface.style.display = 'none';
     adminDashboardInterface.style.display = 'none';
 
     if (targetInterface === 'user-login') {
       userLoginInterface.style.display = 'block';
-      // Default to sign-in tab
       switchTab('user-signin-form');
     } else if (targetInterface === 'admin-login') {
       adminLoginInterface.style.display = 'block';
-    } else if (targetInterface === 'user-dashboard') {
-      userDashboardInterface.style.display = 'block';
-      document.getElementById('user-welcome-msg').innerText = `Welcome back, ${currentSession.username || 'User'}`;
     } else if (targetInterface === 'admin-dashboard') {
       adminDashboardInterface.style.display = 'block';
     }
@@ -1272,7 +1357,6 @@ function initPortalAuth() {
   });
 
   // Logout Handlers
-  document.getElementById('user-logout-btn').addEventListener('click', performLogout);
   document.getElementById('admin-logout-btn').addEventListener('click', performLogout);
 
   function performLogout() {
@@ -1287,11 +1371,12 @@ function initPortalAuth() {
     currentSession = sessionData;
     updateAuthUI();
     
-    // Switch dynamic view inside open modal to the dashboard immediately!
+    // Open correct dashboard/sidebar
     if (sessionData.role === 'admin') {
       openPortal('admin-dashboard');
     } else {
-      openPortal('user-dashboard');
+      closePortal();
+      openSidebar();
     }
   }
 

@@ -1005,32 +1005,7 @@
         </form>
       </div>
       
-      <!-- USER PROFILE DASHBOARD -->
-      <div class="portal-interface" id="user-dashboard-interface" style="display: none;">
-        <h3 class="portal-modal-title">User Workspace</h3>
-        <p class="portal-modal-subtitle" id="user-welcome-msg">Welcome back, User</p>
-        
-        <div class="dashboard-grid">
-          <div class="dashboard-card">
-            <h4>Workspace Tier</h4>
-            <p class="dashboard-highlight text-cyan">Premium Creative Pilot</p>
-          </div>
-          <div class="dashboard-card">
-            <h4>API Access Limit</h4>
-            <p class="dashboard-highlight">10,000 requests/day</p>
-            <div class="dashboard-progress-container"><div class="dashboard-progress-bar" style="width: 72%;"></div></div>
-          </div>
-          <div class="dashboard-card">
-            <h4>Active Projects</h4>
-            <ul class="dashboard-list">
-              <li>Anime Render pipeline (v3.2) - <span class="badge-status online">Rendering</span></li>
-              <li>Cosmic Background shader - <span class="badge-status idle">Active</span></li>
-            </ul>
-          </div>
-        </div>
-        
-        <button type="button" class="portal-logout-btn" id="user-logout-btn">Log Out</button>
-      </div>
+
       
       <!-- ADMIN CONTROL DASHBOARD -->
       <div class="portal-interface" id="admin-dashboard-interface" style="display: none;">
@@ -1073,6 +1048,174 @@
         
         <button type="button" class="terminal-logout-btn" id="admin-logout-btn">TERMINATE ADMIN SESSION</button>
       </div>
+    </div>
+  </div>
+
+  <!-- USER SIDEBAR DRAWER & BACKDROP -->
+  <div class="sidebar-backdrop" id="user-sidebar-backdrop"></div>
+  <div class="user-sidebar" id="user-sidebar" aria-modal="true" role="dialog" aria-hidden="true">
+    <div class="sidebar-header">
+      <div class="sidebar-user-profile">
+        <div class="sidebar-avatar" id="sidebar-avatar-placeholder">U</div>
+        <div>
+          <h3 id="sidebar-username">User Name</h3>
+          <span class="badge-tier">Premium Client</span>
+        </div>
+      </div>
+      <button class="sidebar-close-btn" id="sidebar-close-btn" aria-label="Close Sidebar">&times;</button>
+    </div>
+    
+    <div class="sidebar-nav">
+      <button class="sidebar-nav-item active" data-tab="profile-settings"><i data-lucide="user"></i> Profile</button>
+      <button class="sidebar-nav-item" data-tab="notifications"><i data-lucide="bell"></i> Notifications <span class="badge-count" id="notif-count">3</span></button>
+      <button class="sidebar-nav-item" data-tab="payments"><i data-lucide="credit-card"></i> Payments</button>
+      <button class="sidebar-nav-item" data-tab="buyed-services"><i data-lucide="shopping-bag"></i> Services</button>
+      <button class="sidebar-nav-item" data-tab="track-services"><i data-lucide="activity"></i> Track Services</button>
+    </div>
+    
+    <div class="sidebar-content-area">
+      <!-- Tab 1: Profile Settings -->
+      <div class="sidebar-tab-content active" id="tab-profile-settings">
+        <h4 class="sidebar-tab-title">Profile Settings</h4>
+        <form id="profile-settings-form">
+          <div class="portal-input-group">
+            <label for="profile-username">Username</label>
+            <input type="text" id="profile-username" value="" required>
+          </div>
+          <div class="portal-input-group">
+            <label for="profile-email">Email Address</label>
+            <input type="email" id="profile-email" value="" disabled>
+          </div>
+          <button type="submit" class="portal-submit-btn">Save Changes</button>
+        </form>
+      </div>
+      
+      <!-- Tab 2: Notifications -->
+      <div class="sidebar-tab-content" id="tab-notifications">
+        <h4 class="sidebar-tab-title">Notifications</h4>
+        <div class="notif-list">
+          <div class="notif-item unread">
+            <div class="notif-title">Anime Render Pipeline Complete</div>
+            <div class="notif-desc">Your 3D sequence has successfully finished rendering.</div>
+            <div class="notif-time">10m ago</div>
+          </div>
+          <div class="notif-item unread">
+            <div class="notif-title">Payment Confirmed</div>
+            <div class="notif-desc">Receipt #2026-948 has been generated for VFX Package.</div>
+            <div class="notif-time">2h ago</div>
+          </div>
+          <div class="notif-item">
+            <div class="notif-title">Welcome to Gravity Portal</div>
+            <div class="notif-desc">Explore your premium creative technology workspace.</div>
+            <div class="notif-time">1d ago</div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Tab 3: Payments -->
+      <div class="sidebar-tab-content" id="tab-payments">
+        <h4 class="sidebar-tab-title">Your Payments</h4>
+        <div class="payment-methods-section">
+          <h5>Saved Payment Methods</h5>
+          <div class="card-element">
+            <i data-lucide="credit-card"></i>
+            <span>•••• •••• •••• 4242 (Visa)</span>
+            <span class="default-badge">Primary</span>
+          </div>
+        </div>
+        <div class="billing-history-section">
+          <h5>Billing History</h5>
+          <table class="billing-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Service</th>
+                <th>Amount</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Jun 24, 2026</td>
+                <td>VFX Production</td>
+                <td>$450.00</td>
+                <td><span class="status-paid">Paid</span></td>
+              </tr>
+              <tr>
+                <td>May 12, 2026</td>
+                <td>Anime Pipeline</td>
+                <td>$299.00</td>
+                <td><span class="status-paid">Paid</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+      <!-- Tab 4: Buyed Services -->
+      <div class="sidebar-tab-content" id="tab-buyed-services">
+        <h4 class="sidebar-tab-title">Purchased Services</h4>
+        <div class="services-list">
+          <div class="service-item">
+            <div class="service-icon"><i data-lucide="clapperboard"></i></div>
+            <div class="service-info">
+              <h5>Commercial VFX Package</h5>
+              <p>Standard Tier - 10 Render Credits</p>
+            </div>
+            <span class="service-status">Active</span>
+          </div>
+          <div class="service-item">
+            <div class="service-icon"><i data-lucide="tv"></i></div>
+            <div class="service-info">
+              <h5>Anime Production Pipeline</h5>
+              <p>Ecosystem Access - Unlimited shaders</p>
+            </div>
+            <span class="service-status">Active</span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Tab 5: Track Services -->
+      <div class="sidebar-tab-content" id="tab-track-services">
+        <h4 class="sidebar-tab-title">Track Services & Products</h4>
+        <div class="tracking-list">
+          <div class="tracking-item">
+            <div class="tracking-header">
+              <h5>Anime Rendering Pipeline</h5>
+              <span class="tracking-percent">72%</span>
+            </div>
+            <div class="tracking-bar-container">
+              <div class="tracking-bar" style="width: 72%;"></div>
+            </div>
+            <ul class="tracking-steps">
+              <li class="completed">Asset Prep</li>
+              <li class="completed">Animation</li>
+              <li class="active">Lighting</li>
+              <li class="pending">Export</li>
+            </ul>
+          </div>
+          
+          <div class="tracking-item">
+            <div class="tracking-header">
+              <h5>Commercial VFX Composite</h5>
+              <span class="tracking-percent">100%</span>
+            </div>
+            <div class="tracking-bar-container">
+              <div class="tracking-bar completed-bar" style="width: 100%;"></div>
+            </div>
+            <ul class="tracking-steps">
+              <li class="completed">Keying</li>
+              <li class="completed">Background</li>
+              <li class="completed">Grading</li>
+              <li class="completed">Delivered</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="sidebar-footer">
+      <button type="button" class="sidebar-logout-btn" id="sidebar-logout-btn"><i data-lucide="log-out"></i> Log Out</button>
     </div>
   </div>
 
