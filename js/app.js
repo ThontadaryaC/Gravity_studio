@@ -985,6 +985,7 @@ function initPortalAuth() {
   const sidebarClose = document.getElementById('sidebar-close-btn');
   const sidebarLogout = document.getElementById('sidebar-logout-btn');
   const profileForm = document.getElementById('profile-settings-form');
+  const dockBtns = document.querySelectorAll('.dock-btn');
   
   if (!loginBtn || !overlay || !sidebar) return;
 
@@ -1097,6 +1098,16 @@ function initPortalAuth() {
     sidebarLogout.addEventListener('click', () => {
       closeSidebar();
       performLogout();
+    });
+  }
+
+  // Bind sidebar dock buttons to toggle windows
+  if (dockBtns) {
+    dockBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const windowId = btn.getAttribute('data-window');
+        toggleWindow(windowId, btn);
+      });
     });
   }
 
