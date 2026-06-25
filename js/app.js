@@ -986,6 +986,7 @@ function initPortalAuth() {
   const sidebarLogout = document.getElementById('sidebar-logout-btn');
   const profileForm = document.getElementById('profile-settings-form');
   const dockBtns = document.querySelectorAll('.dock-btn');
+  let highestZIndex = 1040;
   
   if (!loginBtn || !overlay || !sidebar) return;
 
