@@ -1198,7 +1198,7 @@ function initPortalAuth() {
   function initLiveGoogleSignIn() {
     if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
       google.accounts.id.initialize({
-        client_id: "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com", // Paste Client ID here
+        client_id: "495105565473-fkb903hmrvl9nrc25uarfj9m2qs0di9p.apps.googleusercontent.com", // Paste Client ID here
         callback: handleGoogleCredentialResponse
       });
       google.accounts.id.renderButton(
