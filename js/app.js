@@ -979,14 +979,12 @@ function initPortalAuth() {
   const adminLoginInterface = document.getElementById('admin-login-interface');
   const adminDashboardInterface = document.getElementById('admin-dashboard-interface');
 
-  // Sidebar Elements
-  const sidebar = document.getElementById('user-sidebar');
-  const sidebarBackdrop = document.getElementById('user-sidebar-backdrop');
-  const sidebarClose = document.getElementById('sidebar-close-btn');
-  const sidebarLogout = document.getElementById('sidebar-logout-btn');
+  // Floating Dock and Window Elements
+  const dock = document.getElementById('gravity-control-dock');
+  const dockLogoutBtn = document.getElementById('dock-logout-btn');
   const profileForm = document.getElementById('profile-settings-form');
   
-  if (!loginBtn || !overlay || !sidebar) return;
+  if (!loginBtn || !overlay || !dock) return;
 
   // Initialize Session
   let currentSession = JSON.parse(localStorage.getItem('gravity-user-session')) || null;
@@ -1018,7 +1016,7 @@ function initPortalAuth() {
     } else if (currentSession.role === 'admin') {
       openPortal('admin-dashboard');
     } else {
-      openSidebar();
+      toggleDock();
     }
   });
 
@@ -1032,40 +1030,51 @@ function initPortalAuth() {
     if (e.target === overlay) closePortal();
   });
 
-  // Sidebar Open/Close Handlers
-  function openSidebar() {
-    closePortal(); // Ensure modal is closed
-    sidebar.classList.add('open');
-    sidebarBackdrop.classList.add('open');
-    document.body.style.overflow = 'hidden'; // Lock background scroll
+  // Floating Dock Toggle Handlers
+  function toggleDock() {
+    if (dock.classList.contains('open')) {
+      closeDock();
+    } else {
+      openDock();
+    }
+  }
 
-    // Update Profile Tab values
+  function openDock() {
+    closePortal(); // Ensure modal is closed
+    dock.style.display = 'flex';
+    dock.offsetHeight; // Trigger reflow
+    dock.classList.add('open');
+
+    // Update Profile values inside elements
     if (currentSession) {
       document.getElementById('profile-username').value = currentSession.username || 'User';
       document.getElementById('profile-email').value = currentSession.email || '';
-      document.getElementById('sidebar-username').innerText = currentSession.username || 'User';
+      document.getElementById('dock-username').innerText = currentSession.username || 'User';
       
       // Avatar placeholder letter
       const firstLetter = (currentSession.username || 'U').charAt(0).toUpperCase();
-      document.getElementById('sidebar-avatar-placeholder').innerText = firstLetter;
+      document.getElementById('dock-avatar-placeholder').innerText = firstLetter;
     }
     
-    // Trigger Lucide SVG rendering inside sidebar
+    // Trigger Lucide SVG rendering inside Dock
     if (typeof lucide !== 'undefined') {
       lucide.createIcons();
     }
   }
 
-  function closeSidebar() {
-    sidebar.classList.remove('open');
-    sidebarBackdrop.classList.remove('open');
-    document.body.style.overflow = ''; // Unlock background scroll
+  function closeDock() {
+    dock.classList.remove('open');
+    // Close all open floating windows as well
+    closeAllWindows();
+    setTimeout(() => {
+      if (!dock.classList.contains('open')) {
+        dock.style.display = 'none';
+      }
+    }, 400);
   }
 
-  sidebarClose.addEventListener('click', closeSidebar);
-  sidebarBackdrop.addEventListener('click', closeSidebar);
-  sidebarLogout.addEventListener('click', () => {
-    closeSidebar();
+  dockLogoutBtn.addEventListener('click', () => {
+    closeDock();
     performLogout();
   });
 
@@ -1090,35 +1099,111 @@ function initPortalAuth() {
     }
 
     // Update UI elements
-    document.getElementById('sidebar-username').innerText = updatedUsername;
-    document.getElementById('sidebar-avatar-placeholder').innerText = updatedUsername.charAt(0).toUpperCase();
+    document.getElementById('dock-username').innerText = updatedUsername;
+    document.getElementById('dock-avatar-placeholder').innerText = updatedUsername.charAt(0).toUpperCase();
     updateAuthUI();
     
     alert("Profile settings updated successfully.");
   });
 
-  // Sidebar Tab Swapping
-  const sidebarNavItems = document.querySelectorAll('.sidebar-nav-item');
-  sidebarNavItems.forEach(item => {
-    item.addEventListener('click', () => {
-      sidebarNavItems.forEach(i => i.classList.remove('active'));
-      item.classList.add('active');
+  // Z-index tracking for multi-window focus layering
+  let highestZIndex = 1040;
 
-      const targetTab = item.getAttribute('data-tab');
-      const tabContents = document.querySelectorAll('.sidebar-tab-content');
-      tabContents.forEach(content => {
-        if (content.id === `tab-${targetTab}`) {
-          content.classList.add('active');
-        } else {
-          content.classList.remove('active');
-        }
-      });
+  // Dock buttons click triggers window toggling
+  const dockBtns = document.querySelectorAll('.dock-btn');
+  dockBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const windowId = btn.getAttribute('data-window');
+      toggleWindow(windowId, btn);
     });
   });
 
+  // Window Close buttons
+  const windowCloseBtns = document.querySelectorAll('.window-close-btn');
+  windowCloseBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const windowId = btn.getAttribute('data-close');
+      const dockBtn = document.querySelector(`.dock-btn[data-window="${windowId}"]`);
+      closeWindow(windowId, dockBtn);
+    });
+  });
+
+  // Add click to focus behavior on windows to bring them to foreground
+  const dashboardWindows = document.querySelectorAll('.dashboard-window-container');
+  dashboardWindows.forEach(win => {
+    win.addEventListener('mousedown', () => {
+      highestZIndex++;
+      win.style.zIndex = highestZIndex;
+    });
+  });
+
+  // Toggle dynamic window
+  function toggleWindow(windowId, dockBtn) {
+    const targetWindow = document.getElementById(`window-${windowId}`);
+    if (!targetWindow) return;
+
+    if (targetWindow.classList.contains('open')) {
+      closeWindow(windowId, dockBtn);
+    } else {
+      openWindow(windowId, dockBtn);
+    }
+  }
+
+  function openWindow(windowId, dockBtn) {
+    const targetWindow = document.getElementById(`window-${windowId}`);
+    if (!targetWindow) return;
+
+    // Bring clicked window to the top by adjusting z-index
+    highestZIndex++;
+    targetWindow.style.zIndex = highestZIndex;
+
+    targetWindow.style.display = 'flex';
+    targetWindow.offsetHeight; // Trigger reflow
+    targetWindow.classList.add('open');
+
+    if (dockBtn) {
+      dockBtn.classList.add('active');
+    }
+
+    // Trigger Lucide SVG rendering inside the window
+    if (typeof lucide !== 'undefined') {
+      lucide.createIcons();
+    }
+  }
+
+  function closeWindow(windowId, dockBtn) {
+    const targetWindow = document.getElementById(`window-${windowId}`);
+    if (!targetWindow) return;
+
+    targetWindow.classList.remove('open');
+    if (dockBtn) {
+      dockBtn.classList.remove('active');
+    }
+
+    setTimeout(() => {
+      if (!targetWindow.classList.contains('open')) {
+        targetWindow.style.display = 'none';
+      }
+    }, 400);
+  }
+
+  function closeAllWindows() {
+    const windows = document.querySelectorAll('.dashboard-window-container');
+    windows.forEach(win => {
+      win.classList.remove('open');
+      setTimeout(() => {
+        if (!win.classList.contains('open')) {
+          win.style.display = 'none';
+        }
+      }, 400);
+    });
+    
+    dockBtns.forEach(btn => btn.classList.remove('active'));
+  }
+
   // Portal Opening Controller (Modals)
   function openPortal(targetInterface) {
-    closeSidebar(); // Ensure sidebar is closed when opening modals
+    closeDock(); // Ensure dock is closed when opening modals
     overlay.style.display = 'flex';
     overlay.offsetHeight; // Trigger paint reflow for animation transition
     overlay.classList.add('open');
@@ -1364,6 +1449,7 @@ function initPortalAuth() {
     currentSession = null;
     updateAuthUI();
     closePortal();
+    closeDock(); // Reset state and hide dock and windows
   }
 
   function loginSuccess(sessionData) {
@@ -1371,12 +1457,12 @@ function initPortalAuth() {
     currentSession = sessionData;
     updateAuthUI();
     
-    // Open correct dashboard/sidebar
+    // Open correct dashboard/sidebar/dock
     if (sessionData.role === 'admin') {
       openPortal('admin-dashboard');
     } else {
       closePortal();
-      openSidebar();
+      openDock();
     }
   }
 
