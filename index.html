@@ -1005,8 +1005,6 @@
         </form>
       </div>
       
-
-      
       <!-- ADMIN CONTROL DASHBOARD -->
       <div class="portal-interface" id="admin-dashboard-interface" style="display: none;">
         <div class="admin-terminal-header">
@@ -1023,25 +1021,40 @@
         
         <div class="dashboard-grid admin-style">
           <div class="dashboard-card terminal-style">
-            <h4>System Health</h4>
+            <h4>System Health & Config</h4>
             <p class="dashboard-highlight text-green">> Mainframe: ONLINE</p>
-            <p class="dashboard-highlight text-cyan">> Latency: 4ms</p>
-          </div>
-          <div class="dashboard-card terminal-style">
-            <h4>Administrative Actions</h4>
-            <div class="admin-actions-list">
+            <div class="admin-actions-list" style="margin-top: 1rem; display: flex; flex-direction: column; gap: 0.5rem;">
               <button class="admin-action-btn" id="admin-toggle-sandbox">Toggle AI Sandbox Mode</button>
-              <button class="admin-action-btn" id="admin-adjust-revenue">Adjust Revenue Goals</button>
               <button class="admin-action-btn" id="admin-reset-system">Reset System Environment</button>
             </div>
           </div>
+
           <div class="dashboard-card terminal-style">
-            <h4>Core System Logs</h4>
-            <div class="terminal-logs-view">
-              <p>[16:33:12] Init canvas: WEBGL_CONTEXT_READY</p>
-              <p>[16:34:02] Loading video: assets/video/gallery/intro.mp4</p>
-              <p>[16:45:00] Secure Override system initialized</p>
-              <p class="blink-text">[WAITING] Awaiting command input...</p>
+            <h4>Publish System Notification</h4>
+            <form id="admin-notification-form" style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 0.5rem;">
+              <div class="portal-input-group">
+                <label for="admin-notif-title">> Title</label>
+                <input type="text" id="admin-notif-title" placeholder="Enter notification title..." required style="background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); color: #fff; padding: 0.5rem; border-radius: 4px; font-family: monospace;">
+              </div>
+              <div class="portal-input-group">
+                <label for="admin-notif-desc">> Message Body</label>
+                <textarea id="admin-notif-desc" placeholder="Enter notification details..." required style="background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); color: #fff; padding: 0.5rem; border-radius: 4px; font-family: monospace; height: 60px; resize: none;"></textarea>
+              </div>
+              <button type="submit" class="admin-action-btn" style="background: var(--neon-cyan); color: #000; font-weight: bold; width: 100%;">Send Notification</button>
+            </form>
+          </div>
+
+          <div class="dashboard-card terminal-style">
+            <h4>Refund Claims Panel</h4>
+            <div id="admin-refund-claims-list" class="terminal-logs-view" style="max-height: 180px; overflow-y: auto; font-family: monospace; font-size: 0.85rem;">
+              <p class="text-muted">Awaiting refund submissions...</p>
+            </div>
+          </div>
+
+          <div class="dashboard-card terminal-style">
+            <h4>Ecosystem Payments Log</h4>
+            <div id="admin-payments-log-list" class="terminal-logs-view" style="max-height: 180px; overflow-y: auto; font-family: monospace; font-size: 0.85rem;">
+              <p class="text-muted">No transactions recorded yet.</p>
             </div>
           </div>
         </div>
@@ -1125,138 +1138,182 @@
 
   <div class="dashboard-window-container" id="window-notifications" style="display: none;">
     <div class="window-header">
-      <span class="window-title"><i data-lucide="bell"></i> Notifications</span>
+      <span class="window-title"><i data-lucide="bell"></i> System Notifications</span>
       <button class="window-close-btn" data-close="notifications">&times;</button>
     </div>
     <div class="window-body">
-      <div class="notif-list">
-        <div class="notif-item unread">
-          <div class="notif-title">Anime Render Pipeline Complete</div>
-          <div class="notif-desc">Your 3D sequence has successfully finished rendering.</div>
-          <div class="notif-time">10m ago</div>
-        </div>
-        <div class="notif-item unread">
-          <div class="notif-title">Payment Confirmed</div>
-          <div class="notif-desc">Receipt #2026-948 has been generated for VFX Package.</div>
-          <div class="notif-time">2h ago</div>
-        </div>
-        <div class="notif-item">
-          <div class="notif-title">Welcome to Gravity Portal</div>
-          <div class="notif-desc">Explore your premium creative technology workspace.</div>
-          <div class="notif-time">1d ago</div>
-        </div>
+      <div class="notif-list" id="notifications-list-container">
+        <!-- Renders dynamically from localStorage -->
       </div>
     </div>
   </div>
 
   <div class="dashboard-window-container" id="window-payments" style="display: none;">
     <div class="window-header">
-      <span class="window-title"><i data-lucide="credit-card"></i> Your Payments</span>
+      <span class="window-title"><i data-lucide="credit-card"></i> Payments & Billing (via Razorpay)</span>
       <button class="window-close-btn" data-close="payments">&times;</button>
     </div>
-    <div class="window-body">
-      <div class="payment-methods-section">
-        <h5>Saved Payment Methods</h5>
-        <div class="card-element">
-          <i data-lucide="credit-card"></i>
-          <span>•••• •••• •••• 4242 (Visa)</span>
-          <span class="default-badge">Primary</span>
+    <div class="window-body" style="overflow-y: auto;">
+      <!-- Catalog Section -->
+      <div class="catalog-section" style="margin-bottom: 1.5rem;">
+        <h5 style="margin-bottom: 0.75rem; color: var(--neon-cyan); border-bottom: 1px solid var(--glass-border); padding-bottom: 0.25rem;">Book Available Services</h5>
+        <div class="service-catalog-grid" style="display: flex; flex-direction: column; gap: 0.75rem;">
+          <!-- YouTube Intro Video -->
+          <div class="catalog-card" style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); border-radius: 8px;">
+            <div>
+              <h6 style="margin: 0; font-size: 0.95rem; color: var(--text-pure);">YouTube Intro Video</h6>
+              <span style="font-size: 0.8rem; color: var(--text-muted);">Total Cost: $100.00 (50% Advance booking)</span>
+            </div>
+            <button class="catalog-pay-btn" data-service-id="youtube_intro" data-service-name="YouTube Intro Video" data-price="100" data-advance="50" style="padding: 0.5rem 0.75rem; background: rgba(176, 38, 255, 0.15); border: 1px solid var(--neon-purple); border-radius: 6px; color: var(--neon-purple); font-weight: 600; font-family: inherit; font-size: 0.8rem; cursor: pointer; transition: all 0.2s;">Book for $50.00</button>
+          </div>
+          <!-- Commercial VFX Package -->
+          <div class="catalog-card" style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); border-radius: 8px;">
+            <div>
+              <h6 style="margin: 0; font-size: 0.95rem; color: var(--text-pure);">Commercial VFX Package</h6>
+              <span style="font-size: 0.8rem; color: var(--text-muted);">Total Cost: $300.00 (50% Advance booking)</span>
+            </div>
+            <button class="catalog-pay-btn" data-service-id="vfx_package" data-service-name="Commercial VFX Package" data-price="300" data-advance="150" style="padding: 0.5rem 0.75rem; background: rgba(176, 38, 255, 0.15); border: 1px solid var(--neon-purple); border-radius: 6px; color: var(--neon-purple); font-weight: 600; font-family: inherit; font-size: 0.8rem; cursor: pointer; transition: all 0.2s;">Book for $150.00</button>
+          </div>
+          <!-- Anime Character Design -->
+          <div class="catalog-card" style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); border-radius: 8px;">
+            <div>
+              <h6 style="margin: 0; font-size: 0.95rem; color: var(--text-pure);">Anime Character Design</h6>
+              <span style="font-size: 0.8rem; color: var(--text-muted);">Total Cost: $150.00 (50% Advance booking)</span>
+            </div>
+            <button class="catalog-pay-btn" data-service-id="anime_design" data-service-name="Anime Character Design" data-price="150" data-advance="75" style="padding: 0.5rem 0.75rem; background: rgba(176, 38, 255, 0.15); border: 1px solid var(--neon-purple); border-radius: 6px; color: var(--neon-purple); font-weight: 600; font-family: inherit; font-size: 0.8rem; cursor: pointer; transition: all 0.2s;">Book for $75.00</button>
+          </div>
         </div>
       </div>
-      <div class="billing-history-section">
-        <h5>Billing History</h5>
-        <table class="billing-table">
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Service</th>
-              <th>Amount</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Jun 24, 2026</td>
-              <td>VFX Production</td>
-              <td>$450.00</td>
-              <td><span class="status-paid">Paid</span></td>
-            </tr>
-            <tr>
-              <td>May 12, 2026</td>
-              <td>Anime Pipeline</td>
-              <td>$299.00</td>
-              <td><span class="status-paid">Paid</span></td>
-            </tr>
-          </tbody>
-        </table>
+
+      <!-- Billing History Section -->
+      <div class="billing-history-section" style="margin-bottom: 1.5rem;">
+        <h5 style="margin-bottom: 0.75rem; color: var(--neon-cyan); border-bottom: 1px solid var(--glass-border); padding-bottom: 0.25rem;">Billing History & Invoices</h5>
+        <div id="invoices-list-container">
+          <!-- Renders dynamically from localStorage -->
+        </div>
+      </div>
+
+      <!-- Refund Uploader Panel -->
+      <div id="refund-request-panel" class="refund-section" style="display: none; padding: 1rem; background: rgba(255, 51, 102, 0.04); border: 1px solid rgba(255, 51, 102, 0.2); border-radius: 12px;">
+        <h5 style="margin: 0 0 0.5rem 0; color: #ff3366;"><i data-lucide="help-circle"></i> File a Service Dispute / Refund Claim</h5>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">If you are unsatisfied with the final service or experienced issues, submit a dispute. You must upload a proof document (dispute description PDF, screenshots JPG/PNG).</p>
+        <form id="refund-dispute-form">
+          <input type="hidden" id="refund-target-purchase-id">
+          <div class="portal-input-group" style="margin-bottom: 0.75rem;">
+            <label style="color: #fff; font-size: 0.8rem; font-weight: bold;">Dispute Explanation</label>
+            <textarea id="refund-explanation" placeholder="Explain the issues with the service in detail..." required style="background: rgba(0,0,0,0.25); border: 1px solid var(--glass-border); color: #fff; width: 100%; padding: 0.5rem; border-radius: 6px; font-family: inherit; font-size: 0.85rem; height: 60px; resize: none;"></textarea>
+          </div>
+          <div class="portal-input-group" style="margin-bottom: 1rem;">
+            <label style="color: #fff; font-size: 0.8rem; font-weight: bold;">Upload Evidence (PDF, JPG, PNG)</label>
+            <div class="file-upload-drag-area" id="refund-upload-box" style="border: 2px dashed rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 1.25rem; text-align: center; cursor: pointer; background: rgba(0,0,0,0.15); transition: all 0.2s;">
+              <i data-lucide="upload-cloud" style="color: #ff3366; width: 28px; height: 28px; margin-bottom: 0.5rem;"></i>
+              <p style="margin: 0; font-size: 0.8rem; color: var(--text-pure);" id="upload-status-text">Drag & Drop or Click to Select File</p>
+              <input type="file" id="refund-proof-file" accept=".pdf,.jpg,.jpeg,.png" style="display: none;">
+            </div>
+          </div>
+          <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+            <button type="button" id="cancel-refund-btn" style="padding: 0.5rem 1rem; background: transparent; border: 1px solid var(--glass-border); border-radius: 6px; color: var(--text-pure); cursor: pointer; font-size: 0.8rem;">Cancel</button>
+            <button type="submit" style="padding: 0.5rem 1rem; background: #ff3366; border: none; border-radius: 6px; color: #fff; font-weight: 600; cursor: pointer; font-size: 0.8rem;">Submit Dispute</button>
+          </div>
+        </form>
       </div>
     </div>
   </div>
 
   <div class="dashboard-window-container" id="window-buyed-services" style="display: none;">
     <div class="window-header">
-      <span class="window-title"><i data-lucide="shopping-bag"></i> Purchased Services</span>
+      <span class="window-title"><i data-lucide="shopping-bag"></i> Purchased Services History</span>
       <button class="window-close-btn" data-close="buyed-services">&times;</button>
     </div>
     <div class="window-body">
-      <div class="services-list">
-        <div class="service-item">
-          <div class="service-icon"><i data-lucide="clapperboard"></i></div>
-          <div class="service-info">
-            <h5>Commercial VFX Package</h5>
-            <p>Standard Tier - 10 Render Credits</p>
-          </div>
-          <span class="service-status">Active</span>
-        </div>
-        <div class="service-item">
-          <div class="service-icon"><i data-lucide="tv"></i></div>
-          <div class="service-info">
-            <h5>Anime Production Pipeline</h5>
-            <p>Ecosystem Access - Unlimited shaders</p>
-          </div>
-          <span class="service-status">Active</span>
-        </div>
+      <div class="services-list" id="purchased-services-list-container">
+        <!-- Renders dynamically from localStorage -->
       </div>
     </div>
   </div>
 
   <div class="dashboard-window-container" id="window-track-services" style="display: none;">
     <div class="window-header">
-      <span class="window-title"><i data-lucide="activity"></i> Track Services & Products</span>
+      <span class="window-title"><i data-lucide="activity"></i> Active Service Tracking</span>
       <button class="window-close-btn" data-close="track-services">&times;</button>
     </div>
-    <div class="window-body">
-      <div class="tracking-list">
-        <div class="tracking-item">
-          <div class="tracking-header">
-            <h5>Anime Rendering Pipeline</h5>
-            <span class="tracking-percent">72%</span>
-          </div>
-          <div class="tracking-bar-container">
-            <div class="tracking-bar" style="width: 72%;"></div>
-          </div>
-          <ul class="tracking-steps">
-            <li class="completed">Asset Prep</li>
-            <li class="completed">Animation</li>
-            <li class="active">Lighting</li>
-            <li class="pending">Export</li>
-          </ul>
+    <div class="window-body" style="overflow-y: auto;">
+      <div id="service-tracking-list-container">
+        <!-- Renders dynamically from localStorage -->
+      </div>
+    </div>
+  </div>
+
+  <!-- RAZORPAY SIMULATION CHECKOUT POPUP -->
+  <div id="razorpay-checkout-overlay" class="razorpay-overlay" style="display: none;">
+    <div class="razorpay-modal">
+      <div class="razorpay-header">
+        <div class="razorpay-merchant-info">
+          <span class="razorpay-logo">razorpay</span>
+          <h4 class="razorpay-merchant-name">Gravity Studios</h4>
+          <p class="razorpay-service-label" id="razorpay-item-name">Payment for Service</p>
         </div>
-        
-        <div class="tracking-item">
-          <div class="tracking-header">
-            <h5>Commercial VFX Composite</h5>
-            <span class="tracking-percent">100%</span>
+        <div class="razorpay-amount-box">
+          <span class="razorpay-amount-label">Amount to Pay</span>
+          <h3 class="razorpay-amount-val" id="razorpay-item-amount">$0.00</h3>
+        </div>
+      </div>
+      
+      <div class="razorpay-body">
+        <div class="razorpay-contact-info">
+          <div class="razorpay-field">
+            <span class="razorpay-field-label">Phone</span>
+            <span class="razorpay-field-val" id="razorpay-user-phone">+91 98765 43210</span>
           </div>
-          <div class="tracking-bar-container">
-            <div class="tracking-bar completed-bar" style="width: 100%;"></div>
+          <div class="razorpay-field">
+            <span class="razorpay-field-label">Email</span>
+            <span class="razorpay-field-val" id="razorpay-user-email">user@gravity.com</span>
           </div>
-          <ul class="tracking-steps">
-            <li class="completed">Keying</li>
-            <li class="completed">Background</li>
-            <li class="completed">Grading</li>
-            <li class="completed">Delivered</li>
-          </ul>
+        </div>
+
+        <div class="razorpay-payment-methods">
+          <h5 class="razorpay-methods-title">PREFERRED PAYMENT METHODS</h5>
+          
+          <div class="razorpay-method-row active" id="razorpay-method-upi">
+            <div class="razorpay-method-icon"><i data-lucide="smartphone"></i></div>
+            <div class="razorpay-method-details">
+              <h6>UPI (Google Pay, PhonePe, Paytm)</h6>
+              <p>Pay instantly using your UPI ID</p>
+            </div>
+            <div class="razorpay-method-radio"><span></span></div>
+          </div>
+
+          <div class="razorpay-method-row" id="razorpay-method-card">
+            <div class="razorpay-method-icon"><i data-lucide="credit-card"></i></div>
+            <div class="razorpay-method-details">
+              <h6>Card (Visa, Mastercard, RuPay)</h6>
+              <p>Pay via Credit, Debit, or Corporate card</p>
+            </div>
+            <div class="razorpay-method-radio"><span></span></div>
+          </div>
+        </div>
+
+        <!-- Dynamic Payment Forms -->
+        <div class="razorpay-form-section" id="razorpay-form-upi">
+          <input type="text" id="razorpay-vpa-input" placeholder="enter-your-vpa@upi" value="client@okhdfcbank" style="width: 100%; padding: 0.75rem; border: 1px solid #e0e0e0; border-radius: 8px; font-family: inherit; font-size: 0.9rem; margin-bottom: 0.5rem; outline: none;">
+          <p style="font-size: 0.7rem; color: #757575; margin: 0;">Enter your UPI ID / VPA to complete the transaction safely.</p>
+        </div>
+
+        <div class="razorpay-form-section" id="razorpay-form-card" style="display: none;">
+          <input type="text" placeholder="Card Number" value="4111 2222 3333 4242" disabled style="width: 100%; padding: 0.75rem; border: 1px solid #e0e0e0; border-radius: 8px; font-family: inherit; font-size: 0.9rem; margin-bottom: 0.5rem; outline: none;">
+          <div style="display: flex; gap: 0.5rem;">
+            <input type="text" placeholder="MM / YY" value="12/29" disabled style="width: 60%; padding: 0.75rem; border: 1px solid #e0e0e0; border-radius: 8px; font-family: inherit; font-size: 0.9rem; outline: none;">
+            <input type="password" placeholder="CVV" value="123" disabled style="width: 40%; padding: 0.75rem; border: 1px solid #e0e0e0; border-radius: 8px; font-family: inherit; font-size: 0.9rem; outline: none;">
+          </div>
+        </div>
+      </div>
+
+      <div class="razorpay-footer">
+        <button type="button" class="razorpay-submit-btn" id="razorpay-pay-button">Pay $0.00</button>
+        <button type="button" class="razorpay-cancel-btn" id="razorpay-cancel-button">Cancel Payment</button>
+        <div class="razorpay-secure-badge">
+          <i data-lucide="shield-check"></i>
+          <span>Razorpay Secure (Test Mode)</span>
         </div>
       </div>
     </div>

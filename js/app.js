@@ -1061,6 +1061,12 @@ function initPortalAuth() {
       document.getElementById('sidebar-avatar-placeholder').innerText = firstLetter;
     }
     
+    // Trigger rendering of dynamic views
+    renderNotifications();
+    renderPayments();
+    renderPurchasedServices();
+    renderServiceTracking();
+    
     // Trigger Lucide SVG rendering inside Sidebar
     if (typeof lucide !== 'undefined') {
       lucide.createIcons();
@@ -1122,36 +1128,816 @@ function initPortalAuth() {
     alert("Profile settings updated successfully.");
   });
 
-  // Z-index tracking for multi-window focus layering
-  let highestZIndex = 1040;
+  /* ==========================================================================
+     ECOSYSTEM DATABASE & DYNAMIC STATE RENDER ENGINE
+     ========================================================================== */
 
-  // Sidebar buttons click triggers window toggling
-  const dockBtns = document.querySelectorAll('.dock-btn');
-  dockBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      const windowId = btn.getAttribute('data-window');
-      toggleWindow(windowId, btn);
-    });
-  });
+  // Seed default notifications if empty
+  const defaultNotifications = [
+    { id: 1, title: 'Welcome to Gravity Studio Workspace', desc: 'Book creative technology services, pay advances securely via Razorpay, track rendering milestones in real-time, and manage invoices directly in your portal.', time: '1h ago', read: false }
+  ];
 
-  // Window Close buttons
-  const windowCloseBtns = document.querySelectorAll('.window-close-btn');
-  windowCloseBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      const windowId = btn.getAttribute('data-close');
-      const dockBtn = document.querySelector(`.dock-btn[data-window="${windowId}"]`);
-      closeWindow(windowId, dockBtn);
-    });
-  });
+  if (!localStorage.getItem('gravity-system-notifications')) {
+    localStorage.setItem('gravity-system-notifications', JSON.stringify(defaultNotifications));
+  }
 
-  // Add click to focus behavior on windows to bring them to foreground
-  const dashboardWindows = document.querySelectorAll('.dashboard-window-container');
-  dashboardWindows.forEach(win => {
-    win.addEventListener('mousedown', () => {
-      highestZIndex++;
-      win.style.zIndex = highestZIndex;
+  // Render Notifications
+  function renderNotifications() {
+    const container = document.getElementById('notifications-list-container');
+    if (!container) return;
+
+    const notifs = JSON.parse(localStorage.getItem('gravity-system-notifications')) || [];
+    container.innerHTML = '';
+
+    if (notifs.length === 0) {
+      container.innerHTML = `<p class="text-muted" style="text-align:center; padding: 2rem 0;">No notifications received yet.</p>`;
+      document.getElementById('sidebar-notif-count').style.display = 'none';
+      return;
+    }
+
+    // Show count of unread
+    const unreadCount = notifs.filter(n => !n.read).length;
+    const badge = document.getElementById('sidebar-notif-count');
+    if (badge) {
+      if (unreadCount > 0) {
+        badge.innerText = unreadCount;
+        badge.style.display = 'inline-block';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+
+    notifs.forEach(notif => {
+      const div = document.createElement('div');
+      div.className = `notif-item ${notif.read ? '' : 'unread'}`;
+      div.innerHTML = `
+        <div class="notif-title" style="font-weight:700; color:var(--text-pure);">${notif.title}</div>
+        <div class="notif-desc" style="font-size:0.85rem; color:var(--text-muted); margin:0.25rem 0;">${notif.desc}</div>
+        <div class="notif-time" style="font-size:0.75rem; color:var(--neon-cyan);">${notif.time}</div>
+      `;
+      // Mark as read when clicked or viewed
+      div.addEventListener('click', () => {
+        if (!notif.read) {
+          notif.read = true;
+          localStorage.setItem('gravity-system-notifications', JSON.stringify(notifs));
+          renderNotifications();
+        }
+      });
+      container.appendChild(div);
     });
-  });
+  }
+
+  // Render Payments & Billing Tab
+  function renderPayments() {
+    const container = document.getElementById('invoices-list-container');
+    if (!container) return;
+
+    const purchases = JSON.parse(localStorage.getItem('gravity-user-purchases')) || [];
+    container.innerHTML = '';
+
+    if (purchases.length === 0) {
+      container.innerHTML = `<p class="text-muted" style="text-align:center; padding: 1.5rem 0; font-size: 0.9rem;">No transactions recorded. Book a service above to generate your first invoice.</p>`;
+      return;
+    }
+
+    const table = document.createElement('table');
+    table.className = 'billing-table';
+    table.style.width = '100%';
+    table.innerHTML = `
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Service Item</th>
+          <th>Amount Paid</th>
+          <th>Status</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="invoices-table-body"></tbody>
+    `;
+    container.appendChild(table);
+
+    const tbody = document.getElementById('invoices-table-body');
+    purchases.forEach(p => {
+      const tr = document.createElement('tr');
+      
+      let statusClass = 'status-paid';
+      let statusText = 'Fully Paid';
+      let actionHtml = '';
+
+      if (p.status === 'advance_paid') {
+        statusClass = 'status-pending';
+        statusText = 'Advance (50%)';
+        actionHtml = `<button class="invoice-action-btn pay-final-btn" data-id="${p.id}" style="padding:0.25rem 0.5rem; background:rgba(0, 240, 255, 0.15); border:1px solid var(--neon-cyan); border-radius:4px; color:var(--neon-cyan); font-size:0.75rem; font-weight:bold; cursor:pointer;">Pay Final 50%</button>`;
+      } else if (p.status === 'completed') {
+        statusClass = 'status-pending';
+        statusText = 'Awaiting Final';
+        actionHtml = `
+          <div style="display:flex; gap:0.35rem;">
+            <button class="invoice-action-btn pay-final-btn" data-id="${p.id}" style="padding:0.25rem 0.5rem; background:rgba(0, 240, 255, 0.15); border:1px solid var(--neon-cyan); border-radius:4px; color:var(--neon-cyan); font-size:0.75rem; font-weight:bold; cursor:pointer;">Pay Final 50%</button>
+            <button class="invoice-action-btn dispute-btn" data-id="${p.id}" style="padding:0.25rem 0.5rem; background:rgba(255, 51, 102, 0.15); border:1px solid #ff3366; border-radius:4px; color:#ff3366; font-size:0.75rem; font-weight:bold; cursor:pointer;">File Dispute</button>
+          </div>
+        `;
+      } else if (p.status === 'refund_requested') {
+        statusClass = 'status-pending';
+        statusText = 'Disputed';
+        actionHtml = `<span style="font-size:0.75rem; color:var(--neon-amber);">Reviewing Proof</span>`;
+      } else if (p.status === 'refund_approved') {
+        statusClass = 'status-refunded';
+        statusText = 'Refunded (100%)';
+        actionHtml = `<span style="font-size:0.75rem; color:#ff3366;">Funds Returned</span>`;
+      } else if (p.status === 'refund_denied') {
+        statusClass = 'status-pending';
+        statusText = 'Dispute Denied';
+        actionHtml = `<button class="invoice-action-btn pay-final-btn" data-id="${p.id}" style="padding:0.25rem 0.5rem; background:rgba(0, 240, 255, 0.15); border:1px solid var(--neon-cyan); border-radius:4px; color:var(--neon-cyan); font-size:0.75rem; font-weight:bold; cursor:pointer;">Pay Final 50%</button>`;
+      }
+
+      tr.innerHTML = `
+        <td style="font-size:0.8rem;">${p.date}</td>
+        <td>
+          <div style="font-weight:bold; font-size:0.85rem; color:#fff;">${p.serviceName}</div>
+          <div style="font-size:0.7rem; color:var(--text-muted);">Total: $${p.totalCost.toFixed(2)}</div>
+        </td>
+        <td style="font-size:0.85rem; font-weight:bold; color:var(--neon-cyan);">$${p.paidAmount.toFixed(2)}</td>
+        <td><span class="${statusClass}">${statusText}</span></td>
+        <td>${actionHtml}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    // Attach listeners to dynamic buttons
+    document.querySelectorAll('.pay-final-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const purchaseId = btn.getAttribute('data-id');
+        const item = purchases.find(p => p.id === purchaseId);
+        if (item) {
+          const remainingAmount = item.totalCost - item.paidAmount;
+          initiateRazorpayPayment({
+            type: 'final',
+            serviceId: item.serviceId,
+            serviceName: item.serviceName,
+            totalCost: item.totalCost,
+            payAmount: remainingAmount,
+            purchaseId: item.id
+          });
+        }
+      });
+    });
+
+    document.querySelectorAll('.dispute-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const purchaseId = btn.getAttribute('data-id');
+        showRefundPanel(purchaseId);
+      });
+    });
+  }
+
+  // Render Purchased Services History Tab
+  function renderPurchasedServices() {
+    const container = document.getElementById('purchased-services-list-container');
+    if (!container) return;
+
+    const purchases = JSON.parse(localStorage.getItem('gravity-user-purchases')) || [];
+    container.innerHTML = '';
+
+    if (purchases.length === 0) {
+      container.innerHTML = `<p class="text-muted" style="text-align:center; padding: 2rem 0; font-size: 0.9rem;">No purchased services found. Complete an advance payment in the Billing tab to start.</p>`;
+      return;
+    }
+
+    purchases.forEach(p => {
+      const itemDiv = document.createElement('div');
+      itemDiv.className = 'service-item';
+      
+      let iconName = 'clapperboard';
+      if (p.serviceId === 'youtube_intro') iconName = 'tv';
+      if (p.serviceId === 'anime_design') iconName = 'smile';
+
+      let statusText = 'Active';
+      if (p.status === 'fully_paid') statusText = 'Completed & Delivered';
+      if (p.status === 'refund_requested') statusText = 'Dispute Pending';
+      if (p.status === 'refund_approved') statusText = 'Refunded';
+
+      itemDiv.innerHTML = `
+        <div class="service-icon"><i data-lucide="${iconName}"></i></div>
+        <div class="service-info" style="flex:1;">
+          <h5 style="margin:0; font-size:0.95rem; color:#fff;">${p.serviceName}</h5>
+          <p style="margin:0.15rem 0 0; font-size:0.8rem; color:var(--text-muted);">Purchased: ${p.date} • Paid: $${p.paidAmount.toFixed(2)}/$${p.totalCost.toFixed(2)}</p>
+        </div>
+        <span class="service-status" style="background:rgba(0, 240, 255, 0.1); border-color:var(--neon-cyan); color:var(--neon-cyan);">${statusText}</span>
+      `;
+      container.appendChild(itemDiv);
+    });
+    if (window.lucide) lucide.createIcons();
+  }
+
+  // Render Active Service Tracking Tab
+  function renderServiceTracking() {
+    const container = document.getElementById('service-tracking-list-container');
+    if (!container) return;
+
+    const purchases = JSON.parse(localStorage.getItem('gravity-user-purchases')) || [];
+    container.innerHTML = '';
+
+    // Filter active (non-refunded) services
+    const activeTrackings = purchases.filter(p => p.status !== 'refund_approved');
+
+    if (activeTrackings.length === 0) {
+      container.innerHTML = `<p class="text-muted" style="text-align:center; padding: 2rem 0; font-size: 0.9rem;">No active services currently in development.</p>`;
+      return;
+    }
+
+    activeTrackings.forEach(p => {
+      const div = document.createElement('div');
+      div.className = 'tracking-item';
+      div.style.marginBottom = '1.5rem';
+      div.style.background = 'rgba(255,255,255,0.01)';
+      div.style.border = '1px solid var(--glass-border)';
+      div.style.padding = '1.25rem';
+      div.style.borderRadius = '12px';
+
+      let statusMsg = '';
+      let percent = 50;
+      let step1 = 'completed'; // Booking
+      let step2 = 'active';    // Production
+      let step3 = 'pending';   // Approval
+      let step4 = 'pending';   // Delivery
+      let simulateBtnHtml = '';
+      let finalPayBtnHtml = '';
+
+      if (p.status === 'advance_paid') {
+        statusMsg = `Preparing the ${p.serviceName.toLowerCase()}. It will be provided within 2 hours.`;
+        percent = 50;
+        simulateBtnHtml = `<button class="admin-action-btn simulate-complete-btn" data-id="${p.id}" style="margin-top:1rem; background:rgba(176, 38, 255, 0.15); border:1px solid var(--neon-purple); border-radius:6px; color:var(--neon-purple); font-size:0.75rem; padding:0.4rem 0.6rem; cursor:pointer; font-weight:bold; transition:all 0.2s;">[Dev Simulate] Complete Production</button>`;
+      } else if (p.status === 'completed') {
+        statusMsg = `Production completed. Awaiting remaining 50% final payment to release files.`;
+        percent = 75;
+        step2 = 'completed';
+        step3 = 'active';
+        finalPayBtnHtml = `
+          <div style="margin-top:1rem; display:flex; gap:0.5rem;">
+            <button class="invoice-action-btn pay-final-btn" data-id="${p.id}" style="padding:0.4rem 0.75rem; background:rgba(0, 240, 255, 0.15); border:1px solid var(--neon-cyan); border-radius:6px; color:var(--neon-cyan); font-weight:bold; font-size:0.8rem; cursor:pointer;">Pay Remaining 50% ($${(p.totalCost - p.paidAmount).toFixed(2)})</button>
+            <button class="invoice-action-btn dispute-btn" data-id="${p.id}" style="padding:0.4rem 0.75rem; background:rgba(255, 51, 102, 0.15); border:1px solid #ff3366; border-radius:6px; color:#ff3366; font-weight:bold; font-size:0.8rem; cursor:pointer;">Dispute & Refund</button>
+          </div>
+        `;
+      } else if (p.status === 'refund_requested') {
+        statusMsg = `Dispute Filed. Under review by Gravity administration. Files held in escrow.`;
+        percent = 75;
+        step2 = 'completed';
+        step3 = 'active'; // In dispute state
+      } else if (p.status === 'refund_denied') {
+        statusMsg = `Refund Dispute Denied by administration. Awaiting remaining 50% final payment to release files.`;
+        percent = 75;
+        step2 = 'completed';
+        step3 = 'active';
+        finalPayBtnHtml = `
+          <div style="margin-top:1rem; display:flex; gap:0.5rem;">
+            <button class="invoice-action-btn pay-final-btn" data-id="${p.id}" style="padding:0.4rem 0.75rem; background:rgba(0, 240, 255, 0.15); border:1px solid var(--neon-cyan); border-radius:6px; color:var(--neon-cyan); font-weight:bold; font-size:0.8rem; cursor:pointer;">Pay Remaining 50% ($${(p.totalCost - p.paidAmount).toFixed(2)})</button>
+          </div>
+        `;
+      } else if (p.status === 'fully_paid') {
+        statusMsg = `Delivered! Source files and production assets are ready for download.`;
+        percent = 100;
+        step2 = 'completed';
+        step3 = 'completed';
+        step4 = 'completed';
+        finalPayBtnHtml = `
+          <button class="admin-action-btn download-assets-btn" style="margin-top:1rem; background:rgba(57, 255, 20, 0.15); border:1px solid var(--neon-green); border-radius:6px; color:var(--neon-green); font-size:0.8rem; padding:0.5rem 1rem; cursor:pointer; font-weight:bold;" onclick="alert('Downloading standard zip package containing your compiled assets...')">
+            <i data-lucide="download" style="width:14px; height:14px; vertical-align:middle; margin-right:4px;"></i> Download Production Package
+          </button>
+        `;
+      }
+
+      div.innerHTML = `
+        <div class="tracking-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+          <h5 style="margin:0; font-size:1rem; color:#fff;">${p.serviceName}</h5>
+          <span class="tracking-percent" style="font-size:0.9rem; font-weight:bold; color:var(--neon-cyan);">${percent}%</span>
+        </div>
+        <div class="tracking-bar-container" style="height:6px; background:rgba(255,255,255,0.05); border-radius:10px; overflow:hidden; margin-bottom:1rem;">
+          <div class="tracking-bar" style="width:${percent}%; height:100%; background:linear-gradient(90deg, var(--neon-purple), var(--neon-cyan)); border-radius:10px; transition: width 0.4s ease;"></div>
+        </div>
+        <p style="margin:0 0 1rem 0; font-size:0.85rem; color:var(--text-muted); line-height:1.4; border-left:2px solid var(--neon-purple); padding-left:8px;">
+          <span style="font-weight:bold; color:#fff;">Status:</span> ${statusMsg}
+        </p>
+        <ul class="tracking-steps" style="display:flex; justify-content:space-between; padding:0; margin:0; list-style:none; font-size:0.75rem;">
+          <li class="${step1}" style="color:${step1 === 'completed' ? 'var(--neon-green)' : 'var(--text-muted)'}">Advance Paid</li>
+          <li class="${step2}" style="color:${step2 === 'completed' ? 'var(--neon-green)' : (step2 === 'active' ? 'var(--neon-cyan)' : 'var(--text-muted)')}">Production</li>
+          <li class="${step3}" style="color:${step3 === 'completed' ? 'var(--neon-green)' : (step3 === 'active' ? (p.status === 'refund_requested' ? 'var(--neon-amber)' : 'var(--neon-cyan)') : 'var(--text-muted)')}">${p.status === 'refund_requested' ? 'Disputed' : 'Final Approval'}</li>
+          <li class="${step4}" style="color:${step4 === 'completed' ? 'var(--neon-green)' : 'var(--text-muted)'}">Delivered</li>
+        </ul>
+        ${simulateBtnHtml}
+        ${finalPayBtnHtml}
+      `;
+      container.appendChild(div);
+    });
+
+    // Attach listeners for dynamic buttons inside tracker
+    document.querySelectorAll('.simulate-complete-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const purchaseId = btn.getAttribute('data-id');
+        const purchases = JSON.parse(localStorage.getItem('gravity-user-purchases')) || [];
+        const index = purchases.findIndex(p => p.id === purchaseId);
+        if (index !== -1) {
+          purchases[index].status = 'completed';
+          localStorage.setItem('gravity-user-purchases', JSON.stringify(purchases));
+          
+          // Add notification
+          addSystemNotification(
+            "Project Review Pending",
+            `Your project '${purchases[index].serviceName}' has been successfully compiled and is ready for final review. Pay the remaining 50% to complete delivery.`
+          );
+
+          alert("DEVELOPER SIMULATOR: Project status updated to COMPLETED by the creative team!");
+          
+          renderPayments();
+          renderPurchasedServices();
+          renderServiceTracking();
+        }
+      });
+    });
+
+    document.querySelectorAll('.pay-final-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const purchaseId = btn.getAttribute('data-id');
+        const item = purchases.find(p => p.id === purchaseId);
+        if (item) {
+          const remainingAmount = item.totalCost - item.paidAmount;
+          initiateRazorpayPayment({
+            type: 'final',
+            serviceId: item.serviceId,
+            serviceName: item.serviceName,
+            totalCost: item.totalCost,
+            payAmount: remainingAmount,
+            purchaseId: item.id
+          });
+        }
+      });
+    });
+
+    document.querySelectorAll('.dispute-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const purchaseId = btn.getAttribute('data-id');
+        showRefundPanel(purchaseId);
+      });
+    });
+
+    if (window.lucide) lucide.createIcons();
+  }
+
+  // Add system notifications dynamically
+  function addSystemNotification(title, desc) {
+    const notifs = JSON.parse(localStorage.getItem('gravity-system-notifications')) || [];
+    notifs.unshift({
+      id: Date.now(),
+      title: title,
+      desc: desc,
+      time: "Just now",
+      read: false
+    });
+    localStorage.setItem('gravity-system-notifications', JSON.stringify(notifs));
+    renderNotifications();
+  }
+
+  /* ==========================================================================
+     RAZORPAY SIMULATION LOGIC
+     ========================================================================== */
+  let activePayment = null;
+
+  const razorpayOverlay = document.getElementById('razorpay-checkout-overlay');
+  const razorpayPayBtn = document.getElementById('razorpay-pay-button');
+  const razorpayCancelBtn = document.getElementById('razorpay-cancel-button');
+  const methodUpi = document.getElementById('razorpay-method-upi');
+  const methodCard = document.getElementById('razorpay-method-card');
+  const formUpi = document.getElementById('razorpay-form-upi');
+  const formCard = document.getElementById('razorpay-form-card');
+
+  function initiateRazorpayPayment(data) {
+    activePayment = data;
+    
+    document.getElementById('razorpay-item-name').innerText = `${data.type === 'booking' ? '50% Booking Advance' : '50% Final Settlement'} for ${data.serviceName}`;
+    document.getElementById('razorpay-item-amount').innerText = `$${data.payAmount.toFixed(2)}`;
+    razorpayPayBtn.innerText = `Pay $${data.payAmount.toFixed(2)}`;
+    
+    // Fill details from session
+    if (currentSession) {
+      document.getElementById('razorpay-user-email').innerText = currentSession.email || 'client@gravity.com';
+      document.getElementById('razorpay-user-phone').innerText = '+91 98920 10101'; // Simulated local contact
+    }
+
+    razorpayOverlay.style.display = 'flex';
+  }
+
+  // Method switching
+  if (methodUpi && methodCard) {
+    methodUpi.addEventListener('click', () => {
+      methodUpi.classList.add('active');
+      methodCard.classList.remove('active');
+      formUpi.style.display = 'block';
+      formCard.style.display = 'none';
+    });
+
+    methodCard.addEventListener('click', () => {
+      methodCard.classList.add('active');
+      methodUpi.classList.remove('active');
+      formCard.style.display = 'block';
+      formUpi.style.display = 'none';
+    });
+  }
+
+  // Cancel Payment
+  if (razorpayCancelBtn) {
+    razorpayCancelBtn.addEventListener('click', () => {
+      razorpayOverlay.style.display = 'none';
+      activePayment = null;
+    });
+  }
+
+  // Submit Simulated Payment
+  if (razorpayPayBtn) {
+    razorpayPayBtn.addEventListener('click', () => {
+      if (!activePayment) return;
+
+      razorpayPayBtn.innerText = "Processing secure checkout...";
+      razorpayPayBtn.disabled = true;
+
+      // Simulate network delay
+      setTimeout(() => {
+        const methodUsed = methodUpi.classList.contains('active') ? 'UPI' : 'Card';
+        
+        // Log transaction
+        let txs = JSON.parse(localStorage.getItem('gravity-transactions')) || [];
+        const txId = "pay_" + Math.random().toString(36).substring(2, 10).toUpperCase();
+        txs.unshift({
+          id: txId,
+          user: currentSession ? currentSession.username : 'User',
+          email: currentSession ? currentSession.email : 'anonymous@gravity.com',
+          service: activePayment.serviceName,
+          amount: activePayment.payAmount,
+          method: methodUsed,
+          type: activePayment.type,
+          date: new Date().toLocaleString()
+        });
+        localStorage.setItem('gravity-transactions', JSON.stringify(txs));
+
+        // Update purchases state
+        let purchases = JSON.parse(localStorage.getItem('gravity-user-purchases')) || [];
+        
+        if (activePayment.type === 'booking') {
+          // New purchase record
+          purchases.unshift({
+            id: "PUR-" + Date.now().toString().substring(8),
+            serviceId: activePayment.serviceId,
+            serviceName: activePayment.serviceName,
+            totalCost: activePayment.totalCost,
+            paidAmount: activePayment.payAmount,
+            status: 'advance_paid',
+            date: new Date().toLocaleDateString()
+          });
+          
+          addSystemNotification(
+            "Booking Confirmed via Razorpay",
+            `Successfully received 50% advance booking payment of $${activePayment.payAmount.toFixed(2)} for '${activePayment.serviceName}'. Work starts immediately.`
+          );
+        } else if (activePayment.type === 'final') {
+          // Update existing purchase
+          const idx = purchases.findIndex(p => p.id === activePayment.purchaseId);
+          if (idx !== -1) {
+            purchases[idx].paidAmount = purchases[idx].totalCost;
+            purchases[idx].status = 'fully_paid';
+            
+            addSystemNotification(
+              "Project Successfully Delivered",
+              `Received final 50% payment of $${activePayment.payAmount.toFixed(2)} for '${activePayment.serviceName}'. Source files are released for download.`
+            );
+          }
+        }
+        localStorage.setItem('gravity-user-purchases', JSON.stringify(purchases));
+
+        alert(`Razorpay Payment Complete!\nTransaction Reference: ${txId}\nAmount: $${activePayment.payAmount.toFixed(2)}`);
+        
+        // Reset and close
+        razorpayPayBtn.disabled = false;
+        razorpayOverlay.style.display = 'none';
+        activePayment = null;
+
+        // Refresh views
+        renderPayments();
+        renderPurchasedServices();
+        renderServiceTracking();
+        renderAdminDashboard();
+      }, 1500);
+    });
+  }
+
+  /* ==========================================================================
+     REFUND DISPUTE FILE UPLOADER
+     ========================================================================== */
+  const refundPanel = document.getElementById('refund-request-panel');
+  const disputeForm = document.getElementById('refund-dispute-form');
+  const uploadBox = document.getElementById('refund-upload-box');
+  const fileInput = document.getElementById('refund-proof-file');
+  const uploadText = document.getElementById('upload-status-text');
+  const cancelRefundBtn = document.getElementById('cancel-refund-btn');
+
+  let selectedFile = null;
+
+  function showRefundPanel(purchaseId) {
+    document.getElementById('refund-target-purchase-id').value = purchaseId;
+    refundPanel.style.display = 'block';
+    refundPanel.scrollIntoView({ behavior: 'smooth' });
+  }
+
+  if (cancelRefundBtn) {
+    cancelRefundBtn.addEventListener('click', () => {
+      disputeForm.reset();
+      refundPanel.style.display = 'none';
+      selectedFile = null;
+      uploadText.innerText = "Drag & Drop or Click to Select File";
+    });
+  }
+
+  // Handle Drag & Drop Events
+  if (uploadBox && fileInput) {
+    uploadBox.addEventListener('click', () => fileInput.click());
+
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) {
+        selectedFile = e.target.files[0];
+        uploadText.innerHTML = `File Selected: <strong style="color:#ff3366;">${selectedFile.name}</strong> (${(selectedFile.size/1024).toFixed(1)} KB)`;
+      }
+    });
+
+    uploadBox.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      uploadBox.classList.add('drag-over');
+    });
+
+    uploadBox.addEventListener('dragleave', () => {
+      uploadBox.classList.remove('drag-over');
+    });
+
+    uploadBox.addEventListener('drop', (e) => {
+      e.preventDefault();
+      uploadBox.classList.remove('drag-over');
+      if (e.dataTransfer.files.length > 0) {
+        selectedFile = e.dataTransfer.files[0];
+        uploadText.innerHTML = `File Dropped: <strong style="color:#ff3366;">${selectedFile.name}</strong> (${(selectedFile.size/1024).toFixed(1)} KB)`;
+      }
+    });
+  }
+
+  // Submit Dispute Form
+  if (disputeForm) {
+    disputeForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const purchaseId = document.getElementById('refund-target-purchase-id').value;
+      const explanation = document.getElementById('refund-explanation').value.trim();
+
+      if (!selectedFile) {
+        alert("Please upload a PDF, JPG, or PNG document proving your dispute.");
+        return;
+      }
+
+      // Add to refunds log
+      let refunds = JSON.parse(localStorage.getItem('gravity-refunds')) || [];
+      const purchases = JSON.parse(localStorage.getItem('gravity-user-purchases')) || [];
+      const item = purchases.find(p => p.id === purchaseId);
+      
+      if (item) {
+        // Change status to refund_requested
+        item.status = 'refund_requested';
+        localStorage.setItem('gravity-user-purchases', JSON.stringify(purchases));
+
+        // Record refund claim
+        refunds.unshift({
+          id: "REF-" + Date.now().toString().substring(8),
+          purchaseId: purchaseId,
+          user: currentSession ? currentSession.username : 'User',
+          serviceName: item.serviceName,
+          explanation: explanation,
+          fileName: selectedFile.name,
+          fileSize: `${(selectedFile.size/1024).toFixed(1)} KB`,
+          amount: item.paidAmount,
+          status: 'pending',
+          date: new Date().toLocaleString()
+        });
+        localStorage.setItem('gravity-refunds', JSON.stringify(refunds));
+
+        addSystemNotification(
+          "Refund Claim Filed",
+          `Dispute case filed for '${item.serviceName}'. Evidence file '${selectedFile.name}' uploaded. Under administrative review.`
+        );
+
+        alert("Dispute Filed Successfully!\nYour refund request and uploaded proof are submitted to the administration mainframe.");
+        
+        // Reset & Close
+        disputeForm.reset();
+        refundPanel.style.display = 'none';
+        selectedFile = null;
+        uploadText.innerText = "Drag & Drop or Click to Select File";
+
+        // Refresh
+        renderPayments();
+        renderPurchasedServices();
+        renderServiceTracking();
+        renderAdminDashboard();
+      }
+    });
+  }
+
+  /* ==========================================================================
+     ADMIN CONSOLE DASHBOARD EVENT HANDLERS
+     ========================================================================== */
+
+  // Publish Notification Form
+  const adminNotifForm = document.getElementById('admin-notification-form');
+  if (adminNotifForm) {
+    adminNotifForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const title = document.getElementById('admin-notif-title').value.trim();
+      const desc = document.getElementById('admin-notif-desc').value.trim();
+
+      addSystemNotification(title, desc);
+      
+      adminNotifForm.reset();
+      alert(`[ADMIN MAINFRAME] Notification published successfully! All active users will receive it.`);
+      renderAdminDashboard();
+    });
+  }
+
+  // Render Admin Dashboard Lists
+  function renderAdminDashboard() {
+    const refundListContainer = document.getElementById('admin-refund-claims-list');
+    const paymentsListContainer = document.getElementById('admin-payments-log-list');
+
+    // Render Refund Claims
+    if (refundListContainer) {
+      const refunds = JSON.parse(localStorage.getItem('gravity-refunds')) || [];
+      refundListContainer.innerHTML = '';
+
+      if (refunds.length === 0) {
+        refundListContainer.innerHTML = `<p class="text-muted">> Awaiting refund dispute submissions...</p>`;
+      } else {
+        refunds.forEach(ref => {
+          const p = document.createElement('div');
+          p.className = 'admin-refund-row';
+          p.style.padding = '0.5rem';
+          p.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
+          p.style.marginBottom = '0.5rem';
+
+          let buttonsHtml = '';
+          if (ref.status === 'pending') {
+            buttonsHtml = `
+              <div style="margin-top:0.35rem; display:flex; gap:0.5rem;">
+                <button class="admin-claim-btn approve" data-id="${ref.id}" style="background:#4caf50; color:#fff; border:none; padding:0.2rem 0.5rem; font-family:inherit; font-size:0.7rem; font-weight:bold; border-radius:3px; cursor:pointer;">Approve & Return $${ref.amount.toFixed(2)}</button>
+                <button class="admin-claim-btn deny" data-id="${ref.id}" style="background:#ff3366; color:#fff; border:none; padding:0.2rem 0.5rem; font-family:inherit; font-size:0.7rem; font-weight:bold; border-radius:3px; cursor:pointer;">Deny Dispute</button>
+              </div>
+            `;
+          } else {
+            buttonsHtml = `<div style="font-size:0.7rem; color:${ref.status === 'approved' ? 'var(--neon-green)' : 'var(--neon-pink)'}; font-weight:bold; margin-top:0.25rem;">> CLAIM ${ref.status.toUpperCase()}</div>`;
+          }
+
+          p.innerHTML = `
+            <div style="color:#fff; font-weight:bold;">User: ${ref.user} • Claim ID: ${ref.id}</div>
+            <div style="color:var(--neon-cyan); font-size:0.8rem;">Service: ${ref.serviceName} ($${ref.amount.toFixed(2)} disputed)</div>
+            <div style="color:var(--text-muted); font-size:0.75rem; margin-top:0.15rem;">Reason: "${ref.explanation}"</div>
+            <div style="color:var(--neon-amber); font-size:0.75rem; margin-top:0.15rem;">Proof File: [${ref.fileName}] (${ref.fileSize})</div>
+            ${buttonsHtml}
+          `;
+          refundListContainer.appendChild(p);
+        });
+
+        // Attach event listeners for Admin refund buttons
+        document.querySelectorAll('.admin-claim-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const id = btn.getAttribute('data-id');
+            const action = btn.classList.contains('approve') ? 'approve' : 'deny';
+            processRefundClaim(id, action);
+          });
+        });
+      }
+    }
+
+    // Render Payments Log
+    if (paymentsListContainer) {
+      const txs = JSON.parse(localStorage.getItem('gravity-transactions')) || [];
+      paymentsListContainer.innerHTML = '';
+
+      if (txs.length === 0) {
+        paymentsListContainer.innerHTML = `<p class="text-muted">> No payment transactions recorded yet.</p>`;
+      } else {
+        txs.forEach(t => {
+          const div = document.createElement('div');
+          div.className = 'admin-payment-row';
+          div.style.padding = '0.4rem 0';
+          div.style.borderBottom = '1px solid rgba(255,255,255,0.03)';
+          
+          let actionLabel = t.type === 'booking' ? '50% ADVANCE' : '50% FINAL';
+          if (t.amount < 0) actionLabel = 'REFUND RETURN';
+
+          div.innerHTML = `
+            <span class="text-green">> [${t.date}]</span>
+            <span style="color:#fff; font-weight:bold;">$${Math.abs(t.amount).toFixed(2)}</span>
+            <span>via ${t.method}</span>
+            <span style="color:var(--neon-cyan);">(${actionLabel})</span>
+            <span style="color:var(--text-muted);">by ${t.user} (${t.service})</span>
+          `;
+          paymentsListContainer.appendChild(div);
+        });
+      }
+    }
+  }
+
+  // Admin processes refund claim
+  function processRefundClaim(claimId, action) {
+    const refunds = JSON.parse(localStorage.getItem('gravity-refunds')) || [];
+    const refIdx = refunds.findIndex(r => r.id === claimId);
+
+    if (refIdx !== -1) {
+      const claim = refunds[refIdx];
+      const purchases = JSON.parse(localStorage.getItem('gravity-user-purchases')) || [];
+      const purIdx = purchases.findIndex(p => p.id === claim.purchaseId);
+
+      if (action === 'approve') {
+        claim.status = 'approved';
+        if (purIdx !== -1) {
+          purchases[purIdx].status = 'refund_approved';
+        }
+
+        // Add negative refund transaction
+        let txs = JSON.parse(localStorage.getItem('gravity-transactions')) || [];
+        txs.unshift({
+          id: "refund_" + Math.random().toString(36).substring(2, 10).toUpperCase(),
+          user: claim.user,
+          email: 'system-refund@gravity.com',
+          service: claim.serviceName,
+          amount: -claim.amount, // Negative amount
+          method: 'Razorpay Refund Routing',
+          type: 'refund',
+          date: new Date().toLocaleString()
+        });
+        localStorage.setItem('gravity-transactions', JSON.stringify(txs));
+
+        addSystemNotification(
+          "Refund Approved by Admin",
+          `Dispute case for '${claim.serviceName}' approved. Refund of $${claim.amount.toFixed(2)} returned. Original booking advance fully reversed.`
+        );
+        alert(`[ADMIN MAINFRAME] Refund dispute case ${claimId} approved! Capital has been returned to the user.`);
+
+      } else if (action === 'deny') {
+        claim.status = 'denied';
+        if (purIdx !== -1) {
+          purchases[purIdx].status = 'refund_denied'; // Returns back to awaiting final payment
+        }
+
+        addSystemNotification(
+          "Dispute Claim Rejected",
+          `Dispute claim for '${claim.serviceName}' has been reviewed and rejected by system administrators. Awaiting final payment to complete release.`
+        );
+        alert(`[ADMIN MAINFRAME] Dispute claim case ${claimId} has been reviewed and denied. Milestone timeline resumed.`);
+      }
+
+      localStorage.setItem('gravity-refunds', JSON.stringify(refunds));
+      localStorage.setItem('gravity-user-purchases', JSON.stringify(purchases));
+
+      // Refresh
+      renderPayments();
+      renderPurchasedServices();
+      renderServiceTracking();
+      renderAdminDashboard();
+    }
+  }
+
+  // Attach Admin triggers
+  const adminToggleSandbox = document.getElementById('admin-toggle-sandbox');
+  if (adminToggleSandbox) {
+    adminToggleSandbox.addEventListener('click', () => {
+      let sandbox = localStorage.getItem('gravity-sandbox-mode') === 'true';
+      sandbox = !sandbox;
+      localStorage.setItem('gravity-sandbox-mode', sandbox);
+      alert(`[SYSTEM CONTROL] Sandbox Mode set to ${sandbox ? 'ACTIVE' : 'INACTIVE'}`);
+    });
+  }
+
+  const adminResetSystem = document.getElementById('admin-reset-system');
+  if (adminResetSystem) {
+    adminResetSystem.addEventListener('click', () => {
+      if (confirm("WARNING: Are you sure you want to restore default application configs? This clears session caches and transaction history.")) {
+        localStorage.clear();
+        alert("System caches flushed. Re-initializing ecosystem...");
+        window.location.reload();
+      }
+    });
+  }
+
+  // Pre-load Admin Dashboard lists when admin enters
+  const origOpenPortal = openPortal;
+  openPortal = function(targetInterface) {
+    origOpenPortal(targetInterface);
+    if (targetInterface === 'admin-dashboard') {
+      renderAdminDashboard();
+    }
+  };
 
   // Toggle dynamic window
   function toggleWindow(windowId, dockBtn) {
@@ -1181,6 +1967,12 @@ function initPortalAuth() {
     if (dockBtn) {
       dockBtn.classList.add('active');
     }
+
+    // Dynamic rendering hooks based on window opening
+    if (windowId === 'notifications') renderNotifications();
+    if (windowId === 'payments') renderPayments();
+    if (windowId === 'buyed-services') renderPurchasedServices();
+    if (windowId === 'track-services') renderServiceTracking();
 
     // Trigger Lucide SVG rendering inside the window
     if (typeof lucide !== 'undefined') {
@@ -1238,6 +2030,7 @@ function initPortalAuth() {
       adminLoginInterface.style.display = 'block';
     } else if (targetInterface === 'admin-dashboard') {
       adminDashboardInterface.style.display = 'block';
+      renderAdminDashboard();
     }
   }
 
