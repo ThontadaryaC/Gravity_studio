@@ -13,6 +13,35 @@ const RAZORPAY_CONFIG = {
   currency: "INR" // Currency code (INR is standard for Indian transactions)
 };
 
+// Default service prices catalog
+const DEFAULT_SERVICE_PRICES = [
+  { id: "youtube_intro", name: "YouTube Intro Video", priceINR: 8400, priceUSD: 100 },
+  { id: "vfx_package", name: "Commercial VFX Package", priceINR: 25200, priceUSD: 300 },
+  { id: "anime_design", name: "Anime Character Design", priceINR: 12600, priceUSD: 150 },
+  { id: "thumbnail_creation", name: "YouTube Thumbnail Creations", priceINR: 899, priceUSD: 11 },
+  { id: "logo_design", name: "Logo Designs", priceINR: 1699, priceUSD: 20 },
+  { id: "civil_construction", name: "Civil Construction Services", priceINR: 15000, priceUSD: 180 }
+];
+
+function getServicePrices() {
+  const stored = localStorage.getItem('gravity_service_prices');
+  if (stored) return JSON.parse(stored);
+  localStorage.setItem('gravity_service_prices', JSON.stringify(DEFAULT_SERVICE_PRICES));
+  return DEFAULT_SERVICE_PRICES;
+}
+
+function detectUserCountry(session) {
+  if (!session) return 'Other';
+  const email = (session.email || '').toLowerCase();
+  const phone = (session.phone || '');
+  const locale = (session.locale || '').toUpperCase();
+  if (email.endsWith('.in') || phone.startsWith('+91') || phone.startsWith('91') || locale.endsWith('-IN') || locale.includes('IN')) {
+    return 'India';
+  }
+  return session.country || 'Other';
+}
+
+
 document.addEventListener('DOMContentLoaded', () => {
   // Safe retry for Lucide icons rendering to avoid race conditions
   function renderAllIcons() {
@@ -1188,6 +1217,7 @@ function initPortalAuth() {
     if (currentSession) {
       document.getElementById('profile-username').value = currentSession.username || 'User';
       document.getElementById('profile-phone').value = currentSession.phone || '';
+      document.getElementById('profile-country').value = currentSession.country || detectUserCountry(currentSession);
       document.getElementById('profile-email').value = currentSession.email || '';
       document.getElementById('sidebar-username').innerText = currentSession.username || 'User';
       
@@ -1250,6 +1280,7 @@ function initPortalAuth() {
     e.preventDefault();
     const updatedUsername = document.getElementById('profile-username').value.trim();
     const updatedPhone = document.getElementById('profile-phone').value.trim();
+    const updatedCountry = document.getElementById('profile-country').value;
     if (updatedUsername.length < 3) {
       alert("Username must be at least 3 characters long.");
       return;
@@ -1262,15 +1293,19 @@ function initPortalAuth() {
           .from('profiles')
           .update({ 
             username: updatedUsername,
-            phone: updatedPhone
+            phone: updatedPhone,
+            country: updatedCountry
           })
           .eq('id', currentSession.uid);
         
-        // If phone column is missing, try updating username only
-        if (error && error.message.includes('column "phone"')) {
+        // If columns are missing, fallback to username and phone only
+        if (error) {
           await supabaseClient
             .from('profiles')
-            .update({ username: updatedUsername })
+            .update({ 
+              username: updatedUsername,
+              phone: updatedPhone
+            })
             .eq('id', currentSession.uid);
         }
       } catch (err) {
@@ -1280,6 +1315,7 @@ function initPortalAuth() {
 
     currentSession.username = updatedUsername;
     currentSession.phone = updatedPhone;
+    currentSession.country = updatedCountry;
     localStorage.setItem('gravity-user-session', JSON.stringify(currentSession));
     
     // Update local registrations list if user registered locally
@@ -1287,6 +1323,8 @@ function initPortalAuth() {
     const userIndex = users.findIndex(u => u.email === currentSession.email);
     if (userIndex !== -1) {
       users[userIndex].username = updatedUsername;
+      users[userIndex].phone = updatedPhone;
+      users[userIndex].country = updatedCountry;
       localStorage.setItem('gravity-registered-users', JSON.stringify(users));
     }
 
@@ -1294,6 +1332,7 @@ function initPortalAuth() {
     document.getElementById('sidebar-username').innerText = updatedUsername;
     document.getElementById('sidebar-avatar-placeholder').innerText = updatedUsername.charAt(0).toUpperCase();
     updateAuthUI();
+    renderPayments(); // Re-render payment catalog with country pricing
     
     alert("Profile settings updated successfully.");
   });
@@ -1391,6 +1430,57 @@ function initPortalAuth() {
     const container = document.getElementById('invoices-list-container');
     if (!container) return;
 
+    // Render the dynamic catalog first
+    const catalogGrid = document.querySelector('.service-catalog-grid');
+    if (catalogGrid) {
+      const prices = getServicePrices();
+      catalogGrid.innerHTML = '';
+      const isIndian = currentSession && (currentSession.country === 'India' || (currentSession.phone && currentSession.phone.startsWith('+91')));
+      const symbol = isIndian ? '₹' : '$';
+      
+      prices.forEach(s => {
+        const total = isIndian ? s.priceINR : s.priceUSD;
+        const advance = total / 2;
+        
+        const card = document.createElement('div');
+        card.className = 'catalog-card';
+        card.style.display = 'flex';
+        card.style.justifyContent = 'space-between';
+        card.style.alignItems = 'center';
+        card.style.padding = '0.75rem 1rem';
+        card.style.background = 'rgba(255,255,255,0.02)';
+        card.style.border = '1px solid var(--glass-border)';
+        card.style.borderRadius = '8px';
+        
+        card.innerHTML = `
+          <div>
+            <h6 style="margin: 0; font-size: 0.95rem; color: var(--text-pure);">${s.name}</h6>
+            <span style="font-size: 0.8rem; color: var(--text-muted);">Total Cost: ${symbol}${total.toLocaleString()} (50% Advance booking)</span>
+          </div>
+          <button class="catalog-pay-btn" data-service-id="${s.id}" data-service-name="${s.name}" data-price="${total}" data-advance="${advance}" style="padding: 0.5rem 0.75rem; background: rgba(176, 38, 255, 0.15); border: 1px solid var(--neon-purple); border-radius: 6px; color: var(--neon-purple); font-weight: 600; font-family: inherit; font-size: 0.8rem; cursor: pointer; transition: all 0.2s;">Book for ${symbol}${advance.toLocaleString()}</button>
+        `;
+        catalogGrid.appendChild(card);
+      });
+
+      // Bind dynamic click triggers for catalog booking buttons
+      catalogGrid.querySelectorAll('.catalog-pay-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const serviceId = btn.getAttribute('data-service-id');
+          const serviceName = btn.getAttribute('data-service-name');
+          const totalCost = parseFloat(btn.getAttribute('data-price'));
+          const payAmount = parseFloat(btn.getAttribute('data-advance'));
+          
+          initiateRazorpayPayment({
+            type: 'booking',
+            serviceId: serviceId,
+            serviceName: serviceName,
+            totalCost: totalCost,
+            payAmount: payAmount
+          });
+        });
+      });
+    }
+
     let purchases = [];
     if (supabaseClient && currentSession && currentSession.uid) {
       const { data, error } = await supabaseClient
@@ -1406,6 +1496,7 @@ function initPortalAuth() {
           serviceName: p.service_name,
           totalCost: parseFloat(p.total_cost),
           paidAmount: parseFloat(p.paid_amount),
+          currency: p.currency || (parseFloat(p.total_cost) > 500 ? 'INR' : 'USD'),
           status: p.status,
           date: p.date,
           deliveryDeadline: p.delivery_deadline,
@@ -1493,14 +1584,15 @@ function initPortalAuth() {
       }
 
       const remainingAmount = p.totalCost - p.paidAmount;
+      const symbol = p.currency === 'INR' ? '₹' : '$';
       tr.innerHTML = `
         <td style="font-size:0.8rem;">${p.date}</td>
         <td>
           <div style="font-weight:bold; font-size:0.85rem; color:#fff;">${p.serviceName}</div>
         </td>
-        <td style="font-size:0.85rem; color:#fff;">$${p.totalCost.toFixed(2)}</td>
-        <td style="font-size:0.85rem; font-weight:bold; color:var(--neon-cyan);">$${p.paidAmount.toFixed(2)}</td>
-        <td style="font-size:0.85rem; font-weight:bold; color:${remainingAmount > 0 ? 'var(--neon-amber)' : '#39ff14'};">$${remainingAmount.toFixed(2)}</td>
+        <td style="font-size:0.85rem; color:#fff;">${symbol}${p.totalCost.toLocaleString()}</td>
+        <td style="font-size:0.85rem; font-weight:bold; color:var(--neon-cyan);">${symbol}${p.paidAmount.toLocaleString()}</td>
+        <td style="font-size:0.85rem; font-weight:bold; color:${remainingAmount > 0 ? 'var(--neon-amber)' : '#39ff14'};">${symbol}${remainingAmount.toLocaleString()}</td>
         <td><span class="${statusClass}">${statusText}</span></td>
         <td>${actionHtml}</td>
       `;
@@ -1867,6 +1959,10 @@ function initPortalAuth() {
   async function processSuccessPayment(txId, methodUsed) {
     if (!activePayment) return;
 
+    const isIndian = currentSession && (currentSession.country === 'India' || (currentSession.phone && currentSession.phone.startsWith('+91')));
+    const purchaseCurrency = isIndian ? 'INR' : 'USD';
+    const symbol = purchaseCurrency === 'INR' ? '₹' : '$';
+
     // Log transaction locally (Fallback)
     let txs = JSON.parse(localStorage.getItem('gravity-transactions')) || [];
     const localTx = {
@@ -1875,6 +1971,7 @@ function initPortalAuth() {
       email: currentSession ? currentSession.email : 'anonymous@gravity.com',
       service: activePayment.serviceName,
       amount: activePayment.payAmount,
+      currency: purchaseCurrency,
       method: methodUsed,
       type: activePayment.type,
       date: new Date().toLocaleString()
@@ -1909,6 +2006,7 @@ function initPortalAuth() {
         serviceName: activePayment.serviceName,
         totalCost: activePayment.totalCost,
         paidAmount: activePayment.payAmount,
+        currency: purchaseCurrency,
         status: 'advance_paid',
         date: new Date().toLocaleDateString(),
         deliveryDeadline: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
@@ -1954,7 +2052,7 @@ function initPortalAuth() {
       
       await addSystemNotification(
         "Booking Confirmed via Razorpay",
-        `Successfully received 50% advance booking payment of $${activePayment.payAmount.toFixed(2)} for '${activePayment.serviceName}'. Work starts immediately.`
+        `Successfully received 50% advance booking payment of ${symbol}${activePayment.payAmount.toLocaleString()} for '${activePayment.serviceName}'. Work starts immediately.`
       );
     } else if (activePayment.type === 'final') {
       // Update existing purchase
@@ -1977,7 +2075,7 @@ function initPortalAuth() {
         
         await addSystemNotification(
           "Project Successfully Delivered",
-          `Received final 50% payment of $${activePayment.payAmount.toFixed(2)} for '${activePayment.serviceName}'. Source files are released for download.`
+          `Received final 50% payment of ${symbol}${activePayment.payAmount.toLocaleString()} for '${activePayment.serviceName}'. Source files are released for download.`
         );
       }
     }
@@ -2011,12 +2109,15 @@ function initPortalAuth() {
   function initiateRazorpayPayment(data) {
     activePayment = data;
 
+    const isIndian = currentSession && (currentSession.country === 'India' || (currentSession.phone && currentSession.phone.startsWith('+91')));
+    const symbol = isIndian ? '₹' : '$';
+
     // A. Use Real Razorpay SDK popup if SDK is loaded and Key ID is set
     if (typeof Razorpay !== 'undefined' && RAZORPAY_CONFIG.keyId) {
       const options = {
         key: RAZORPAY_CONFIG.keyId,
         amount: Math.round(data.payAmount * 100), // Standard unit (paise/cents)
-        currency: "USD",
+        currency: isIndian ? "INR" : "USD",
         name: "Gravity Studios",
         description: `${data.type === 'booking' ? '50% Booking Advance' : '50% Final Settlement'} for ${data.serviceName}`,
         image: "https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/logo.png",
@@ -2027,18 +2128,12 @@ function initPortalAuth() {
         prefill: {
           name: currentSession ? currentSession.username : 'User',
           email: currentSession ? currentSession.email : 'client@gravity.com',
-          contact: '+91 98920 10101'
+          contact: currentSession && currentSession.phone ? currentSession.phone : '+91 98920 10101'
         },
         theme: {
           color: "#b026ff" // Matches Gravity purple theme
         }
       };
-
-      // Handle INR conversion
-      if (RAZORPAY_CONFIG.currency === 'INR') {
-        options.currency = 'INR';
-        options.amount = Math.round(data.payAmount * 84 * 100); // USD to INR conversion * 100 paise
-      }
 
       const rzp = new Razorpay(options);
       rzp.on('payment.failed', function (response){
@@ -2050,13 +2145,13 @@ function initPortalAuth() {
     
     // B. Fallback to Simulated Modal Sandbox
     document.getElementById('razorpay-item-name').innerText = `${data.type === 'booking' ? '50% Booking Advance' : '50% Final Settlement'} for ${data.serviceName}`;
-    document.getElementById('razorpay-item-amount').innerText = `$${data.payAmount.toFixed(2)}`;
-    razorpayPayBtn.innerText = `Pay $${data.payAmount.toFixed(2)}`;
+    document.getElementById('razorpay-item-amount').innerText = `${symbol}${data.payAmount.toLocaleString()}`;
+    razorpayPayBtn.innerText = `Pay ${symbol}${data.payAmount.toLocaleString()}`;
     
     // Fill details from session
     if (currentSession) {
       document.getElementById('razorpay-user-email').innerText = currentSession.email || 'client@gravity.com';
-      document.getElementById('razorpay-user-phone').innerText = '+91 98920 10101'; // Simulated local contact
+      document.getElementById('razorpay-user-phone').innerText = currentSession.phone || '+91 98920 10101'; // Simulated local contact
     }
 
     razorpayOverlay.style.display = 'flex';
@@ -2413,9 +2508,10 @@ function initPortalAuth() {
           let actionLabel = t.type === 'booking' ? '50% ADVANCE' : '50% FINAL';
           if (t.amount < 0) actionLabel = 'REFUND RETURN';
 
+          const symbol = t.currency === 'INR' ? '₹' : '$';
           div.innerHTML = `
             <span class="text-green">> [${t.date}]</span>
-            <span style="color:#fff; font-weight:bold;">$${Math.abs(t.amount).toFixed(2)}</span>
+            <span style="color:#fff; font-weight:bold;">${symbol}${Math.abs(t.amount).toLocaleString()}</span>
             <span>via ${t.method}</span>
             <span style="color:var(--neon-cyan);">(${actionLabel})</span>
             <span style="color:var(--text-muted);">by ${t.user} (${t.service})</span>
@@ -2423,6 +2519,9 @@ function initPortalAuth() {
           paymentsListContainer.appendChild(div);
         });
       }
+    }
+    if (typeof renderAdminPricingEditor === 'function') {
+      renderAdminPricingEditor();
     }
   }
 
@@ -2916,6 +3015,7 @@ function initPortalAuth() {
   // Handle Google OAuth JWT Response Token
   async function handleGoogleCredentialResponse(response) {
     const payload = decodeJwtResponse(response.credential);
+    const detectedCountry = (payload.locale && (payload.locale.toUpperCase().endsWith('-IN') || payload.locale.toUpperCase().includes('IN'))) ? 'India' : 'Other';
     
     if (supabaseClient) {
       const { data, error } = await supabaseClient.auth.signInWithIdToken({
@@ -2930,25 +3030,36 @@ function initPortalAuth() {
           role: 'user',
           username: payload.name,
           email: payload.email,
+          country: detectedCountry,
+          locale: payload.locale,
           uid: "local_" + Math.random().toString(36).substring(2, 10)
         });
       } else if (data.user) {
         await supabaseClient
           .from('profiles')
-          .upsert({ id: data.user.id, username: payload.name, email: payload.email });
+          .upsert({ 
+            id: data.user.id, 
+            username: payload.name, 
+            email: payload.email,
+            country: detectedCountry
+          });
 
         loginSuccess({
           role: 'user',
           username: payload.name,
           email: payload.email,
-          uid: data.user.id
+          uid: data.user.id,
+          country: detectedCountry,
+          locale: payload.locale
         });
       }
     } else {
       loginSuccess({
         role: 'user',
         username: payload.name,
-        email: payload.email
+        email: payload.email,
+        country: detectedCountry,
+        locale: payload.locale
       });
     }
   }
@@ -3011,6 +3122,9 @@ function initPortalAuth() {
   }
 
   function loginSuccess(sessionData) {
+    if (!sessionData.country) {
+      sessionData.country = detectUserCountry(sessionData);
+    }
     localStorage.setItem('gravity-user-session', JSON.stringify(sessionData));
     currentSession = sessionData;
     updateAuthUI();
@@ -3109,6 +3223,9 @@ function initPortalAuth() {
     const custName = currentSession ? currentSession.username : 'Valued Client';
     const custContact = currentSession && currentSession.phone ? currentSession.phone : '+91 98920 10101';
     
+    const purchaseCurrency = purchase.currency || (purchase.totalCost > 500 ? 'INR' : 'USD');
+    const symbol = purchaseCurrency === 'INR' ? '₹' : '$';
+    
     printWindow.document.write(`
       <html>
         <head>
@@ -3164,15 +3281,15 @@ function initPortalAuth() {
             <div class="totals">
               <div class="total-row">
                 <span>Total Project Cost:</span>
-                <span>$${purchase.totalCost.toFixed(2)}</span>
+                <span>${symbol}${purchase.totalCost.toLocaleString()}</span>
               </div>
               <div class="total-row" style="color: #4caf50; font-weight: bold;">
                 <span>Amount Paid This Term:</span>
-                <span>$${(isFinal ? purchase.totalCost / 2 : purchase.paidAmount).toFixed(2)}</span>
+                <span>${symbol}${(isFinal ? purchase.totalCost / 2 : purchase.paidAmount).toLocaleString()}</span>
               </div>
               <div class="total-row bold">
                 <span>Remaining Balance:</span>
-                <span>$${remaining.toFixed(2)}</span>
+                <span>${symbol}${remaining.toLocaleString()}</span>
               </div>
             </div>
             
@@ -3212,6 +3329,9 @@ function initPortalAuth() {
     const custName = currentSession ? currentSession.username : 'Valued Client';
     const custContact = currentSession && currentSession.phone ? currentSession.phone : '+91 98920 10101';
     
+    const purchaseCurrency = purchase.currency || (purchase.totalCost > 500 ? 'INR' : 'USD');
+    const symbol = purchaseCurrency === 'INR' ? '₹' : '$';
+    
     content.innerHTML = `
       <div style="font-size:0.85rem; line-height:1.6;">
         <div style="display:flex; justify-content:space-between; margin-bottom:1rem; font-size:0.8rem; color:var(--text-muted);">
@@ -3242,15 +3362,15 @@ function initPortalAuth() {
         <div style="border-bottom:1px solid var(--glass-border); padding-bottom:0.5rem; margin-bottom:0.5rem;">
           <div style="display:flex; justify-content:space-between;">
             <span>Total Cost:</span>
-            <span>$${purchase.totalCost.toFixed(2)}</span>
+            <span>${symbol}${purchase.totalCost.toLocaleString()}</span>
           </div>
           <div style="display:flex; justify-content:space-between; font-weight:bold; color:var(--neon-green);">
             <span>Amount Paid This Term:</span>
-            <span>$${(isFinal ? purchase.totalCost / 2 : purchase.paidAmount).toFixed(2)}</span>
+            <span>${symbol}${(isFinal ? purchase.totalCost / 2 : purchase.paidAmount).toLocaleString()}</span>
           </div>
           <div style="display:flex; justify-content:space-between; font-weight:bold;">
             <span>Remaining Amount:</span>
-            <span style="color:${remaining > 0 ? 'var(--neon-amber)' : 'var(--neon-green)'}">$${remaining.toFixed(2)}</span>
+            <span style="color:${remaining > 0 ? 'var(--neon-amber)' : 'var(--neon-green)'}">${symbol}${remaining.toLocaleString()}</span>
           </div>
         </div>
 
@@ -3307,6 +3427,85 @@ function initPortalAuth() {
         `Delivery of '${p.serviceName}' has been postponed by 24 hours because the final payment was not received 12 hours prior to the deadline.`
       );
     }
+  }
+
+  // --- SERVICE PRICING MANAGER (ADMIN CONTROL) ---
+  function renderAdminPricingEditor() {
+    const container = document.getElementById('admin-pricing-inputs');
+    if (!container) return;
+    
+    const prices = getServicePrices();
+    container.innerHTML = '';
+    
+    prices.forEach(s => {
+      const row = document.createElement('div');
+      row.style.display = 'flex';
+      row.style.flexDirection = 'column';
+      row.style.gap = '0.25rem';
+      row.style.padding = '0.5rem';
+      row.style.background = 'rgba(255,255,255,0.02)';
+      row.style.border = '1px solid rgba(255,255,255,0.05)';
+      row.style.borderRadius = '6px';
+      
+      row.innerHTML = `
+        <div style="font-weight:bold; color:var(--neon-cyan); font-size:0.8rem;">${s.name}</div>
+        <div style="display:flex; gap:0.5rem;">
+          <div style="flex:1; display:flex; align-items:center; gap:0.25rem;">
+            <span style="font-size:0.75rem; color:var(--text-muted);">INR:</span>
+            <input type="number" class="price-input-inr" data-id="${s.id}" value="${s.priceINR}" style="width:100%; background:rgba(0,0,0,0.3); border:1px solid var(--glass-border); color:#fff; padding:0.25rem; font-family:monospace; font-size:0.8rem; border-radius:4px;">
+          </div>
+          <div style="flex:1; display:flex; align-items:center; gap:0.25rem;">
+            <span style="font-size:0.75rem; color:var(--text-muted);">USD:</span>
+            <input type="number" class="price-input-usd" data-id="${s.id}" value="${s.priceUSD}" style="width:100%; background:rgba(0,0,0,0.3); border:1px solid var(--glass-border); color:#fff; padding:0.25rem; font-family:monospace; font-size:0.8rem; border-radius:4px;">
+          </div>
+        </div>
+      `;
+      container.appendChild(row);
+    });
+  }
+
+  const pricingForm = document.getElementById('admin-pricing-form');
+  if (pricingForm) {
+    pricingForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      
+      const prices = getServicePrices();
+      const updatedPrices = prices.map(s => {
+        const inrInput = pricingForm.querySelector(`.price-input-inr[data-id="${s.id}"]`);
+        const usdInput = pricingForm.querySelector(`.price-input-usd[data-id="${s.id}"]`);
+        return {
+          id: s.id,
+          name: s.name,
+          priceINR: inrInput ? parseFloat(inrInput.value) || 0 : s.priceINR,
+          priceUSD: usdInput ? parseFloat(usdInput.value) || 0 : s.priceUSD
+        };
+      });
+      
+      localStorage.setItem('gravity_service_prices', JSON.stringify(updatedPrices));
+      
+      // Sync with Supabase if active
+      if (supabaseClient) {
+        try {
+          supabaseClient
+            .from('service_catalog')
+            .upsert(updatedPrices.map(u => ({
+              id: u.id,
+              name: u.name,
+              price_inr: u.priceINR,
+              price_usd: u.priceUSD
+            })))
+            .then(({ error }) => {
+              if (error) console.warn("Supabase pricing sync warning:", error.message);
+            });
+        } catch(err) {
+          console.warn("Supabase pricing upsert error:", err);
+        }
+      }
+      
+      alert("Service pricing updated successfully inside the system database!");
+      renderPayments();
+      renderServiceTracking();
+    });
   }
 }
 
