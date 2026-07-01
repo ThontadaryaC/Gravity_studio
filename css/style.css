@@ -3794,3 +3794,70 @@ body.dark-theme .window-header {
   box-shadow: 0 0 12px var(--neon-purple-glow);
   transform: translateY(-1px);
 }
+
+/* --- BILLING TABLE & INVOICE STATUS STYLES --- */
+.billing-table {
+  border-collapse: collapse;
+  margin-top: 1rem;
+  font-size: 0.85rem;
+}
+
+.billing-table th {
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--neon-cyan);
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  letter-spacing: 0.05rem;
+  border-bottom: 1px solid var(--glass-border);
+  padding: 0.75rem 1rem;
+  text-align: left;
+}
+
+.billing-table td {
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  color: var(--text-pure);
+  vertical-align: middle;
+}
+
+.billing-table tr:hover {
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.status-paid {
+  background: rgba(57, 255, 20, 0.15) !important;
+  border: 1px solid #39ff14 !important;
+  color: #39ff14 !important;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  display: inline-block;
+}
+
+.status-pending {
+  background: rgba(255, 170, 0, 0.15) !important;
+  border: 1px solid var(--neon-amber) !important;
+  color: var(--neon-amber) !important;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  display: inline-block;
+}
+
+.status-refunded {
+  background: rgba(255, 51, 102, 0.15) !important;
+  border: 1px solid #ff3366 !important;
+  color: #ff3366 !important;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  display: inline-block;
+}
+

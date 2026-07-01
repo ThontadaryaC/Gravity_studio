@@ -5,6 +5,14 @@ const supabaseUrl = 'https://kivfatgytkjqoreltuyu.supabase.co';
 const supabaseKey = 'sb_publishable_NGdByzMeaQrwJPw1YKGjnA_issJf05b';
 const supabaseClient = (typeof supabase !== 'undefined') ? supabase.createClient(supabaseUrl, supabaseKey) : null;
 
+// Razorpay Integration Configuration
+const RAZORPAY_CONFIG = {
+  // Enter your Razorpay Key ID here (e.g. "rzp_test_xxxxxxxxxx")
+  // Leave empty "" to run in Simulated Sandbox Mode.
+  keyId: localStorage.getItem('gravity_razorpay_key') || "rzp_live_T8A9dCfkzIk2PS",
+  currency: "INR" // Currency code (INR is standard for Indian transactions)
+};
+
 document.addEventListener('DOMContentLoaded', () => {
   // Safe retry for Lucide icons rendering to avoid race conditions
   function renderAllIcons() {
@@ -77,6 +85,9 @@ function initIntroLoader() {
   document.body.style.overflow = 'hidden';
 
   if (introVideo) {
+    introVideo.addEventListener('error', () => {
+      startFallbackAnimation();
+    });
     introVideo.play().catch(() => {
       startFallbackAnimation();
     });
@@ -356,13 +367,13 @@ function initMagicPaint() {
 /* ==========================================================================
    5. MEDIA SHOWCASE & LIGHTBOX SYSTEM
    ========================================================================== */
-const galleryAssets = [
+let galleryAssets = [
   {
     type: 'image',
     category: 'posters',
     title: 'Civil Construction Services',
     desc: 'Professional civil site management and structural execution.',
-    src: 'assets/images/posters/Civil_construction_services.jpeg',
+    src: 'https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/Civil_construction_services.jpeg',
     fallbackColor: '#b026ff'
   },
   {
@@ -370,7 +381,7 @@ const galleryAssets = [
     category: 'posters',
     title: 'Logo Designs',
     desc: 'High-end vector corporate branding and visual assets design.',
-    src: 'assets/images/posters/Logo_designs.jpeg',
+    src: 'https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/Logo_designs.jpeg',
     fallbackColor: '#00f0ff'
   },
   {
@@ -378,7 +389,7 @@ const galleryAssets = [
     category: 'posters',
     title: 'YouTube Thumbnail Creations',
     desc: 'Creative graphic layouts and high-click-through cover arts.',
-    src: 'assets/images/posters/Youtube_thumbnail_creations.jpeg',
+    src: 'https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/Youtube_thumbnail_creations.jpeg',
     fallbackColor: '#ff0055'
   },
   {
@@ -386,7 +397,7 @@ const galleryAssets = [
     category: 'posters',
     title: 'Our Services',
     desc: 'Full overview of our creative and technical ecosystem offerings.',
-    src: 'assets/images/posters/our_services.jpeg',
+    src: 'https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/our_services.jpeg',
     fallbackColor: '#39ff14'
   },
   {
@@ -394,7 +405,7 @@ const galleryAssets = [
     category: 'posters',
     title: 'Price Quotations',
     desc: 'Competitive project valuations, packages, and custom quotes.',
-    src: 'assets/images/posters/price_quations.jpeg',
+    src: 'https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/price_quations.jpeg',
     fallbackColor: '#ffaa00'
   },
   {
@@ -402,15 +413,15 @@ const galleryAssets = [
     category: 'posters',
     title: 'Team & Department Structure',
     desc: 'Organization grid highlighting active divisions and reporting lines.',
-    src: 'assets/images/posters/team_memebers_with_department.jpeg',
+    src: 'https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/team_memebers_with_department.jpeg',
     fallbackColor: '#00f0ff'
   }
 ];
 
 let currentLightboxIdx = 0;
 
-function initMediaGallery() {
-  const cards = document.querySelectorAll('.gallery-card');
+async function initMediaGallery() {
+  const grid = document.querySelector('.gallery-grid');
   const modal = document.getElementById('lightbox-modal');
   const modalWrapper = document.querySelector('.lightbox-content-wrapper');
   const modalCaption = document.querySelector('.lightbox-caption');
@@ -418,13 +429,89 @@ function initMediaGallery() {
   const leftArrow = document.querySelector('.lightbox-arrow.left');
   const rightArrow = document.querySelector('.lightbox-arrow.right');
 
-  // Open Lightbox
-  cards.forEach(card => {
-    card.addEventListener('click', () => {
-      const idx = parseInt(card.getAttribute('data-index'));
-      openLightbox(idx);
+  // Bind click events to the initial static cards immediately for zero-latency interaction
+  setupCardListeners();
+
+  // Fetch and sync with Supabase if the client is active
+  if (supabaseClient) {
+    try {
+      const { data, error } = await supabaseClient
+        .from('gallery_assets')
+        .select('*')
+        .order('id', { ascending: true });
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        // Map database records to the galleryAssets structure
+        galleryAssets = data.map(item => ({
+          type: item.type || 'image',
+          category: item.category || 'posters',
+          title: item.title,
+          desc: item.description || item.desc || '',
+          src: item.src,
+          fallbackColor: item.fallback_color || item.fallbackColor || '#00f0ff'
+        }));
+
+        // Re-render the gallery grid dynamically
+        if (grid) {
+          grid.innerHTML = galleryAssets.map((item, index) => {
+            const iconName = item.type === 'video' ? 'video' : 'image';
+            const tagText = item.type === 'video' ? 'Video' : 'Poster';
+            return `
+              <div class="gallery-card" data-category="${item.category}" data-index="${index}" role="button" aria-label="View ${item.title} ${tagText}">
+                <div class="gallery-media-wrapper">
+                  <img src="${item.src}" alt="${item.title}" onerror="this.style.display='none';">
+                  <div class="gallery-placeholder" style="background: radial-gradient(circle, ${item.fallbackColor}33 0%, #0a0814 100%)">
+                    <div class="gallery-placeholder-icon" style="color:${item.fallbackColor}; border-color:${item.fallbackColor}; background:${item.fallbackColor}15">
+                      <i data-lucide="${iconName}"></i>
+                    </div>
+                    <h4 class="gallery-placeholder-title">${item.title}</h4>
+                    <span class="gallery-placeholder-tag">${tagText}</span>
+                  </div>
+                </div>
+                <div class="gallery-hover-overlay">
+                  <div class="gallery-hover-btn"><i data-lucide="maximize-2"></i></div>
+                  <div class="gallery-info">
+                    <h3 class="gallery-title">${item.title}</h3>
+                    <p class="gallery-desc">${item.desc}</p>
+                  </div>
+                </div>
+              </div>
+            `;
+          }).join('');
+
+          // Re-render Lucide icons for the newly injected DOM elements
+          if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+          }
+
+          // Bind click events to the new dynamically rendered cards
+          setupCardListeners();
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to load gallery assets from Supabase. Using local fallbacks.', err);
+    }
+  }
+
+  function setupCardListeners() {
+    const cards = document.querySelectorAll('.gallery-card');
+    cards.forEach(card => {
+      // Remove old listeners by cloning and replacing, or just add since grid is entirely rebuilt
+      // upon successful fetch, ensuring no duplicate listeners are active.
+      card.replaceWith(card.cloneNode(true));
     });
-  });
+
+    // Re-select and attach fresh listeners to active DOM nodes
+    const activeCards = document.querySelectorAll('.gallery-card');
+    activeCards.forEach(card => {
+      card.addEventListener('click', () => {
+        const idx = parseInt(card.getAttribute('data-index'));
+        openLightbox(idx);
+      });
+    });
+  }
 
   function openLightbox(idx) {
     currentLightboxIdx = idx;
@@ -440,10 +527,8 @@ function initMediaGallery() {
       video.controls = true;
       video.autoplay = true;
       video.playsInline = true;
-      // Add custom fallback background for local files
       video.style.background = 'radial-gradient(circle, rgba(176,38,255,0.15) 0%, #000 100%)';
       
-      // On error, show fallback card inside lightbox
       video.onerror = () => {
         showLightboxFallback(item);
       };
@@ -473,14 +558,13 @@ function initMediaGallery() {
     cardFallback.style.maxWidth = '100%';
     cardFallback.style.background = `radial-gradient(circle, ${item.fallbackColor}33 0%, #0a0814 100%)`;
     
-    // Lucide support for poster fallbacks
     const iconName = item.type === 'video' ? 'video' : 'image';
     cardFallback.innerHTML = `
       <div class="gallery-placeholder-icon" style="color:${item.fallbackColor}; border-color:${item.fallbackColor}; background:${item.fallbackColor}15">
         <i data-lucide="${iconName}"></i>
       </div>
       <h4 class="gallery-placeholder-title">${item.title}</h4>
-      <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:1rem;">[ Place real media in assets folder ]</p>
+      <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:1rem;">[ Place real media in assets folder or upload to Supabase Storage ]</p>
       <p style="font-size:0.8rem; color:${item.fallbackColor}; letter-spacing:0.1rem; text-transform:uppercase;">${item.category}</p>
     `;
     modalWrapper.appendChild(cardFallback);
@@ -995,6 +1079,24 @@ function initPortalAuth() {
   
   if (!loginBtn || !overlay || !sidebar) return;
 
+  // Bind catalog booking buttons
+  document.querySelectorAll('.catalog-pay-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const serviceId = btn.getAttribute('data-service-id');
+      const serviceName = btn.getAttribute('data-service-name');
+      const totalCost = parseFloat(btn.getAttribute('data-price'));
+      const payAmount = parseFloat(btn.getAttribute('data-advance'));
+      
+      initiateRazorpayPayment({
+        type: 'booking',
+        serviceId: serviceId,
+        serviceName: serviceName,
+        totalCost: totalCost,
+        payAmount: payAmount
+      });
+    });
+  });
+
   // Initialize Session
   let currentSession = JSON.parse(localStorage.getItem('gravity-user-session')) || null;
   updateAuthUI();
@@ -1085,6 +1187,7 @@ function initPortalAuth() {
     // Update Profile values inside elements
     if (currentSession) {
       document.getElementById('profile-username').value = currentSession.username || 'User';
+      document.getElementById('profile-phone').value = currentSession.phone || '';
       document.getElementById('profile-email').value = currentSession.email || '';
       document.getElementById('sidebar-username').innerText = currentSession.username || 'User';
       
@@ -1146,6 +1249,7 @@ function initPortalAuth() {
   profileForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const updatedUsername = document.getElementById('profile-username').value.trim();
+    const updatedPhone = document.getElementById('profile-phone').value.trim();
     if (updatedUsername.length < 3) {
       alert("Username must be at least 3 characters long.");
       return;
@@ -1153,18 +1257,29 @@ function initPortalAuth() {
 
     // Update Supabase profiles table if active
     if (supabaseClient && currentSession && currentSession.uid) {
-      const { error } = await supabaseClient
-        .from('profiles')
-        .update({ username: updatedUsername })
-        .eq('id', currentSession.uid);
-
-      if (error) {
-        alert(`Failed to update profile in database: ${error.message}`);
-        return;
+      try {
+        const { error } = await supabaseClient
+          .from('profiles')
+          .update({ 
+            username: updatedUsername,
+            phone: updatedPhone
+          })
+          .eq('id', currentSession.uid);
+        
+        // If phone column is missing, try updating username only
+        if (error && error.message.includes('column "phone"')) {
+          await supabaseClient
+            .from('profiles')
+            .update({ username: updatedUsername })
+            .eq('id', currentSession.uid);
+        }
+      } catch (err) {
+        console.warn("Failed to sync profile settings to Supabase", err);
       }
     }
 
     currentSession.username = updatedUsername;
+    currentSession.phone = updatedPhone;
     localStorage.setItem('gravity-user-session', JSON.stringify(currentSession));
     
     // Update local registrations list if user registered locally
@@ -1292,7 +1407,9 @@ function initPortalAuth() {
           totalCost: parseFloat(p.total_cost),
           paidAmount: parseFloat(p.paid_amount),
           status: p.status,
-          date: p.date
+          date: p.date,
+          deliveryDeadline: p.delivery_deadline,
+          postponed: p.postponed
         }));
       } else {
         purchases = JSON.parse(localStorage.getItem('gravity-user-purchases')) || [];
@@ -1300,6 +1417,15 @@ function initPortalAuth() {
     } else {
       purchases = JSON.parse(localStorage.getItem('gravity-user-purchases')) || [];
     }
+
+    purchases.forEach(p => {
+      if (!p.deliveryDeadline) {
+        const purchaseTime = new Date(p.date || Date.now()).getTime();
+        p.deliveryDeadline = new Date(purchaseTime + 24 * 60 * 60 * 1000).toISOString();
+        p.postponed = false;
+      }
+      checkAndApplyPostponement(p);
+    });
 
     container.innerHTML = '';
 
@@ -1316,7 +1442,9 @@ function initPortalAuth() {
         <tr>
           <th>Date</th>
           <th>Service Item</th>
+          <th>Total Cost</th>
           <th>Amount Paid</th>
+          <th>Remaining</th>
           <th>Status</th>
           <th>Action</th>
         </tr>
@@ -1332,41 +1460,47 @@ function initPortalAuth() {
       let statusClass = 'status-paid';
       let statusText = 'Fully Paid';
       let actionHtml = '';
+      const viewReceiptBtnHtml = `<button class="invoice-action-btn view-bill-btn" data-id="${p.id}" style="padding:0.25rem 0.5rem; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); border-radius:4px; color:#fff; font-size:0.75rem; font-weight:bold; cursor:pointer; margin-left:0.35rem;">Receipt</button>`;
 
       if (p.status === 'advance_paid') {
         statusClass = 'status-pending';
         statusText = 'Advance (50%)';
-        actionHtml = `<button class="invoice-action-btn pay-final-btn" data-id="${p.id}" style="padding:0.25rem 0.5rem; background:rgba(0, 240, 255, 0.15); border:1px solid var(--neon-cyan); border-radius:4px; color:var(--neon-cyan); font-size:0.75rem; font-weight:bold; cursor:pointer;">Pay Final 50%</button>`;
+        actionHtml = `<button class="invoice-action-btn pay-final-btn" data-id="${p.id}" style="padding:0.25rem 0.5rem; background:rgba(0, 240, 255, 0.15); border:1px solid var(--neon-cyan); border-radius:4px; color:var(--neon-cyan); font-size:0.75rem; font-weight:bold; cursor:pointer;">Pay Final 50%</button>${viewReceiptBtnHtml}`;
       } else if (p.status === 'completed') {
         statusClass = 'status-pending';
         statusText = 'Awaiting Final';
         actionHtml = `
-          <div style="display:flex; gap:0.35rem;">
+          <div style="display:flex; gap:0.35rem; align-items:center;">
             <button class="invoice-action-btn pay-final-btn" data-id="${p.id}" style="padding:0.25rem 0.5rem; background:rgba(0, 240, 255, 0.15); border:1px solid var(--neon-cyan); border-radius:4px; color:var(--neon-cyan); font-size:0.75rem; font-weight:bold; cursor:pointer;">Pay Final 50%</button>
             <button class="invoice-action-btn dispute-btn" data-id="${p.id}" style="padding:0.25rem 0.5rem; background:rgba(255, 51, 102, 0.15); border:1px solid #ff3366; border-radius:4px; color:#ff3366; font-size:0.75rem; font-weight:bold; cursor:pointer;">File Dispute</button>
+            ${viewReceiptBtnHtml}
           </div>
         `;
       } else if (p.status === 'refund_requested') {
         statusClass = 'status-pending';
         statusText = 'Disputed';
-        actionHtml = `<span style="font-size:0.75rem; color:var(--neon-amber);">Reviewing Proof</span>`;
+        actionHtml = `<span style="font-size:0.75rem; color:var(--neon-amber);">Reviewing Proof</span>${viewReceiptBtnHtml}`;
       } else if (p.status === 'refund_approved') {
         statusClass = 'status-refunded';
         statusText = 'Refunded (100%)';
-        actionHtml = `<span style="font-size:0.75rem; color:#ff3366;">Funds Returned</span>`;
+        actionHtml = `<span style="font-size:0.75rem; color:#ff3366;">Funds Returned</span>${viewReceiptBtnHtml}`;
       } else if (p.status === 'refund_denied') {
         statusClass = 'status-pending';
         statusText = 'Dispute Denied';
-        actionHtml = `<button class="invoice-action-btn pay-final-btn" data-id="${p.id}" style="padding:0.25rem 0.5rem; background:rgba(0, 240, 255, 0.15); border:1px solid var(--neon-cyan); border-radius:4px; color:var(--neon-cyan); font-size:0.75rem; font-weight:bold; cursor:pointer;">Pay Final 50%</button>`;
+        actionHtml = `<button class="invoice-action-btn pay-final-btn" data-id="${p.id}" style="padding:0.25rem 0.5rem; background:rgba(0, 240, 255, 0.15); border:1px solid var(--neon-cyan); border-radius:4px; color:var(--neon-cyan); font-size:0.75rem; font-weight:bold; cursor:pointer;">Pay Final 50%</button>${viewReceiptBtnHtml}`;
+      } else {
+        actionHtml = viewReceiptBtnHtml;
       }
 
+      const remainingAmount = p.totalCost - p.paidAmount;
       tr.innerHTML = `
         <td style="font-size:0.8rem;">${p.date}</td>
         <td>
           <div style="font-weight:bold; font-size:0.85rem; color:#fff;">${p.serviceName}</div>
-          <div style="font-size:0.7rem; color:var(--text-muted);">Total: $${p.totalCost.toFixed(2)}</div>
         </td>
+        <td style="font-size:0.85rem; color:#fff;">$${p.totalCost.toFixed(2)}</td>
         <td style="font-size:0.85rem; font-weight:bold; color:var(--neon-cyan);">$${p.paidAmount.toFixed(2)}</td>
+        <td style="font-size:0.85rem; font-weight:bold; color:${remainingAmount > 0 ? 'var(--neon-amber)' : '#39ff14'};">$${remainingAmount.toFixed(2)}</td>
         <td><span class="${statusClass}">${statusText}</span></td>
         <td>${actionHtml}</td>
       `;
@@ -1388,6 +1522,17 @@ function initPortalAuth() {
             payAmount: remainingAmount,
             purchaseId: item.id
           });
+        }
+      });
+    });
+
+    // Attach view receipt listeners
+    document.querySelectorAll('.view-bill-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const purchaseId = btn.getAttribute('data-id');
+        const item = purchases.find(p => p.id === purchaseId);
+        if (item) {
+          showInvoiceBill(item);
         }
       });
     });
@@ -1484,7 +1629,9 @@ function initPortalAuth() {
           totalCost: parseFloat(p.total_cost),
           paidAmount: parseFloat(p.paid_amount),
           status: p.status,
-          date: p.date
+          date: p.date,
+          deliveryDeadline: p.delivery_deadline,
+          postponed: p.postponed
         }));
       } else {
         purchases = JSON.parse(localStorage.getItem('gravity-user-purchases')) || [];
@@ -1504,6 +1651,13 @@ function initPortalAuth() {
     }
 
     activeTrackings.forEach(p => {
+      if (!p.deliveryDeadline) {
+        const purchaseTime = new Date(p.date || Date.now()).getTime();
+        p.deliveryDeadline = new Date(purchaseTime + 24 * 60 * 60 * 1000).toISOString();
+        p.postponed = false;
+      }
+      checkAndApplyPostponement(p);
+
       const div = document.createElement('div');
       div.className = 'tracking-item';
       div.style.marginBottom = '1.5rem';
@@ -1526,14 +1680,17 @@ function initPortalAuth() {
         percent = 50;
         simulateBtnHtml = `<button class="admin-action-btn simulate-complete-btn" data-id="${p.id}" style="margin-top:1rem; background:rgba(176, 38, 255, 0.15); border:1px solid var(--neon-purple); border-radius:6px; color:var(--neon-purple); font-size:0.75rem; padding:0.4rem 0.6rem; cursor:pointer; font-weight:bold; transition:all 0.2s;">[Dev Simulate] Complete Production</button>`;
       } else if (p.status === 'completed') {
-        statusMsg = `Production completed. Awaiting remaining 50% final payment to release files.`;
+        statusMsg = p.postponed 
+          ? `Waiting for your final payment. Delivery postponed by 24 hours because the final 50% payment was not received 12 hours prior to the original deadline.`
+          : `Production completed. Awaiting remaining 50% final payment to release files. Note: Payment must be made at least 12 hours before the deadline: ${new Date(p.deliveryDeadline).toLocaleString()}.`;
         percent = 75;
         step2 = 'completed';
         step3 = 'active';
         finalPayBtnHtml = `
-          <div style="margin-top:1rem; display:flex; gap:0.5rem;">
+          <div style="margin-top:1rem; display:flex; gap:0.5rem; align-items:center;">
             <button class="invoice-action-btn pay-final-btn" data-id="${p.id}" style="padding:0.4rem 0.75rem; background:rgba(0, 240, 255, 0.15); border:1px solid var(--neon-cyan); border-radius:6px; color:var(--neon-cyan); font-weight:bold; font-size:0.8rem; cursor:pointer;">Pay Remaining 50% ($${(p.totalCost - p.paidAmount).toFixed(2)})</button>
             <button class="invoice-action-btn dispute-btn" data-id="${p.id}" style="padding:0.4rem 0.75rem; background:rgba(255, 51, 102, 0.15); border:1px solid #ff3366; border-radius:6px; color:#ff3366; font-weight:bold; font-size:0.8rem; cursor:pointer;">Dispute & Refund</button>
+            <button class="invoice-action-btn view-bill-btn" data-id="${p.id}" style="padding:0.4rem 0.75rem; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); border-radius:6px; color:#fff; font-weight:bold; font-size:0.8rem; cursor:pointer;">View Receipt</button>
           </div>
         `;
       } else if (p.status === 'refund_requested') {
@@ -1542,13 +1699,16 @@ function initPortalAuth() {
         step2 = 'completed';
         step3 = 'active'; // In dispute state
       } else if (p.status === 'refund_denied') {
-        statusMsg = `Refund Dispute Denied by administration. Awaiting remaining 50% final payment to release files.`;
+        statusMsg = p.postponed 
+          ? `Waiting for your final payment. Delivery postponed by 24 hours because the final 50% payment was not received 12 hours prior to the original deadline.`
+          : `Refund Dispute Denied by administration. Awaiting remaining 50% final payment to release files. Note: Payment must be made at least 12 hours before the deadline: ${new Date(p.deliveryDeadline).toLocaleString()}.`;
         percent = 75;
         step2 = 'completed';
         step3 = 'active';
         finalPayBtnHtml = `
-          <div style="margin-top:1rem; display:flex; gap:0.5rem;">
+          <div style="margin-top:1rem; display:flex; gap:0.5rem; align-items:center;">
             <button class="invoice-action-btn pay-final-btn" data-id="${p.id}" style="padding:0.4rem 0.75rem; background:rgba(0, 240, 255, 0.15); border:1px solid var(--neon-cyan); border-radius:6px; color:var(--neon-cyan); font-weight:bold; font-size:0.8rem; cursor:pointer;">Pay Remaining 50% ($${(p.totalCost - p.paidAmount).toFixed(2)})</button>
+            <button class="invoice-action-btn view-bill-btn" data-id="${p.id}" style="padding:0.4rem 0.75rem; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); border-radius:6px; color:#fff; font-weight:bold; font-size:0.8rem; cursor:pointer;">View Receipt</button>
           </div>
         `;
       } else if (p.status === 'fully_paid') {
@@ -1558,9 +1718,12 @@ function initPortalAuth() {
         step3 = 'completed';
         step4 = 'completed';
         finalPayBtnHtml = `
-          <button class="admin-action-btn download-assets-btn" style="margin-top:1rem; background:rgba(57, 255, 20, 0.15); border:1px solid var(--neon-green); border-radius:6px; color:var(--neon-green); font-size:0.8rem; padding:0.5rem 1rem; cursor:pointer; font-weight:bold;" onclick="alert('Downloading standard zip package containing your compiled assets...')">
-            <i data-lucide="download" style="width:14px; height:14px; vertical-align:middle; margin-right:4px;"></i> Download Production Package
-          </button>
+          <div style="margin-top:1rem; display:flex; gap:0.5rem; align-items:center;">
+            <button class="admin-action-btn download-assets-btn" style="background:rgba(57, 255, 20, 0.15); border:1px solid var(--neon-green); border-radius:6px; color:var(--neon-green); font-size:0.8rem; padding:0.5rem 1rem; cursor:pointer; font-weight:bold;" onclick="alert('Downloading standard zip package containing your compiled assets...')">
+              <i data-lucide="download" style="width:14px; height:14px; vertical-align:middle; margin-right:4px;"></i> Download Production Package
+            </button>
+            <button class="invoice-action-btn view-bill-btn" data-id="${p.id}" style="padding:0.5rem 1rem; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); border-radius:6px; color:#fff; font-weight:bold; font-size:0.8rem; cursor:pointer;">View Receipt</button>
+          </div>
         `;
       }
 
@@ -1572,8 +1735,11 @@ function initPortalAuth() {
         <div class="tracking-bar-container" style="height:6px; background:rgba(255,255,255,0.05); border-radius:10px; overflow:hidden; margin-bottom:1rem;">
           <div class="tracking-bar" style="width:${percent}%; height:100%; background:linear-gradient(90deg, var(--neon-purple), var(--neon-cyan)); border-radius:10px; transition: width 0.4s ease;"></div>
         </div>
-        <p style="margin:0 0 1rem 0; font-size:0.85rem; color:var(--text-muted); line-height:1.4; border-left:2px solid var(--neon-purple); padding-left:8px;">
+        <p style="margin:0 0 0.5rem 0; font-size:0.85rem; color:var(--text-muted); line-height:1.4; border-left:2px solid var(--neon-purple); padding-left:8px;">
           <span style="font-weight:bold; color:#fff;">Status:</span> ${statusMsg}
+        </p>
+        <p style="margin:0 0 1rem 0; font-size:0.8rem; color:${p.postponed ? 'var(--neon-amber)' : 'var(--text-muted)'}; padding-left:10px;">
+          <strong>Estimated Delivery Deadline:</strong> ${new Date(p.deliveryDeadline).toLocaleString()}
         </p>
         <ul class="tracking-steps" style="display:flex; justify-content:space-between; padding:0; margin:0; list-style:none; font-size:0.75rem;">
           <li class="${step1}" style="color:${step1 === 'completed' ? 'var(--neon-green)' : 'var(--text-muted)'}">Advance Paid</li>
@@ -1644,6 +1810,17 @@ function initPortalAuth() {
       });
     });
 
+    // Attach view receipt listeners inside tracker
+    document.querySelectorAll('.view-bill-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const purchaseId = btn.getAttribute('data-id');
+        const item = purchases.find(p => p.id === purchaseId);
+        if (item) {
+          showInvoiceBill(item);
+        }
+      });
+    });
+
     if (window.lucide) lucide.createIcons();
   }
 
@@ -1674,7 +1851,7 @@ function initPortalAuth() {
   }
 
   /* ==========================================================================
-     RAZORPAY SIMULATION LOGIC
+     RAZORPAY GATEWAY CHECKOUT INTEGRATION
      ========================================================================== */
   let activePayment = null;
 
@@ -1686,9 +1863,192 @@ function initPortalAuth() {
   const formUpi = document.getElementById('razorpay-form-upi');
   const formCard = document.getElementById('razorpay-form-card');
 
+  // Unified Payment Success Handler
+  async function processSuccessPayment(txId, methodUsed) {
+    if (!activePayment) return;
+
+    // Log transaction locally (Fallback)
+    let txs = JSON.parse(localStorage.getItem('gravity-transactions')) || [];
+    const localTx = {
+      id: txId,
+      user: currentSession ? currentSession.username : 'User',
+      email: currentSession ? currentSession.email : 'anonymous@gravity.com',
+      service: activePayment.serviceName,
+      amount: activePayment.payAmount,
+      method: methodUsed,
+      type: activePayment.type,
+      date: new Date().toLocaleString()
+    };
+    txs.unshift(localTx);
+    localStorage.setItem('gravity-transactions', JSON.stringify(txs));
+
+    // Sync transaction to Supabase
+    if (supabaseClient) {
+      await supabaseClient
+        .from('transactions')
+        .insert([{
+          reference: txId,
+          username: localTx.user,
+          email: localTx.email,
+          service: localTx.service,
+          amount: localTx.amount,
+          method: localTx.method,
+          type: localTx.type,
+          date: localTx.date
+        }]);
+    }
+
+    // Update purchases state
+    let purchases = JSON.parse(localStorage.getItem('gravity-user-purchases')) || [];
+    
+    if (activePayment.type === 'booking') {
+      const purId = "PUR-" + Date.now().toString().substring(8);
+      const newPurchase = {
+        id: purId,
+        serviceId: activePayment.serviceId,
+        serviceName: activePayment.serviceName,
+        totalCost: activePayment.totalCost,
+        paidAmount: activePayment.payAmount,
+        status: 'advance_paid',
+        date: new Date().toLocaleDateString(),
+        deliveryDeadline: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        postponed: false
+      };
+      purchases.unshift(newPurchase);
+      localStorage.setItem('gravity-user-purchases', JSON.stringify(purchases));
+
+      // Sync purchase to Supabase
+      if (supabaseClient && currentSession && currentSession.uid) {
+        try {
+          await supabaseClient
+            .from('purchases')
+            .insert([{
+              id: purId,
+              user_id: currentSession.uid,
+              service_id: newPurchase.serviceId,
+              service_name: newPurchase.serviceName,
+              total_cost: newPurchase.totalCost,
+              paid_amount: newPurchase.paidAmount,
+              status: newPurchase.status,
+              date: newPurchase.date,
+              delivery_deadline: newPurchase.deliveryDeadline,
+              postponed: newPurchase.postponed
+            }]);
+        } catch (e) {
+          console.warn("Failed to sync purchase with deadline to Supabase", e);
+          // Fallback insert
+          await supabaseClient
+            .from('purchases')
+            .insert([{
+              id: purId,
+              user_id: currentSession.uid,
+              service_id: newPurchase.serviceId,
+              service_name: newPurchase.serviceName,
+              total_cost: newPurchase.totalCost,
+              paid_amount: newPurchase.paidAmount,
+              status: newPurchase.status,
+              date: newPurchase.date
+            }]);
+        }
+      }
+      
+      await addSystemNotification(
+        "Booking Confirmed via Razorpay",
+        `Successfully received 50% advance booking payment of $${activePayment.payAmount.toFixed(2)} for '${activePayment.serviceName}'. Work starts immediately.`
+      );
+    } else if (activePayment.type === 'final') {
+      // Update existing purchase
+      const idx = purchases.findIndex(p => p.id === activePayment.purchaseId);
+      if (idx !== -1) {
+        purchases[idx].paidAmount = purchases[idx].totalCost;
+        purchases[idx].status = 'fully_paid';
+        localStorage.setItem('gravity-user-purchases', JSON.stringify(purchases));
+
+        // Sync update to Supabase
+        if (supabaseClient) {
+          await supabaseClient
+            .from('purchases')
+            .update({
+              paid_amount: purchases[idx].totalCost,
+              status: 'fully_paid'
+            })
+            .eq('id', activePayment.purchaseId);
+        }
+        
+        await addSystemNotification(
+          "Project Successfully Delivered",
+          `Received final 50% payment of $${activePayment.payAmount.toFixed(2)} for '${activePayment.serviceName}'. Source files are released for download.`
+        );
+      }
+    }
+
+    alert(`Razorpay Payment Complete!\nTransaction Reference: ${txId}\nAmount: $${activePayment.payAmount.toFixed(2)}`);
+    
+    // Find the item to display in the receipt modal
+    let showItem = purchases.find(p => p.id === (activePayment.purchaseId || ''));
+    if (!showItem && activePayment.type === 'booking') {
+      showItem = purchases[0]; // The one we just unshifted
+    }
+    
+    // Reset and close simulated overlay just in case
+    if (razorpayOverlay) razorpayOverlay.style.display = 'none';
+    activePayment = null;
+
+    // Refresh views
+    await renderPayments();
+    await renderPurchasedServices();
+    await renderServiceTracking();
+    await renderAdminDashboard();
+
+    // Trigger Bill Overlay display dynamically
+    if (showItem) {
+      setTimeout(() => {
+        showInvoiceBill(showItem);
+      }, 600);
+    }
+  }
+
   function initiateRazorpayPayment(data) {
     activePayment = data;
+
+    // A. Use Real Razorpay SDK popup if SDK is loaded and Key ID is set
+    if (typeof Razorpay !== 'undefined' && RAZORPAY_CONFIG.keyId) {
+      const options = {
+        key: RAZORPAY_CONFIG.keyId,
+        amount: Math.round(data.payAmount * 100), // Standard unit (paise/cents)
+        currency: "USD",
+        name: "Gravity Studios",
+        description: `${data.type === 'booking' ? '50% Booking Advance' : '50% Final Settlement'} for ${data.serviceName}`,
+        image: "https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/logo.png",
+        handler: function (response) {
+          const txId = response.razorpay_payment_id || "pay_rzp_" + Math.random().toString(36).substring(2, 10).toUpperCase();
+          processSuccessPayment(txId, 'Razorpay SDK');
+        },
+        prefill: {
+          name: currentSession ? currentSession.username : 'User',
+          email: currentSession ? currentSession.email : 'client@gravity.com',
+          contact: '+91 98920 10101'
+        },
+        theme: {
+          color: "#b026ff" // Matches Gravity purple theme
+        }
+      };
+
+      // Handle INR conversion
+      if (RAZORPAY_CONFIG.currency === 'INR') {
+        options.currency = 'INR';
+        options.amount = Math.round(data.payAmount * 84 * 100); // USD to INR conversion * 100 paise
+      }
+
+      const rzp = new Razorpay(options);
+      rzp.on('payment.failed', function (response){
+        alert("Payment failed: " + response.error.description);
+      });
+      rzp.open();
+      return;
+    }
     
+    // B. Fallback to Simulated Modal Sandbox
     document.getElementById('razorpay-item-name').innerText = `${data.type === 'booking' ? '50% Booking Advance' : '50% Final Settlement'} for ${data.serviceName}`;
     document.getElementById('razorpay-item-amount').innerText = `$${data.payAmount.toFixed(2)}`;
     razorpayPayBtn.innerText = `Pay $${data.payAmount.toFixed(2)}`;
@@ -1702,7 +2062,7 @@ function initPortalAuth() {
     razorpayOverlay.style.display = 'flex';
   }
 
-  // Method switching
+  // Method switching (Simulated Overlay)
   if (methodUpi && methodCard) {
     methodUpi.addEventListener('click', () => {
       methodUpi.classList.add('active');
@@ -1719,7 +2079,7 @@ function initPortalAuth() {
     });
   }
 
-  // Cancel Payment
+  // Cancel Payment (Simulated Overlay)
   if (razorpayCancelBtn) {
     razorpayCancelBtn.addEventListener('click', () => {
       razorpayOverlay.style.display = 'none';
@@ -1740,112 +2100,10 @@ function initPortalAuth() {
         const methodUsed = methodUpi.classList.contains('active') ? 'UPI' : 'Card';
         const txId = "pay_" + Math.random().toString(36).substring(2, 10).toUpperCase();
         
-        // Log transaction locally (Fallback)
-        let txs = JSON.parse(localStorage.getItem('gravity-transactions')) || [];
-        const localTx = {
-          id: txId,
-          user: currentSession ? currentSession.username : 'User',
-          email: currentSession ? currentSession.email : 'anonymous@gravity.com',
-          service: activePayment.serviceName,
-          amount: activePayment.payAmount,
-          method: methodUsed,
-          type: activePayment.type,
-          date: new Date().toLocaleString()
-        };
-        txs.unshift(localTx);
-        localStorage.setItem('gravity-transactions', JSON.stringify(txs));
-
-        // Sync transaction to Supabase
-        if (supabaseClient) {
-          await supabaseClient
-            .from('transactions')
-            .insert([{
-              reference: txId,
-              username: localTx.user,
-              email: localTx.email,
-              service: localTx.service,
-              amount: localTx.amount,
-              method: localTx.method,
-              type: localTx.type,
-              date: localTx.date
-            }]);
-        }
-
-        // Update purchases state
-        let purchases = JSON.parse(localStorage.getItem('gravity-user-purchases')) || [];
+        await processSuccessPayment(txId, methodUsed);
         
-        if (activePayment.type === 'booking') {
-          const purId = "PUR-" + Date.now().toString().substring(8);
-          const newPurchase = {
-            id: purId,
-            serviceId: activePayment.serviceId,
-            serviceName: activePayment.serviceName,
-            totalCost: activePayment.totalCost,
-            paidAmount: activePayment.payAmount,
-            status: 'advance_paid',
-            date: new Date().toLocaleDateString()
-          };
-          purchases.unshift(newPurchase);
-          localStorage.setItem('gravity-user-purchases', JSON.stringify(purchases));
-
-          // Sync purchase to Supabase
-          if (supabaseClient && currentSession && currentSession.uid) {
-            await supabaseClient
-              .from('purchases')
-              .insert([{
-                id: purId,
-                user_id: currentSession.uid,
-                service_id: newPurchase.serviceId,
-                service_name: newPurchase.serviceName,
-                total_cost: newPurchase.totalCost,
-                paid_amount: newPurchase.paidAmount,
-                status: newPurchase.status,
-                date: newPurchase.date
-              }]);
-          }
-          
-          await addSystemNotification(
-            "Booking Confirmed via Razorpay",
-            `Successfully received 50% advance booking payment of $${activePayment.payAmount.toFixed(2)} for '${activePayment.serviceName}'. Work starts immediately.`
-          );
-        } else if (activePayment.type === 'final') {
-          // Update existing purchase
-          const idx = purchases.findIndex(p => p.id === activePayment.purchaseId);
-          if (idx !== -1) {
-            purchases[idx].paidAmount = purchases[idx].totalCost;
-            purchases[idx].status = 'fully_paid';
-            localStorage.setItem('gravity-user-purchases', JSON.stringify(purchases));
-
-            // Sync update to Supabase
-            if (supabaseClient) {
-              await supabaseClient
-                .from('purchases')
-                .update({
-                  paid_amount: purchases[idx].totalCost,
-                  status: 'fully_paid'
-                })
-                .eq('id', activePayment.purchaseId);
-            }
-            
-            await addSystemNotification(
-              "Project Successfully Delivered",
-              `Received final 50% payment of $${activePayment.payAmount.toFixed(2)} for '${activePayment.serviceName}'. Source files are released for download.`
-            );
-          }
-        }
-
-        alert(`Razorpay Payment Complete!\nTransaction Reference: ${txId}\nAmount: $${activePayment.payAmount.toFixed(2)}`);
-        
-        // Reset and close
+        razorpayPayBtn.innerText = "Pay";
         razorpayPayBtn.disabled = false;
-        razorpayOverlay.style.display = 'none';
-        activePayment = null;
-
-        // Refresh views
-        await renderPayments();
-        await renderPurchasedServices();
-        await renderServiceTracking();
-        await renderAdminDashboard();
       }, 1200);
     });
   }
@@ -2797,4 +3055,251 @@ function initPortalAuth() {
       }
     });
   }
+
+  // --- DYNAMIC BILLING RECEIPT MODAL EVENT HANDLERS & HELPERS ---
+  const receiptOverlay = document.getElementById('receipt-modal-overlay');
+  const closeReceiptBtn = document.getElementById('close-receipt-btn');
+  const closeReceiptBottomBtn = document.getElementById('close-receipt-bottom-btn');
+  const printReceiptBtn = document.getElementById('print-receipt-btn');
+  let activeReceiptItem = null;
+
+  if (closeReceiptBtn) {
+    closeReceiptBtn.addEventListener('click', () => {
+      if (receiptOverlay) receiptOverlay.style.display = 'none';
+      activeReceiptItem = null;
+    });
+  }
+  if (closeReceiptBottomBtn) {
+    closeReceiptBottomBtn.addEventListener('click', () => {
+      if (receiptOverlay) receiptOverlay.style.display = 'none';
+      activeReceiptItem = null;
+    });
+  }
+  if (printReceiptBtn) {
+    printReceiptBtn.addEventListener('click', () => {
+      if (activeReceiptItem) {
+        printReceiptWindow(activeReceiptItem);
+      }
+    });
+  }
+
+  function printReceiptWindow(purchase) {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert("Popup blocked! Please allow popups to print the receipt.");
+      return;
+    }
+    
+    let headName = "Thontadaraya (CTO & Tech Head)";
+    if (purchase.serviceId === 'youtube_intro' || purchase.serviceId === 'vfx_package') {
+      headName = "Munish (Director of VFX & Animation)";
+    } else if (purchase.serviceId === 'anime_design') {
+      headName = "Ajay Raj B.K (Founder & Creative Director)";
+    }
+    
+    const remaining = purchase.totalCost - purchase.paidAmount;
+    const isFinal = remaining <= 0;
+    const custName = currentSession ? currentSession.username : 'Valued Client';
+    const custContact = currentSession && currentSession.phone ? currentSession.phone : '+91 98920 10101';
+    
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Invoice Receipt - ${purchase.id}</title>
+          <style>
+            body { font-family: 'Helvetica Neue', Arial, sans-serif; padding: 2rem; color: #333; line-height: 1.5; }
+            .receipt-box { max-width: 600px; margin: auto; border: 1px solid #ddd; padding: 2rem; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.05); }
+            .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #333; padding-bottom: 1rem; margin-bottom: 1.5rem; }
+            .logo { height: 40px; vertical-align: middle; margin-right: 10px; }
+            .title { font-size: 1.5rem; font-weight: bold; color: #111; letter-spacing: 1px; }
+            .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem; }
+            .panel { background: #f9f9f9; padding: 1rem; border-radius: 6px; border: 1px solid #eee; }
+            .panel h3 { margin: 0 0 0.5rem 0; font-size: 0.95rem; color: #b026ff; border-bottom: 1px solid #eee; padding-bottom: 0.25rem; }
+            .totals { border-top: 2px dashed #eee; padding-top: 1rem; margin-top: 1rem; }
+            .total-row { display: flex; justify-content: space-between; margin-bottom: 0.5rem; }
+            .total-row.bold { font-weight: bold; font-size: 1.1rem; color: #000; }
+            .footer-msg { text-align: center; margin-top: 2rem; padding: 1rem; border-radius: 6px; background: ${isFinal ? '#e8f5e9' : '#fff3e0'}; border: 1px solid ${isFinal ? '#4caf50' : '#ffb74d'}; font-weight: bold; font-size: 0.9rem; }
+            @media print {
+              body { padding: 0; }
+              .receipt-box { border: none; box-shadow: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="receipt-box">
+            <div class="header">
+              <div style="display:flex; align-items:center;">
+                <img class="logo" src="https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/logo.png" alt="Company Logo">
+                <span class="title">GRAVITY STUDIOS</span>
+              </div>
+              <div style="text-align:right; font-size:0.85rem;">
+                <strong>Invoice Reference:</strong> TXN-${purchase.id.substring(4)}<br>
+                <strong>Date:</strong> ${purchase.date}
+              </div>
+            </div>
+            
+            <div class="grid">
+              <div class="panel">
+                <h3>Customer Details</h3>
+                <strong>Name:</strong> ${custName}<br>
+                <strong>Contact Number:</strong> ${custContact}
+              </div>
+              
+              <div class="panel">
+                <h3>Service Information</h3>
+                <strong>Service Booked:</strong> ${purchase.serviceName}<br>
+                <strong>Founder:</strong> Ajay Raj B.K<br>
+                <strong>CEO:</strong> Shashank Raj B.K<br>
+                <strong>Dept. Head:</strong> ${headName}
+              </div>
+            </div>
+            
+            <div class="totals">
+              <div class="total-row">
+                <span>Total Project Cost:</span>
+                <span>$${purchase.totalCost.toFixed(2)}</span>
+              </div>
+              <div class="total-row" style="color: #4caf50; font-weight: bold;">
+                <span>Amount Paid This Term:</span>
+                <span>$${(isFinal ? purchase.totalCost / 2 : purchase.paidAmount).toFixed(2)}</span>
+              </div>
+              <div class="total-row bold">
+                <span>Remaining Balance:</span>
+                <span>$${remaining.toFixed(2)}</span>
+              </div>
+            </div>
+            
+            <div class="footer-msg">
+              ${isFinal 
+                ? "Thank you for using our service. If any other service is required, please visit us again." 
+                : "Waiting for your final payment. Final payment must be made at least 12 hours prior to delivery."
+              }
+            </div>
+          </div>
+          <script>
+            window.onload = function() {
+              window.print();
+            }
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  }
+
+  function showInvoiceBill(purchase) {
+    activeReceiptItem = purchase;
+    const content = document.getElementById('receipt-content');
+    if (!content) return;
+    
+    const remaining = purchase.totalCost - purchase.paidAmount;
+    const isFinal = remaining <= 0;
+    
+    let headName = "Thontadaraya (CTO & Tech Head)";
+    if (purchase.serviceId === 'youtube_intro' || purchase.serviceId === 'vfx_package') {
+      headName = "Munish (Director of VFX & Animation)";
+    } else if (purchase.serviceId === 'anime_design') {
+      headName = "Ajay Raj B.K (Founder & Creative Director)";
+    }
+    
+    const custName = currentSession ? currentSession.username : 'Valued Client';
+    const custContact = currentSession && currentSession.phone ? currentSession.phone : '+91 98920 10101';
+    
+    content.innerHTML = `
+      <div style="font-size:0.85rem; line-height:1.6;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:1rem; font-size:0.8rem; color:var(--text-muted);">
+          <div>
+            <strong>Receipt:</strong> TXN-${purchase.id.substring(4)}<br>
+            <strong>Date:</strong> ${purchase.date}
+          </div>
+          <div style="text-align:right;">
+            <strong>Service ID:</strong> ${purchase.serviceId || 'N/A'}<br>
+            <strong>Purchase ID:</strong> ${purchase.id}
+          </div>
+        </div>
+        
+        <div style="background:rgba(255,255,255,0.02); border:1px solid var(--glass-border); padding:0.75rem; border-radius:8px; margin-bottom:1rem;">
+          <h6 style="margin:0 0 0.5rem 0; font-size:0.9rem; color:var(--neon-cyan); font-weight:700;">Customer Details</h6>
+          <strong>Name:</strong> ${custName}<br>
+          <strong>Contact Number:</strong> ${custContact}
+        </div>
+
+        <div style="background:rgba(255,255,255,0.02); border:1px solid var(--glass-border); padding:0.75rem; border-radius:8px; margin-bottom:1rem;">
+          <h6 style="margin:0 0 0.5rem 0; font-size:0.9rem; color:var(--neon-purple); font-weight:700;">Service Information</h6>
+          <strong>Service Name:</strong> ${purchase.serviceName}<br>
+          <strong>Founder Name:</strong> Ajay Raj B.K<br>
+          <strong>CEO Name:</strong> Shashank Raj B.K<br>
+          <strong>Service Provider Head Name:</strong> ${headName}
+        </div>
+
+        <div style="border-bottom:1px solid var(--glass-border); padding-bottom:0.5rem; margin-bottom:0.5rem;">
+          <div style="display:flex; justify-content:space-between;">
+            <span>Total Cost:</span>
+            <span>$${purchase.totalCost.toFixed(2)}</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-weight:bold; color:var(--neon-green);">
+            <span>Amount Paid This Term:</span>
+            <span>$${(isFinal ? purchase.totalCost / 2 : purchase.paidAmount).toFixed(2)}</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-weight:bold;">
+            <span>Remaining Amount:</span>
+            <span style="color:${remaining > 0 ? 'var(--neon-amber)' : 'var(--neon-green)'}">$${remaining.toFixed(2)}</span>
+          </div>
+        </div>
+
+        <div style="text-align:center; margin-top:1.25rem; padding:0.75rem; border-radius:8px; background:${isFinal ? 'rgba(57,255,20,0.1)' : 'rgba(255,170,0,0.1)'}; border:1px solid ${isFinal ? 'var(--neon-green)' : 'var(--neon-amber)'}; font-weight:bold; font-size:0.8rem; line-height:1.4;">
+          ${isFinal 
+            ? "Thank you for using our service. If any other service is required, please visit us again." 
+            : "Waiting for your final payment. Final payment must be made at least 12 hours prior to delivery."
+          }
+        </div>
+      </div>
+    `;
+    
+    if (receiptOverlay) receiptOverlay.style.display = 'flex';
+  }
+
+  function checkAndApplyPostponement(p) {
+    if (p.status !== 'completed' && p.status !== 'refund_denied') {
+      return; // Only applies to projects ready for final delivery
+    }
+
+    const now = Date.now();
+    const deadline = new Date(p.deliveryDeadline).getTime();
+    const timeRemaining = deadline - now;
+
+    // If less than 12 hours remaining and not postponed yet, postpone it by 24 hours
+    if (timeRemaining < 12 * 60 * 60 * 1000 && !p.postponed) {
+      p.postponed = true;
+      p.deliveryDeadline = new Date(deadline + 24 * 60 * 60 * 1000).toISOString();
+      
+      // Save updated state
+      let localPurchases = JSON.parse(localStorage.getItem('gravity-user-purchases')) || [];
+      const idx = localPurchases.findIndex(item => item.id === p.id);
+      if (idx !== -1) {
+        localPurchases[idx].postponed = true;
+        localPurchases[idx].deliveryDeadline = p.deliveryDeadline;
+        localStorage.setItem('gravity-user-purchases', JSON.stringify(localPurchases));
+      }
+
+      if (supabaseClient) {
+        supabaseClient
+          .from('purchases')
+          .update({
+            postponed: true,
+            delivery_deadline: p.deliveryDeadline
+          })
+          .eq('id', p.id)
+          .then(({ error }) => {
+            if (error) console.warn("Failed to sync postponement update to Supabase", error);
+          });
+      }
+
+      addSystemNotification(
+        "Project Delivery Postponed",
+        `Delivery of '${p.serviceName}' has been postponed by 24 hours because the final payment was not received 12 hours prior to the deadline.`
+      );
+    }
+  }
 }
+

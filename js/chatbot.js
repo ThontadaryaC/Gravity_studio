@@ -18,8 +18,8 @@ const CONFIG = {
   // Automatically defaults to Netlify serverless endpoint in production, and empty (direct API) on localhost.
   apiProxyUrl: window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" ? "" : "/.netlify/functions/chat", 
   
-  // Directory where PDF files are stored (relative to index.html)
-  pdfDirectory: "assets/pdfs/",
+  // Directory where PDF files are stored (relative to index.html or remote bucket)
+  pdfDirectory: "https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/",
   
   // List of PDF filenames placed in the assets/pdfs/ directory to index automatically.
   // Add your files here! Example: ["services.pdf", "company-profile.pdf"]
@@ -35,27 +35,27 @@ const CONFIG = {
     },
     {
       keywords: ["founder", "ceo", "cto", "leadership", "executive", "ajay", "shashank", "thontadaraya", "munish"],
-      reply: "Gravity Studios is led by a visionary executive team:\n\n1. **Ajay Raj B.K**: Founder & Creative Director (Vision, Strategy, Creative Direction, and Brand Development).\n2. **Shashank Raj B.K**: Co-Founder & CEO (Business Operations, Company Management, Partnerships, and Client Relations).\n3. **Thontadaraya**: CTO & Technology Head (Software Development, AI Systems, and Technical Architecture).\n4. **Munish**: Director of VFX & Animation (VFX/Animation Production Pipelines).\n\nHere is our organization structure:\n\n![Team Structure](assets/images/posters/team_memebers_with_department.jpeg)"
+      reply: "Gravity Studios is led by a visionary executive team:\n\n1. **Ajay Raj B.K**: Founder & Creative Director (Vision, Strategy, Creative Direction, and Brand Development).\n2. **Shashank Raj B.K**: Co-Founder & CEO (Business Operations, Company Management, Partnerships, and Client Relations).\n3. **Thontadaraya**: CTO & Technology Head (Software Development, AI Systems, and Technical Architecture).\n4. **Munish**: Director of VFX & Animation (VFX/Animation Production Pipelines).\n\nHere is our organization structure:\n\n![Team Structure](https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/team_memebers_with_department.jpeg)"
     },
     {
       keywords: ["services", "departments", "what do you do", "creative", "tech"],
-      reply: "Gravity Studios operates 18 diverse departments across three key pillars:\n\n* **Technology**: AI Research, Web/Mobile Development, Game Engine Integration, Cybersecurity.\n* **Creative**: VFX Production, 2D/3D Anime Studio, Music & Sound, Cinematography.\n* **Core/Ops**: Branding & Marketing, Financial planning, HR, Strategy.\n\nWe bridge advanced engineering with high-fidelity storytelling!\n\nHere is an overview of our main services:\n\n![Our Services](assets/images/posters/our_services.jpeg)"
+      reply: "Gravity Studios operates 18 diverse departments across three key pillars:\n\n* **Technology**: AI Research, Web/Mobile Development, Game Engine Integration, Cybersecurity.\n* **Creative**: VFX Production, 2D/3D Anime Studio, Music & Sound, Cinematography.\n* **Core/Ops**: Branding & Marketing, Financial planning, HR, Strategy.\n\nWe bridge advanced engineering with high-fidelity storytelling!\n\nHere is an overview of our main services:\n\n![Our Services](https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/our_services.jpeg)"
     },
     {
       keywords: ["logo", "design", "branding"],
-      reply: "We create premium logo designs and high-end corporate vector branding assets:\n\n![Logo Designs](assets/images/posters/Logo_designs.jpeg)"
+      reply: "We create premium logo designs and high-end corporate vector branding assets:\n\n![Logo Designs](https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/Logo_designs.jpeg)"
     },
     {
       keywords: ["youtube", "thumbnail", "thumbnail creation"],
-      reply: "We design click-through optimized YouTube thumbnail covers for content creators:\n\n![YouTube Thumbnails](assets/images/posters/Youtube_thumbnail_creations.jpeg)"
+      reply: "We design click-through optimized YouTube thumbnail covers for content creators:\n\n![YouTube Thumbnails](https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/Youtube_thumbnail_creations.jpeg)"
     },
     {
       keywords: ["civil", "construction", "site"],
-      reply: "We manage and execute civil engineering sites and construction designs:\n\n![Civil Construction](assets/images/posters/Civil_construction_services.jpeg)"
+      reply: "We manage and execute civil engineering sites and construction designs:\n\n![Civil Construction](https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/Civil_construction_services.jpeg)"
     },
     {
       keywords: ["price", "pricing", "cost", "quotation"],
-      reply: "We offer competitive pricing and flexible valuations for all tech and creative projects:\n\n![Price Quotations](assets/images/posters/price_quations.jpeg)"
+      reply: "We offer competitive pricing and flexible valuations for all tech and creative projects:\n\n![Price Quotations](https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/price_quations.jpeg)"
     },
     {
       keywords: ["revenue", "growth", "money", "funding", "startup"],
@@ -477,12 +477,12 @@ PRIMARY SOURCE (Webpage details & campaign ads):
 - Use the scraped webpage content below as your main source of information to answer questions.
 - If the user asks about any service, campaign, design, or team structure represented in our "Media Arena" or gallery posters, you MUST recommend the corresponding poster and display its image inline using markdown syntax: \`![Alt Text](image_path)\`.
 - Here are the available posters and their paths:
-  1. Civil Construction Services: \`![Civil Construction](assets/images/posters/Civil_construction_services.jpeg)\`
-  2. Logo Designs: \`![Logo Designs](assets/images/posters/Logo_designs.jpeg)\`
-  3. YouTube Thumbnail Creations: \`![YouTube Thumbnails](assets/images/posters/Youtube_thumbnail_creations.jpeg)\`
-  4. Our Services: \`![Our Services](assets/images/posters/our_services.jpeg)\`
-  5. Price Quotations: \`![Price Quotations](assets/images/posters/price_quations.jpeg)\`
-  6. Team & Department Structure: \`![Team & Department Structure](assets/images/posters/team_memebers_with_department.jpeg)\`
+  1. Civil Construction Services: \`![Civil Construction](https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/Civil_construction_services.jpeg)\`
+  2. Logo Designs: \`![Logo Designs](https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/Logo_designs.jpeg)\`
+  3. YouTube Thumbnail Creations: \`![YouTube Thumbnails](https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/Youtube_thumbnail_creations.jpeg)\`
+  4. Our Services: \`![Our Services](https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/our_services.jpeg)\`
+  5. Price Quotations: \`![Price Quotations](https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/price_quations.jpeg)\`
+  6. Team & Department Structure: \`![Team & Department Structure](https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/team_memebers_with_department.jpeg)\`
 
 SECONDARY SOURCE (PDF Documents - Fallback only):
 - Only use the PDF document context below if the user's question CANNOT be answered by the webpage content and campaign ad details listed above.
