@@ -1195,7 +1195,9 @@ function initPortalAuth() {
               role: 'user',
               username: profile ? profile.username : session.user.email.split('@')[0],
               email: session.user.email,
-              uid: session.user.id
+              uid: session.user.id,
+              phone: (currentSession && currentSession.uid === session.user.id) ? (currentSession.phone || '') : '',
+              country: (currentSession && currentSession.uid === session.user.id) ? (currentSession.country || '') : ''
             };
             localStorage.setItem('gravity-user-session', JSON.stringify(currentSession));
             updateAuthUI();
@@ -1342,27 +1344,15 @@ function initPortalAuth() {
     }
 
     // Update Supabase profiles table if active
-    if (supabaseClient && currentSession && currentSession.uid) {
+    if (supabaseClient && currentSession && currentSession.uid && !currentSession.uid.startsWith('local_')) {
       try {
-        const { error } = await supabaseClient
+        // Note: phone and country columns do not exist in the database profiles table, only update username
+        await supabaseClient
           .from('profiles')
           .update({ 
-            username: updatedUsername,
-            phone: updatedPhone,
-            country: updatedCountry
+            username: updatedUsername
           })
           .eq('id', currentSession.uid);
-        
-        // If columns are missing, fallback to username and phone only
-        if (error) {
-          await supabaseClient
-            .from('profiles')
-            .update({ 
-              username: updatedUsername,
-              phone: updatedPhone
-            })
-            .eq('id', currentSession.uid);
-        }
       } catch (err) {
         console.warn("Failed to sync profile settings to Supabase", err);
       }
@@ -1594,7 +1584,7 @@ function initPortalAuth() {
     }
 
     let purchases = [];
-    if (supabaseClient && currentSession && currentSession.uid) {
+    if (supabaseClient && currentSession && currentSession.uid && !currentSession.uid.startsWith('local_')) {
       const { data, error } = await supabaseClient
         .from('purchases')
         .select('*')
@@ -1755,7 +1745,7 @@ function initPortalAuth() {
     if (!container) return;
 
     let purchases = [];
-    if (supabaseClient && currentSession && currentSession.uid) {
+    if (supabaseClient && currentSession && currentSession.uid && !currentSession.uid.startsWith('local_')) {
       const { data, error } = await supabaseClient
         .from('purchases')
         .select('*')
@@ -1818,7 +1808,7 @@ function initPortalAuth() {
     if (!container) return;
 
     let purchases = [];
-    if (supabaseClient && currentSession && currentSession.uid) {
+    if (supabaseClient && currentSession && currentSession.uid && !currentSession.uid.startsWith('local_')) {
       const { data, error } = await supabaseClient
         .from('purchases')
         .select('*')
@@ -2161,7 +2151,7 @@ function initPortalAuth() {
       localStorage.setItem('gravity-user-purchases', JSON.stringify(purchases));
 
       // Sync purchase to Supabase
-      if (supabaseClient && currentSession && currentSession.uid) {
+      if (supabaseClient && currentSession && currentSession.uid && !currentSession.uid.startsWith('local_')) {
         try {
           await supabaseClient
             .from('purchases')
@@ -2208,7 +2198,7 @@ function initPortalAuth() {
         localStorage.setItem('gravity-user-purchases', JSON.stringify(purchases));
 
         // Sync update to Supabase
-        if (supabaseClient) {
+        if (supabaseClient && currentSession && currentSession.uid && !currentSession.uid.startsWith('local_')) {
           await supabaseClient
             .from('purchases')
             .update({
@@ -2252,6 +2242,19 @@ function initPortalAuth() {
   }
 
   async function initiateRazorpayPayment(data) {
+    if (!currentSession) {
+      alert("Please log in and complete your profile to make a payment.");
+      openPortal('user-login');
+      return;
+    }
+
+    if (!currentSession.email || currentSession.email.trim() === '' || !currentSession.phone || currentSession.phone.trim() === '') {
+      alert("Please complete your profile (email and contact number) to make a payment.");
+      openSidebar();
+      openWindow('profile-settings', document.querySelector('.dock-btn[data-window="profile-settings"]'));
+      return;
+    }
+
     activePayment = data;
 
     const isIndian = currentSession && (currentSession.country === 'India' || (currentSession.phone && currentSession.phone.startsWith('+91')));
@@ -2515,7 +2518,7 @@ function initPortalAuth() {
 
         // Sync dispute and upload file to Supabase if active
         let evidenceUrl = null;
-        if (supabaseClient) {
+        if (supabaseClient && currentSession && currentSession.uid && !currentSession.uid.startsWith('local_')) {
           const fileExt = selectedFile.name.split('.').pop();
           const uniqueFileName = `${purchaseId}_${Date.now()}.${fileExt}`;
           const filePath = `disputes/${uniqueFileName}`;
@@ -3290,8 +3293,7 @@ function initPortalAuth() {
           .upsert({ 
             id: data.user.id, 
             username: payload.name, 
-            email: payload.email,
-            country: detectedCountry
+            email: payload.email
           });
 
         loginSuccess({
@@ -3414,6 +3416,15 @@ function initPortalAuth() {
   function loginSuccess(sessionData) {
     if (!sessionData.country) {
       sessionData.country = detectUserCountry(sessionData);
+    }
+    // Retain phone/country if same user and already exists in currentSession (since they aren't stored in Supabase profiles table)
+    if (currentSession && (currentSession.email === sessionData.email || currentSession.uid === sessionData.uid)) {
+      if (currentSession.phone && !sessionData.phone) {
+        sessionData.phone = currentSession.phone;
+      }
+      if (currentSession.country && !sessionData.country) {
+        sessionData.country = currentSession.country;
+      }
     }
     localStorage.setItem('gravity-user-session', JSON.stringify(sessionData));
     currentSession = sessionData;
@@ -3699,7 +3710,7 @@ function initPortalAuth() {
         localStorage.setItem('gravity-user-purchases', JSON.stringify(localPurchases));
       }
 
-      if (supabaseClient) {
+      if (supabaseClient && currentSession && currentSession.uid && !currentSession.uid.startsWith('local_')) {
         supabaseClient
           .from('purchases')
           .update({
