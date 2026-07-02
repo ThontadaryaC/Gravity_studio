@@ -16,37 +16,37 @@ const RAZORPAY_CONFIG = {
 // Default service prices catalog
 const DEFAULT_SERVICE_PRICES = [
   // 1. AI Services
-  { id: "ai_chatbot", name: "AI Chatbot", priceINR: 24999, priceUSD: 799, rangeINR: "₹25,000–₹1,20,000", rangeUSD: "$800–$4,000" },
-  { id: "ai_voice_agent", name: "AI Voice Agent", priceINR: 49999, priceUSD: 1999, rangeINR: "₹50,000–₹3,00,000", rangeUSD: "$2,000–$10,000" },
-  { id: "ai_receptionist", name: "AI Receptionist", priceINR: 60000, priceUSD: 2500, rangeINR: "₹60,000–₹3,50,000", rangeUSD: "$2,500–$12,000" },
-  { id: "ai_customer_support", name: "AI Customer Support", priceINR: 40000, priceUSD: 1500, rangeINR: "₹40,000–₹2,00,000", rangeUSD: "$1,500–$8,000" },
-  { id: "ai_sales_agent", name: "AI Sales Agent", priceINR: 50000, priceUSD: 2000, rangeINR: "₹50,000–₹3,00,000", rangeUSD: "$2,000–$10,000" },
-  { id: "ai_appointment_booking", name: "AI Appointment Booking", priceINR: 30000, priceUSD: 1200, rangeINR: "₹30,000–₹1,50,000", rangeUSD: "$1,200–$5,000" },
-  { id: "ai_workflow_automation", name: "AI Workflow Automation", priceINR: 39999, priceUSD: 1499, rangeINR: "₹40,000–₹3,00,000", rangeUSD: "$2,000–$12,000" },
-  { id: "custom_ai_solution", name: "Custom AI Solution", priceINR: 100000, priceUSD: 5000, rangeINR: "₹1,00,000+", rangeUSD: "Starting at $5,000" },
+  { id: "ai_chatbot", name: "AI Chatbot", priceINR: 24999, priceUSD: 799, priceMaxINR: 120000, priceMaxUSD: 4000, rangeINR: "₹25,000–₹1,20,000", rangeUSD: "$800–$4,000" },
+  { id: "ai_voice_agent", name: "AI Voice Agent", priceINR: 49999, priceUSD: 1999, priceMaxINR: 300000, priceMaxUSD: 10000, rangeINR: "₹50,000–₹3,00,000", rangeUSD: "$2,000–$10,000" },
+  { id: "ai_receptionist", name: "AI Receptionist", priceINR: 60000, priceUSD: 2500, priceMaxINR: 350000, priceMaxUSD: 12000, rangeINR: "₹60,000–₹3,50,000", rangeUSD: "$2,500–$12,000" },
+  { id: "ai_customer_support", name: "AI Customer Support", priceINR: 40000, priceUSD: 1500, priceMaxINR: 200000, priceMaxUSD: 8000, rangeINR: "₹40,000–₹2,00,000", rangeUSD: "$1,500–$8,000" },
+  { id: "ai_sales_agent", name: "AI Sales Agent", priceINR: 50000, priceUSD: 2000, priceMaxINR: 300000, priceMaxUSD: 10000, rangeINR: "₹50,000–₹3,00,000", rangeUSD: "$2,000–$10,000" },
+  { id: "ai_appointment_booking", name: "AI Appointment Booking", priceINR: 30000, priceUSD: 1200, priceMaxINR: 150000, priceMaxUSD: 5000, rangeINR: "₹30,000–₹1,50,000", rangeUSD: "$1,200–$5,000" },
+  { id: "ai_workflow_automation", name: "AI Workflow Automation", priceINR: 39999, priceUSD: 1499, priceMaxINR: 300000, priceMaxUSD: 12000, rangeINR: "₹40,000–₹3,00,000", rangeUSD: "$2,000–$12,000" },
+  { id: "custom_ai_solution", name: "Custom AI Solution", priceINR: 100000, priceUSD: 5000, priceMaxINR: 500000, priceMaxUSD: 25000, rangeINR: "₹1,00,000+", rangeUSD: "Starting at $5,000" },
 
   // 2. Web & App Development
-  { id: "business_website", name: "Business Website", priceINR: 19999, priceUSD: 799, rangeINR: "₹20,000–₹80,000", rangeUSD: "$800–$3,000" },
-  { id: "premium_website", name: "Premium Website", priceINR: 80000, priceUSD: 3000, rangeINR: "₹80,000–₹2,50,000", rangeUSD: "$3,000–$10,000" },
-  { id: "web_application", name: "Web Application", priceINR: 100000, priceUSD: 5000, rangeINR: "₹1,00,000–₹10,00,000", rangeUSD: "$5,000–$50,000" },
-  { id: "mobile_app", name: "Mobile App", priceINR: 99999, priceUSD: 4999, rangeINR: "₹1,00,000–₹15,00,000", rangeUSD: "$5,000–$60,000" },
-  { id: "saas_platform", name: "SaaS Platform", priceINR: 299999, priceUSD: 9999, rangeINR: "₹3,00,000–₹30,00,000", rangeUSD: "$10,000–$100,000" },
-  { id: "crm_erp_system", name: "CRM/ERP System", priceINR: 200000, priceUSD: 8000, rangeINR: "₹2,00,000–₹20,00,000", rangeUSD: "$8,000–$80,000" },
-  { id: "dashboard_development", name: "Dashboard Development", priceINR: 50000, priceUSD: 2000, rangeINR: "₹50,000–₹5,00,000", rangeUSD: "$2,000–$20,000" },
+  { id: "business_website", name: "Business Website", priceINR: 19999, priceUSD: 799, priceMaxINR: 80000, priceMaxUSD: 3000, rangeINR: "₹20,000–₹80,000", rangeUSD: "$800–$3,000" },
+  { id: "premium_website", name: "Premium Website", priceINR: 80000, priceUSD: 3000, priceMaxINR: 250000, priceMaxUSD: 10000, rangeINR: "₹80,000–₹2,50,000", rangeUSD: "$3,000–$10,000" },
+  { id: "web_application", name: "Web Application", priceINR: 100000, priceUSD: 5000, priceMaxINR: 1000000, priceMaxUSD: 50000, rangeINR: "₹1,00,000–₹10,00,000", rangeUSD: "$5,000–$50,000" },
+  { id: "mobile_app", name: "Mobile App", priceINR: 99999, priceUSD: 4999, priceMaxINR: 1500000, priceMaxUSD: 60000, rangeINR: "₹1,00,000–₹15,00,000", rangeUSD: "$5,000–$60,000" },
+  { id: "saas_platform", name: "SaaS Platform", priceINR: 299999, priceUSD: 9999, priceMaxINR: 3000000, priceMaxUSD: 100000, rangeINR: "₹3,00,000–₹30,00,000", rangeUSD: "$10,000–$100,000" },
+  { id: "crm_erp_system", name: "CRM/ERP System", priceINR: 200000, priceUSD: 8000, priceMaxINR: 2000000, priceMaxUSD: 80000, rangeINR: "₹2,00,000–₹20,00,000", rangeUSD: "$8,000–$80,000" },
+  { id: "dashboard_development", name: "Dashboard Development", priceINR: 50000, priceUSD: 2000, priceMaxINR: 500000, priceMaxUSD: 20000, rangeINR: "₹50,000–₹5,00,000", rangeUSD: "$2,000–$20,000" },
 
   // 3. Design & Branding
-  { id: "logo_design", name: "Logo Design", priceINR: 5000, priceUSD: 300, rangeINR: "₹5,000–₹30,000", rangeUSD: "$300–$1,200" },
-  { id: "brand_identity", name: "Brand Identity & Design", priceINR: 14999, priceUSD: 599, rangeINR: "₹20,000–₹1,50,000", rangeUSD: "$800–$5,000" },
-  { id: "ui_ux_design", name: "UI/UX Design", priceINR: 20000, priceUSD: 800, rangeINR: "₹20,000–₹2,00,000", rangeUSD: "$800–$8,000" },
-  { id: "presentation_design", name: "Presentation Design", priceINR: 8000, priceUSD: 300, rangeINR: "₹8,000–₹50,000", rangeUSD: "$300–$2,000" },
-  { id: "graphic_design", name: "Graphic Design", priceINR: 5000, priceUSD: 250, rangeINR: "₹5,000+", rangeUSD: "$250+" },
+  { id: "logo_design", name: "Logo Design", priceINR: 5000, priceUSD: 300, priceMaxINR: 30000, priceMaxUSD: 1200, rangeINR: "₹5,000–₹30,000", rangeUSD: "$300–$1,200" },
+  { id: "brand_identity", name: "Brand Identity & Design", priceINR: 14999, priceUSD: 599, priceMaxINR: 150000, priceMaxUSD: 5000, rangeINR: "₹20,000–₹1,50,000", rangeUSD: "$800–$5,000" },
+  { id: "ui_ux_design", name: "UI/UX Design", priceINR: 20000, priceUSD: 800, priceMaxINR: 200000, priceMaxUSD: 8000, rangeINR: "₹20,000–₹2,00,000", rangeUSD: "$800–$8,000" },
+  { id: "presentation_design", name: "Presentation Design", priceINR: 8000, priceUSD: 300, priceMaxINR: 50000, priceMaxUSD: 2000, rangeINR: "₹8,000–₹50,000", rangeUSD: "$300–$2,000" },
+  { id: "graphic_design", name: "Graphic Design", priceINR: 5000, priceUSD: 250, priceMaxINR: 25000, priceMaxUSD: 1200, rangeINR: "₹5,000+", rangeUSD: "$250+" },
 
   // 4. Video & Animation
-  { id: "ai_video", name: "AI Video Production", priceINR: 19999, priceUSD: 899, rangeINR: "₹15,000–₹2,00,000", rangeUSD: "$700–$8,000" },
-  { id: "animation", name: "Animation", priceINR: 30000, priceUSD: 1500, rangeINR: "₹30,000–₹5,00,000", rangeUSD: "$1,500–$20,000" },
-  { id: "explainer_video", name: "Explainer Video", priceINR: 20000, priceUSD: 800, rangeINR: "₹20,000–₹2,00,000", rangeUSD: "$800–$8,000" },
-  { id: "motion_graphics", name: "Motion Graphics", priceINR: 15000, priceUSD: 600, rangeINR: "₹15,000–₹1,50,000", rangeUSD: "$600–$6,000" },
-  { id: "product_advertisement", name: "Product Advertisement", priceINR: 25000, priceUSD: 1200, rangeINR: "₹25,000–₹3,00,000", rangeUSD: "$1,200–$12,000" },
+  { id: "ai_video", name: "AI Video Production", priceINR: 19999, priceUSD: 899, priceMaxINR: 200000, priceMaxUSD: 8000, rangeINR: "₹15,000–₹2,00,000", rangeUSD: "$700–$8,000" },
+  { id: "animation", name: "Animation", priceINR: 30000, priceUSD: 1500, priceMaxINR: 500000, priceMaxUSD: 20000, rangeINR: "₹30,000–₹5,00,000", rangeUSD: "$1,500–$20,000" },
+  { id: "explainer_video", name: "Explainer Video", priceINR: 20000, priceUSD: 800, priceMaxINR: 200000, priceMaxUSD: 8000, rangeINR: "₹20,000–₹2,00,000", rangeUSD: "$800–$8,000" },
+  { id: "motion_graphics", name: "Motion Graphics", priceINR: 15000, priceUSD: 600, priceMaxINR: 150000, priceMaxUSD: 6000, rangeINR: "₹15,000–₹1,50,000", rangeUSD: "$600–$6,000" },
+  { id: "product_advertisement", name: "Product Advertisement", priceINR: 25000, priceUSD: 1200, priceMaxINR: 300000, priceMaxUSD: 12000, rangeINR: "₹25,000–₹3,00,000", rangeUSD: "$1,200–$12,000" },
 
   // 5. Digital Marketing
   { id: "seo", name: "SEO (Monthly)", priceINR: 15000, priceUSD: 700, rangeINR: "₹15,000/month", rangeUSD: "$700/month" },
@@ -59,14 +59,14 @@ const DEFAULT_SERVICE_PRICES = [
   { id: "domain_hosting", name: "Domain & Hosting Setup", priceINR: 5000, priceUSD: 200, rangeINR: "₹5,000", rangeUSD: "$200" },
   { id: "website_maintenance", name: "Website Maintenance (Monthly)", priceINR: 5000, priceUSD: 200, rangeINR: "₹5,000/month", rangeUSD: "$200/month" },
   { id: "security_audit", name: "Security Audit", priceINR: 25000, priceUSD: 1000, rangeINR: "₹25,000", rangeUSD: "$1,000" },
-  { id: "api_integration", name: "API Integration", priceINR: 20000, priceUSD: 800, rangeINR: "₹20,000–₹2,00,000", rangeUSD: "$800–$8,000" },
-  { id: "cloud_deployment", name: "Cloud Deployment", priceINR: 30000, priceUSD: 1500, rangeINR: "₹30,000–₹3,00,000", rangeUSD: "$1,500–$12,000" },
+  { id: "api_integration", name: "API Integration", priceINR: 20000, priceUSD: 800, priceMaxINR: 200000, priceMaxUSD: 8000, rangeINR: "₹20,000–₹2,00,000", rangeUSD: "$800–$8,000" },
+  { id: "cloud_deployment", name: "Cloud Deployment", priceINR: 30000, priceUSD: 1500, priceMaxINR: 300000, priceMaxUSD: 12000, rangeINR: "₹30,000–₹3,00,000", rangeUSD: "$1,500–$12,000" },
 
   // 7. Consulting & Enterprise
   { id: "ai_consulting", name: "AI Strategy Consulting (Hourly)", priceINR: 5000, priceUSD: 200, rangeINR: "₹5,000/hour", rangeUSD: "$200/hour" },
   { id: "cto_service", name: "CTO as a Service (Monthly)", priceINR: 100000, priceUSD: 5000, rangeINR: "₹1,00,000/month", rangeUSD: "$5,000/month" },
-  { id: "startup_mvp", name: "Startup MVP Development", priceINR: 200000, priceUSD: 10000, rangeINR: "₹2,00,000–₹15,00,000", rangeUSD: "$10,000–$75,000" },
-  { id: "enterprise_ai", name: "Enterprise AI Solutions", priceINR: 500000, priceUSD: 25000, rangeINR: "₹5,00,000+ (Custom Quote)", rangeUSD: "Starting at $25,000 (Custom Quote)" }
+  { id: "startup_mvp", name: "Startup MVP Development", priceINR: 200000, priceUSD: 10000, priceMaxINR: 1500000, priceMaxUSD: 75000, rangeINR: "₹2,00,000–₹15,00,000", rangeUSD: "$10,000–$75,000" },
+  { id: "enterprise_ai", name: "Enterprise AI Solutions", priceINR: 500000, priceUSD: 25000, priceMaxINR: 2500000, priceMaxUSD: 100000, rangeINR: "₹5,00,000+ (Custom Quote)", rangeUSD: "Starting at $25,000 (Custom Quote)" }
 ];
 
 function getServicePrices() {
@@ -74,7 +74,7 @@ function getServicePrices() {
   if (stored) {
     try {
       const parsed = JSON.parse(stored);
-      if (parsed.length === DEFAULT_SERVICE_PRICES.length) {
+      if (parsed.length === DEFAULT_SERVICE_PRICES.length && parsed[0].hasOwnProperty('priceMaxINR')) {
         return parsed;
       }
     } catch (e) {
@@ -1494,9 +1494,10 @@ function initPortalAuth() {
       const symbol = isIndian ? '₹' : '$';
       
       prices.forEach(s => {
-        const total = isIndian ? s.priceINR : s.priceUSD;
-        const advance = total / 2;
-        const range = isIndian ? (s.rangeINR || `${symbol}${total.toLocaleString()}`) : (s.rangeUSD || `${symbol}${total.toLocaleString()}`);
+        const totalMin = isIndian ? s.priceINR : s.priceUSD;
+        const totalMax = isIndian ? (s.priceMaxINR || totalMin) : (s.priceMaxUSD || totalMin);
+        const hasRange = totalMax > totalMin;
+        const range = isIndian ? (s.rangeINR || `${symbol}${totalMin.toLocaleString()}`) : (s.rangeUSD || `${symbol}${totalMin.toLocaleString()}`);
         
         const card = document.createElement('div');
         card.className = 'catalog-card';
@@ -1508,21 +1509,76 @@ function initPortalAuth() {
         card.style.border = '1px solid var(--glass-border)';
         card.style.borderRadius = '8px';
         
+        let selectHtml = '';
+        if (hasRange) {
+          selectHtml = `
+            <div style="margin-top: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+              <label style="font-size: 0.75rem; color: var(--text-muted); font-weight: bold;">Quality Tier:</label>
+              <select class="tier-select" data-id="${s.id}" style="background: rgba(0,0,0,0.4); border: 1px solid var(--glass-border); color: #fff; font-size: 0.75rem; padding: 0.2rem 0.4rem; border-radius: 4px; outline: none; font-family: inherit; cursor: pointer;">
+                <option value="min">Standard Tier (Min - ${symbol}${totalMin.toLocaleString()})</option>
+                <option value="max">Premium Tier (Max - ${symbol}${totalMax.toLocaleString()})</option>
+              </select>
+            </div>
+          `;
+        }
+        
         card.innerHTML = `
-          <div>
+          <div style="flex: 1;">
             <h6 style="margin: 0; font-size: 0.95rem; color: var(--text-pure);">${s.name}</h6>
-            <span style="font-size: 0.8rem; color: var(--text-muted);">Est. Range: ${range} <br><span style="opacity:0.6;">(50% Booking Advance: ${symbol}${advance.toLocaleString()})</span></span>
+            <span class="price-desc" style="font-size: 0.8rem; color: var(--text-muted);">Est. Range: ${range} <br><span class="advance-label" style="opacity:0.6;">(50% Booking Advance: ${symbol}${(totalMin / 2).toLocaleString()})</span></span>
+            ${selectHtml}
           </div>
-          <button class="catalog-pay-btn" data-service-id="${s.id}" data-service-name="${s.name}" data-price="${total}" data-advance="${advance}" style="padding: 0.5rem 0.75rem; background: rgba(176, 38, 255, 0.15); border: 1px solid var(--neon-purple); border-radius: 6px; color: var(--neon-purple); font-weight: 600; font-family: inherit; font-size: 0.8rem; cursor: pointer; transition: all 0.2s;">Book for ${symbol}${advance.toLocaleString()}</button>
+          <button class="catalog-pay-btn" data-service-id="${s.id}" data-service-name="${s.name}" data-price="${totalMin}" data-advance="${totalMin / 2}" data-tier="Standard Tier" style="padding: 0.5rem 0.75rem; background: rgba(176, 38, 255, 0.15); border: 1px solid var(--neon-purple); border-radius: 6px; color: var(--neon-purple); font-weight: 600; font-family: inherit; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; white-space: nowrap; margin-left: 0.5rem;">Book for ${symbol}${(totalMin / 2).toLocaleString()}</button>
         `;
         catalogGrid.appendChild(card);
+      });
+
+      // Bind tier selection changes
+      catalogGrid.querySelectorAll('.tier-select').forEach(select => {
+        select.addEventListener('change', (e) => {
+          const serviceId = select.getAttribute('data-id');
+          const value = e.target.value;
+          const card = select.closest('.catalog-card');
+          const button = card.querySelector('.catalog-pay-btn');
+          const serviceObj = prices.find(p => p.id === serviceId);
+          
+          if (serviceObj && button) {
+            const isIndian = currentSession && (currentSession.country === 'India' || (currentSession.phone && currentSession.phone.startsWith('+91')));
+            const symbol = isIndian ? '₹' : '$';
+            
+            const selectedTotal = value === 'max' 
+              ? (isIndian ? serviceObj.priceMaxINR : serviceObj.priceMaxUSD)
+              : (isIndian ? serviceObj.priceINR : serviceObj.priceUSD);
+            
+            const selectedAdvance = selectedTotal / 2;
+            const selectedTier = value === 'max' ? 'Premium Tier' : 'Standard Tier';
+            
+            // Update button attributes
+            button.setAttribute('data-price', selectedTotal);
+            button.setAttribute('data-advance', selectedAdvance);
+            button.setAttribute('data-tier', selectedTier);
+            
+            // Update button label
+            button.innerText = `Book for ${symbol}${selectedAdvance.toLocaleString()}`;
+            
+            // Update advance label text
+            const advanceLabel = card.querySelector('.advance-label');
+            if (advanceLabel) {
+              advanceLabel.innerText = `(50% Booking Advance: ${symbol}${selectedAdvance.toLocaleString()})`;
+            }
+          }
+        });
       });
 
       // Bind dynamic click triggers for catalog booking buttons
       catalogGrid.querySelectorAll('.catalog-pay-btn').forEach(btn => {
         btn.addEventListener('click', () => {
           const serviceId = btn.getAttribute('data-service-id');
-          const serviceName = btn.getAttribute('data-service-name');
+          let serviceName = btn.getAttribute('data-service-name');
+          const tier = btn.getAttribute('data-tier') || '';
+          if (tier && tier !== '') {
+            serviceName = `${serviceName} (${tier})`;
+          }
           const totalCost = parseFloat(btn.getAttribute('data-price'));
           const payAmount = parseFloat(btn.getAttribute('data-advance'));
           
