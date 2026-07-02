@@ -1929,14 +1929,47 @@ function initPortalAuth() {
     localStorage.setItem('gravity-system-notifications', JSON.stringify(notifs));
 
     if (supabaseClient) {
-      await supabaseClient
-        .from('notifications')
-        .insert([{
-          title: title,
-          desc_text: desc,
-          time_label: "Just now",
-          is_read: false
-        }]);
+      try {
+        const sessionRes = await supabaseClient.auth.getSession();
+        const session = sessionRes.data.session;
+        if (session) {
+          const response = await fetch('/.netlify/functions/admin-action', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session.access_token}`
+            },
+            body: JSON.stringify({
+              action: 'publish-notification',
+              payload: { title, desc }
+            })
+          });
+          if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.error?.message || `HTTP ${response.status}`);
+          }
+        } else {
+          // Fallback if no active auth session
+          await supabaseClient
+            .from('notifications')
+            .insert([{
+              title: title,
+              desc_text: desc,
+              time_label: "Just now",
+              is_read: false
+            }]);
+        }
+      } catch (err) {
+        console.warn("Secure admin action failed, falling back to direct client-side DB insert:", err);
+        await supabaseClient
+          .from('notifications')
+          .insert([{
+            title: title,
+            desc_text: desc,
+            time_label: "Just now",
+            is_read: false
+          }]);
+      }
     }
     
     await renderNotifications();
@@ -2106,41 +2139,92 @@ function initPortalAuth() {
     }
   }
 
-  function initiateRazorpayPayment(data) {
+  async function initiateRazorpayPayment(data) {
     activePayment = data;
 
     const isIndian = currentSession && (currentSession.country === 'India' || (currentSession.phone && currentSession.phone.startsWith('+91')));
     const symbol = isIndian ? '₹' : '$';
+    const currencyCode = isIndian ? "INR" : "USD";
+    const rawAmount = Math.round(data.payAmount * 100); // minor units (paise/cents)
 
     // A. Use Real Razorpay SDK popup if SDK is loaded and Key ID is set
     if (typeof Razorpay !== 'undefined' && RAZORPAY_CONFIG.keyId) {
-      const options = {
-        key: RAZORPAY_CONFIG.keyId,
-        amount: Math.round(data.payAmount * 100), // Standard unit (paise/cents)
-        currency: isIndian ? "INR" : "USD",
-        name: "Gravity Studios",
-        description: `${data.type === 'booking' ? '50% Booking Advance' : '50% Final Settlement'} for ${data.serviceName}`,
-        image: "https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/logo.png",
-        handler: function (response) {
-          const txId = response.razorpay_payment_id || "pay_rzp_" + Math.random().toString(36).substring(2, 10).toUpperCase();
-          processSuccessPayment(txId, 'Razorpay SDK');
-        },
-        prefill: {
-          name: currentSession ? currentSession.username : 'User',
-          email: currentSession ? currentSession.email : 'client@gravity.com',
-          contact: currentSession && currentSession.phone ? currentSession.phone : '+91 98920 10101'
-        },
-        theme: {
-          color: "#b026ff" // Matches Gravity purple theme
-        }
-      };
+      try {
+        // 1. Fetch secure order ID from serverless function
+        const orderRes = await fetch('/.netlify/functions/create-razorpay-order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            amount: rawAmount,
+            currency: currencyCode,
+            receipt: `rcpt_${data.id || Date.now()}`
+          })
+        });
 
-      const rzp = new Razorpay(options);
-      rzp.on('payment.failed', function (response){
-        alert("Payment failed: " + response.error.description);
-      });
-      rzp.open();
-      return;
+        if (!orderRes.ok) {
+          throw new Error(`Failed to generate order ID on server (HTTP ${orderRes.status})`);
+        }
+
+        const orderData = await orderRes.json();
+        
+        const options = {
+          key: RAZORPAY_CONFIG.keyId,
+          amount: rawAmount,
+          currency: currencyCode,
+          name: "Gravity Studios",
+          description: `${data.type === 'booking' ? '50% Booking Advance' : '50% Final Settlement'} for ${data.serviceName}`,
+          image: "https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/logo.png",
+          order_id: orderData.id, // Secure Order ID from server
+          handler: async function (response) {
+            // 2. Verify payment signature on the server side
+            try {
+              const verifyRes = await fetch('/.netlify/functions/verify-razorpay-signature', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  orderId: response.razorpay_order_id,
+                  paymentId: response.razorpay_payment_id,
+                  signature: response.razorpay_signature
+                })
+              });
+
+              if (!verifyRes.ok) {
+                const errJson = await verifyRes.json();
+                throw new Error(errJson.error?.message || "Signature verification failed.");
+              }
+
+              const verifyData = await verifyRes.json();
+              if (verifyData.verified) {
+                const txId = response.razorpay_payment_id;
+                processSuccessPayment(txId, 'Razorpay SDK');
+              } else {
+                alert("Payment verification failed: Signature mismatch.");
+              }
+            } catch (err) {
+              console.error("Razorpay secure verification error:", err);
+              alert(`Payment Verification Failed: ${err.message}. Please contact support.`);
+            }
+          },
+          prefill: {
+            name: currentSession ? currentSession.username : 'User',
+            email: currentSession ? currentSession.email : 'client@gravity.com',
+            contact: currentSession && currentSession.phone ? currentSession.phone : '+91 98920 10101'
+          },
+          theme: {
+            color: "#b026ff"
+          }
+        };
+
+        const rzp = new Razorpay(options);
+        rzp.on('payment.failed', function (response){
+          alert("Payment failed: " + response.error.description);
+        });
+        rzp.open();
+        return;
+      } catch (err) {
+        console.error("Error setting up Razorpay SDK transaction:", err);
+        alert(`Razorpay SDK setup error: ${err.message}. Falling back to sandbox checkout simulation.`);
+      }
     }
     
     // B. Fallback to Simulated Modal Sandbox
@@ -2581,17 +2665,52 @@ function initPortalAuth() {
 
       // Sync to Supabase
       if (supabaseClient) {
-        // Update refund claim status
-        await supabaseClient
-          .from('refunds')
-          .update({ status: action === 'approve' ? 'approved' : 'denied' })
-          .eq('id', claimId);
-
-        // Update purchase status
-        await supabaseClient
-          .from('purchases')
-          .update({ status: newStatus })
-          .eq('id', purchaseId);
+        try {
+          const sessionRes = await supabaseClient.auth.getSession();
+          const session = sessionRes.data.session;
+          if (session) {
+            const response = await fetch('/.netlify/functions/admin-action', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session.access_token}`
+              },
+              body: JSON.stringify({
+                action: 'process-refund',
+                payload: {
+                  claimId,
+                  purchaseId,
+                  status: action === 'approve' ? 'approved' : 'denied',
+                  newStatus
+                }
+              })
+            });
+            if (!response.ok) {
+              const err = await response.json();
+              throw new Error(err.error?.message || `HTTP ${response.status}`);
+            }
+          } else {
+            // Fallback if no active admin session
+            await supabaseClient
+              .from('refunds')
+              .update({ status: action === 'approve' ? 'approved' : 'denied' })
+              .eq('id', claimId);
+            await supabaseClient
+              .from('purchases')
+              .update({ status: newStatus })
+              .eq('id', purchaseId);
+          }
+        } catch (err) {
+          console.warn("Secure refund claim action failed, falling back to client-side DB updates:", err);
+          await supabaseClient
+            .from('refunds')
+            .update({ status: action === 'approve' ? 'approved' : 'denied' })
+            .eq('id', claimId);
+          await supabaseClient
+            .from('purchases')
+            .update({ status: newStatus })
+            .eq('id', purchaseId);
+        }
       }
 
       if (action === 'approve') {
@@ -3081,35 +3200,75 @@ function initPortalAuth() {
   // Admin Secure Sign-In Form Handler
   const adminLoginForm = document.getElementById('admin-login-form');
   const adminLoginError = document.getElementById('admin-login-error');
-  adminLoginForm.addEventListener('submit', (e) => {
+  adminLoginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     adminLoginError.style.display = 'none';
 
     const email = document.getElementById('admin-email').value.trim();
     const password = document.getElementById('admin-password').value;
-    const pin = document.getElementById('admin-2fa').value.trim();
 
-    // Verification Rules
+    const submitBtn = adminLoginForm.querySelector('button[type="submit"]');
+    const originalText = submitBtn ? submitBtn.innerText : "SIGN IN";
+
+    // 1. Enforce corporate domain rule on frontend
     if (!email.endsWith('@gravitystudios.com')) {
       showError(adminLoginError, 'ACCESS DENIED: Email must be a verified corporate address (@gravitystudios.com).');
       return;
     }
 
-    if (email !== 'admin@gravitystudios.com' || password !== 'AdminSecurePassword2026!') {
-      showError(adminLoginError, 'ACCESS DENIED: Invalid administrator credentials.');
-      return;
-    }
+    if (supabaseClient) {
+      if (submitBtn) {
+        submitBtn.innerText = "AUTHENTICATING...";
+        submitBtn.disabled = true;
+      }
 
-    if (pin !== '1010') {
-      showError(adminLoginError, 'ACCESS DENIED: Invalid 2FA Security Key.');
-      return;
-    }
+      try {
+        const { data, error } = await supabaseClient.auth.signInWithPassword({
+          email: email,
+          password: password
+        });
 
-    // Success!
-    loginSuccess({
-      role: 'admin',
-      email: email
-    });
+        if (submitBtn) {
+          submitBtn.innerText = originalText;
+          submitBtn.disabled = false;
+        }
+
+        if (error) {
+          showError(adminLoginError, `ACCESS DENIED: ${error.message}`);
+        } else if (data.user) {
+          const userEmail = data.user.email || "";
+          const isAdmin = userEmail.endsWith('@gravitystudios.com') || userEmail === 'admin@gravitystudios.com';
+
+          if (!isAdmin) {
+            await supabaseClient.auth.signOut();
+            showError(adminLoginError, 'ACCESS DENIED: Account lacks administrator authorization privileges.');
+          } else {
+            loginSuccess({
+              role: 'admin',
+              email: userEmail,
+              uid: data.user.id
+            });
+          }
+        }
+      } catch (err) {
+        if (submitBtn) {
+          submitBtn.innerText = originalText;
+          submitBtn.disabled = false;
+        }
+        showError(adminLoginError, `SYSTEM ERROR: ${err.message}`);
+      }
+    } else {
+      // Offline/Demo Sandbox Mode fallback
+      if (email === 'admin@gravitystudios.com' && password === 'AdminSecurePassword2026!') {
+        loginSuccess({
+          role: 'admin',
+          email: email,
+          uid: 'demo_admin_user'
+        });
+      } else {
+        showError(adminLoginError, 'DEMO SYSTEM: Enter admin@gravitystudios.com / AdminSecurePassword2026!');
+      }
+    }
   });
 
   // Logout Handlers
@@ -3486,17 +3645,40 @@ function initPortalAuth() {
       // Sync with Supabase if active
       if (supabaseClient) {
         try {
-          supabaseClient
-            .from('service_catalog')
-            .upsert(updatedPrices.map(u => ({
-              id: u.id,
-              name: u.name,
-              price_inr: u.priceINR,
-              price_usd: u.priceUSD
-            })))
-            .then(({ error }) => {
-              if (error) console.warn("Supabase pricing sync warning:", error.message);
-            });
+          supabaseClient.auth.getSession().then(async ({ data: { session } }) => {
+            if (session) {
+              const response = await fetch('/.netlify/functions/admin-action', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${session.access_token}`
+                },
+                body: JSON.stringify({
+                  action: 'update-pricing',
+                  payload: { updatedPrices }
+                })
+              });
+              if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.error?.message || `HTTP ${response.status}`);
+              }
+            } else {
+              throw new Error("No active admin session found.");
+            }
+          }).catch(err => {
+            console.warn("Secure pricing update failed, falling back to direct client-side DB upsert:", err);
+            supabaseClient
+              .from('service_catalog')
+              .upsert(updatedPrices.map(u => ({
+                id: u.id,
+                name: u.name,
+                price_inr: u.priceINR,
+                price_usd: u.priceUSD
+              })))
+              .then(({ error }) => {
+                if (error) console.warn("Supabase pricing sync warning:", error.message);
+              });
+          });
         } catch(err) {
           console.warn("Supabase pricing upsert error:", err);
         }

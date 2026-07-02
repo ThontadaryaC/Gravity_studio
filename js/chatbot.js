@@ -545,6 +545,8 @@ ${pdfContext}`;
       // Proactive CORS file:/// check
       if (window.location.protocol === "file:") {
         errorMsg = "⚠️ **Local File Origin Block (CORS)**: It looks like you opened this website directly as a local file (`file:///...`). Browsers block API requests from local file protocols for security.\n\nTo fix this and test your Gemini API key, **please run a local web server** (such as VS Code's **Live Server** extension, running `python -m http.server`, or Node's `npx serve`) and access the page through `http://localhost`.";
+      } else if (err.message && (err.message.includes("denied access") || err.message.includes("403"))) {
+        errorMsg = `⚠️ **API Key / Project Denied Access**: The Gemini API returned an error: "${err.message}".\n\n**How to resolve this:**\n1. Ensure your Gemini API Key in Netlify environment variables (\`GEMINI_API_KEY\`) is correct and valid.\n2. **CRITICAL**: If you recently updated the environment variables in the Netlify site settings, you **must trigger a new deployment** (re-deploy the site) for Netlify's serverless functions to pick up the new keys.\n3. Make sure your Google Cloud Project or API Key is active and not restricted in Google AI Studio or Google Cloud Console.`;
       } else if (state.isDevMode) {
         errorMsg = `⚠️ **Error calling AI**: ${err.message || "Unknown error occurred."}\n\nPlease check your Gemini API key configurations or proxy settings.`;
       }
