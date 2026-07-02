@@ -15,17 +15,72 @@ const RAZORPAY_CONFIG = {
 
 // Default service prices catalog
 const DEFAULT_SERVICE_PRICES = [
-  { id: "youtube_intro", name: "YouTube Intro Video", priceINR: 8400, priceUSD: 100 },
-  { id: "vfx_package", name: "Commercial VFX Package", priceINR: 25200, priceUSD: 300 },
-  { id: "anime_design", name: "Anime Character Design", priceINR: 12600, priceUSD: 150 },
-  { id: "thumbnail_creation", name: "YouTube Thumbnail Creations", priceINR: 899, priceUSD: 11 },
-  { id: "logo_design", name: "Logo Designs", priceINR: 1699, priceUSD: 20 },
-  { id: "civil_construction", name: "Civil Construction Services", priceINR: 15000, priceUSD: 180 }
+  // 1. AI Services
+  { id: "ai_chatbot", name: "AI Chatbot", priceINR: 24999, priceUSD: 799, rangeINR: "₹25,000–₹1,20,000", rangeUSD: "$800–$4,000" },
+  { id: "ai_voice_agent", name: "AI Voice Agent", priceINR: 49999, priceUSD: 1999, rangeINR: "₹50,000–₹3,00,000", rangeUSD: "$2,000–$10,000" },
+  { id: "ai_receptionist", name: "AI Receptionist", priceINR: 60000, priceUSD: 2500, rangeINR: "₹60,000–₹3,50,000", rangeUSD: "$2,500–$12,000" },
+  { id: "ai_customer_support", name: "AI Customer Support", priceINR: 40000, priceUSD: 1500, rangeINR: "₹40,000–₹2,00,000", rangeUSD: "$1,500–$8,000" },
+  { id: "ai_sales_agent", name: "AI Sales Agent", priceINR: 50000, priceUSD: 2000, rangeINR: "₹50,000–₹3,00,000", rangeUSD: "$2,000–$10,000" },
+  { id: "ai_appointment_booking", name: "AI Appointment Booking", priceINR: 30000, priceUSD: 1200, rangeINR: "₹30,000–₹1,50,000", rangeUSD: "$1,200–$5,000" },
+  { id: "ai_workflow_automation", name: "AI Workflow Automation", priceINR: 39999, priceUSD: 1499, rangeINR: "₹40,000–₹3,00,000", rangeUSD: "$2,000–$12,000" },
+  { id: "custom_ai_solution", name: "Custom AI Solution", priceINR: 100000, priceUSD: 5000, rangeINR: "₹1,00,000+", rangeUSD: "Starting at $5,000" },
+
+  // 2. Web & App Development
+  { id: "business_website", name: "Business Website", priceINR: 19999, priceUSD: 799, rangeINR: "₹20,000–₹80,000", rangeUSD: "$800–$3,000" },
+  { id: "premium_website", name: "Premium Website", priceINR: 80000, priceUSD: 3000, rangeINR: "₹80,000–₹2,50,000", rangeUSD: "$3,000–$10,000" },
+  { id: "web_application", name: "Web Application", priceINR: 100000, priceUSD: 5000, rangeINR: "₹1,00,000–₹10,00,000", rangeUSD: "$5,000–$50,000" },
+  { id: "mobile_app", name: "Mobile App", priceINR: 99999, priceUSD: 4999, rangeINR: "₹1,00,000–₹15,00,000", rangeUSD: "$5,000–$60,000" },
+  { id: "saas_platform", name: "SaaS Platform", priceINR: 299999, priceUSD: 9999, rangeINR: "₹3,00,000–₹30,00,000", rangeUSD: "$10,000–$100,000" },
+  { id: "crm_erp_system", name: "CRM/ERP System", priceINR: 200000, priceUSD: 8000, rangeINR: "₹2,00,000–₹20,00,000", rangeUSD: "$8,000–$80,000" },
+  { id: "dashboard_development", name: "Dashboard Development", priceINR: 50000, priceUSD: 2000, rangeINR: "₹50,000–₹5,00,000", rangeUSD: "$2,000–$20,000" },
+
+  // 3. Design & Branding
+  { id: "logo_design", name: "Logo Design", priceINR: 5000, priceUSD: 300, rangeINR: "₹5,000–₹30,000", rangeUSD: "$300–$1,200" },
+  { id: "brand_identity", name: "Brand Identity & Design", priceINR: 14999, priceUSD: 599, rangeINR: "₹20,000–₹1,50,000", rangeUSD: "$800–$5,000" },
+  { id: "ui_ux_design", name: "UI/UX Design", priceINR: 20000, priceUSD: 800, rangeINR: "₹20,000–₹2,00,000", rangeUSD: "$800–$8,000" },
+  { id: "presentation_design", name: "Presentation Design", priceINR: 8000, priceUSD: 300, rangeINR: "₹8,000–₹50,000", rangeUSD: "$300–$2,000" },
+  { id: "graphic_design", name: "Graphic Design", priceINR: 5000, priceUSD: 250, rangeINR: "₹5,000+", rangeUSD: "$250+" },
+
+  // 4. Video & Animation
+  { id: "ai_video", name: "AI Video Production", priceINR: 19999, priceUSD: 899, rangeINR: "₹15,000–₹2,00,000", rangeUSD: "$700–$8,000" },
+  { id: "animation", name: "Animation", priceINR: 30000, priceUSD: 1500, rangeINR: "₹30,000–₹5,00,000", rangeUSD: "$1,500–$20,000" },
+  { id: "explainer_video", name: "Explainer Video", priceINR: 20000, priceUSD: 800, rangeINR: "₹20,000–₹2,00,000", rangeUSD: "$800–$8,000" },
+  { id: "motion_graphics", name: "Motion Graphics", priceINR: 15000, priceUSD: 600, rangeINR: "₹15,000–₹1,50,000", rangeUSD: "$600–$6,000" },
+  { id: "product_advertisement", name: "Product Advertisement", priceINR: 25000, priceUSD: 1200, rangeINR: "₹25,000–₹3,00,000", rangeUSD: "$1,200–$12,000" },
+
+  // 5. Digital Marketing
+  { id: "seo", name: "SEO (Monthly)", priceINR: 15000, priceUSD: 700, rangeINR: "₹15,000/month", rangeUSD: "$700/month" },
+  { id: "social_media", name: "Social Media Marketing (Monthly)", priceINR: 20000, priceUSD: 800, rangeINR: "₹20,000/month", rangeUSD: "$800/month" },
+  { id: "google_ads", name: "Google Ads Management (Monthly)", priceINR: 25000, priceUSD: 1000, rangeINR: "₹25,000/month", rangeUSD: "$1,000/month" },
+  { id: "meta_ads", name: "Meta Ads Management (Monthly)", priceINR: 25000, priceUSD: 1000, rangeINR: "₹25,000/month", rangeUSD: "$1,000/month" },
+  { id: "email_marketing", name: "Email Marketing (Monthly)", priceINR: 15000, priceUSD: 600, rangeINR: "₹15,000/month", rangeUSD: "$600/month" },
+
+  // 6. Tech Support & Cloud
+  { id: "domain_hosting", name: "Domain & Hosting Setup", priceINR: 5000, priceUSD: 200, rangeINR: "₹5,000", rangeUSD: "$200" },
+  { id: "website_maintenance", name: "Website Maintenance (Monthly)", priceINR: 5000, priceUSD: 200, rangeINR: "₹5,000/month", rangeUSD: "$200/month" },
+  { id: "security_audit", name: "Security Audit", priceINR: 25000, priceUSD: 1000, rangeINR: "₹25,000", rangeUSD: "$1,000" },
+  { id: "api_integration", name: "API Integration", priceINR: 20000, priceUSD: 800, rangeINR: "₹20,000–₹2,00,000", rangeUSD: "$800–$8,000" },
+  { id: "cloud_deployment", name: "Cloud Deployment", priceINR: 30000, priceUSD: 1500, rangeINR: "₹30,000–₹3,00,000", rangeUSD: "$1,500–$12,000" },
+
+  // 7. Consulting & Enterprise
+  { id: "ai_consulting", name: "AI Strategy Consulting (Hourly)", priceINR: 5000, priceUSD: 200, rangeINR: "₹5,000/hour", rangeUSD: "$200/hour" },
+  { id: "cto_service", name: "CTO as a Service (Monthly)", priceINR: 100000, priceUSD: 5000, rangeINR: "₹1,00,000/month", rangeUSD: "$5,000/month" },
+  { id: "startup_mvp", name: "Startup MVP Development", priceINR: 200000, priceUSD: 10000, rangeINR: "₹2,00,000–₹15,00,000", rangeUSD: "$10,000–$75,000" },
+  { id: "enterprise_ai", name: "Enterprise AI Solutions", priceINR: 500000, priceUSD: 25000, rangeINR: "₹5,00,000+ (Custom Quote)", rangeUSD: "Starting at $25,000 (Custom Quote)" }
 ];
 
 function getServicePrices() {
   const stored = localStorage.getItem('gravity_service_prices');
-  if (stored) return JSON.parse(stored);
+  if (stored) {
+    try {
+      const parsed = JSON.parse(stored);
+      if (parsed.length === DEFAULT_SERVICE_PRICES.length) {
+        return parsed;
+      }
+    } catch (e) {
+      console.error("Error parsing stored prices, resetting:", e);
+    }
+  }
   localStorage.setItem('gravity_service_prices', JSON.stringify(DEFAULT_SERVICE_PRICES));
   return DEFAULT_SERVICE_PRICES;
 }
@@ -1441,6 +1496,7 @@ function initPortalAuth() {
       prices.forEach(s => {
         const total = isIndian ? s.priceINR : s.priceUSD;
         const advance = total / 2;
+        const range = isIndian ? (s.rangeINR || `${symbol}${total.toLocaleString()}`) : (s.rangeUSD || `${symbol}${total.toLocaleString()}`);
         
         const card = document.createElement('div');
         card.className = 'catalog-card';
@@ -1455,7 +1511,7 @@ function initPortalAuth() {
         card.innerHTML = `
           <div>
             <h6 style="margin: 0; font-size: 0.95rem; color: var(--text-pure);">${s.name}</h6>
-            <span style="font-size: 0.8rem; color: var(--text-muted);">Total Cost: ${symbol}${total.toLocaleString()} (50% Advance booking)</span>
+            <span style="font-size: 0.8rem; color: var(--text-muted);">Est. Range: ${range} <br><span style="opacity:0.6;">(50% Booking Advance: ${symbol}${advance.toLocaleString()})</span></span>
           </div>
           <button class="catalog-pay-btn" data-service-id="${s.id}" data-service-name="${s.name}" data-price="${total}" data-advance="${advance}" style="padding: 0.5rem 0.75rem; background: rgba(176, 38, 255, 0.15); border: 1px solid var(--neon-purple); border-radius: 6px; color: var(--neon-purple); font-weight: 600; font-family: inherit; font-size: 0.8rem; cursor: pointer; transition: all 0.2s;">Book for ${symbol}${advance.toLocaleString()}</button>
         `;
@@ -2167,60 +2223,64 @@ function initPortalAuth() {
 
         const orderData = await orderRes.json();
         
-        const options = {
-          key: RAZORPAY_CONFIG.keyId,
-          amount: rawAmount,
-          currency: currencyCode,
-          name: "Gravity Studios",
-          description: `${data.type === 'booking' ? '50% Booking Advance' : '50% Final Settlement'} for ${data.serviceName}`,
-          image: "https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/logo.png",
-          order_id: orderData.id, // Secure Order ID from server
-          handler: async function (response) {
-            // 2. Verify payment signature on the server side
-            try {
-              const verifyRes = await fetch('/.netlify/functions/verify-razorpay-signature', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  orderId: response.razorpay_order_id,
-                  paymentId: response.razorpay_payment_id,
-                  signature: response.razorpay_signature
-                })
-              });
+        if (orderData.simulated) {
+          console.warn("Server responded with a simulated order. Falling back to sandbox checkout.");
+        } else {
+          const options = {
+            key: RAZORPAY_CONFIG.keyId,
+            amount: rawAmount,
+            currency: currencyCode,
+            name: "Gravity Studios",
+            description: `${data.type === 'booking' ? '50% Booking Advance' : '50% Final Settlement'} for ${data.serviceName}`,
+            image: "https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/logo.png",
+            order_id: orderData.id, // Secure Order ID from server
+            handler: async function (response) {
+              // 2. Verify payment signature on the server side
+              try {
+                const verifyRes = await fetch('/.netlify/functions/verify-razorpay-signature', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    orderId: response.razorpay_order_id,
+                    paymentId: response.razorpay_payment_id,
+                    signature: response.razorpay_signature
+                  })
+                });
 
-              if (!verifyRes.ok) {
-                const errJson = await verifyRes.json();
-                throw new Error(errJson.error?.message || "Signature verification failed.");
-              }
+                if (!verifyRes.ok) {
+                  const errJson = await verifyRes.json();
+                  throw new Error(errJson.error?.message || "Signature verification failed.");
+                }
 
-              const verifyData = await verifyRes.json();
-              if (verifyData.verified) {
-                const txId = response.razorpay_payment_id;
-                processSuccessPayment(txId, 'Razorpay SDK');
-              } else {
-                alert("Payment verification failed: Signature mismatch.");
+                const verifyData = await verifyRes.json();
+                if (verifyData.verified) {
+                  const txId = response.razorpay_payment_id;
+                  processSuccessPayment(txId, 'Razorpay SDK');
+                } else {
+                  alert("Payment verification failed: Signature mismatch.");
+                }
+              } catch (err) {
+                console.error("Razorpay secure verification error:", err);
+                alert(`Payment Verification Failed: ${err.message}. Please contact support.`);
               }
-            } catch (err) {
-              console.error("Razorpay secure verification error:", err);
-              alert(`Payment Verification Failed: ${err.message}. Please contact support.`);
+            },
+            prefill: {
+              name: currentSession ? currentSession.username : 'User',
+              email: currentSession ? currentSession.email : 'client@gravity.com',
+              contact: currentSession && currentSession.phone ? currentSession.phone : '+91 98920 10101'
+            },
+            theme: {
+              color: "#b026ff"
             }
-          },
-          prefill: {
-            name: currentSession ? currentSession.username : 'User',
-            email: currentSession ? currentSession.email : 'client@gravity.com',
-            contact: currentSession && currentSession.phone ? currentSession.phone : '+91 98920 10101'
-          },
-          theme: {
-            color: "#b026ff"
-          }
-        };
+          };
 
-        const rzp = new Razorpay(options);
-        rzp.on('payment.failed', function (response){
-          alert("Payment failed: " + response.error.description);
-        });
-        rzp.open();
-        return;
+          const rzp = new Razorpay(options);
+          rzp.on('payment.failed', function (response){
+            alert("Payment failed: " + response.error.description);
+          });
+          rzp.open();
+          return;
+        }
       } catch (err) {
         console.error("Error setting up Razorpay SDK transaction:", err);
         alert(`Razorpay SDK setup error: ${err.message}. Falling back to sandbox checkout simulation.`);
@@ -3633,8 +3693,7 @@ function initPortalAuth() {
         const inrInput = pricingForm.querySelector(`.price-input-inr[data-id="${s.id}"]`);
         const usdInput = pricingForm.querySelector(`.price-input-usd[data-id="${s.id}"]`);
         return {
-          id: s.id,
-          name: s.name,
+          ...s,
           priceINR: inrInput ? parseFloat(inrInput.value) || 0 : s.priceINR,
           priceUSD: usdInput ? parseFloat(usdInput.value) || 0 : s.priceUSD
         };
