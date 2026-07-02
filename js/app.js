@@ -9,7 +9,7 @@ const supabaseClient = (typeof supabase !== 'undefined') ? supabase.createClient
 const RAZORPAY_CONFIG = {
   // Enter your Razorpay Key ID here (e.g. "rzp_test_xxxxxxxxxx")
   // Leave empty "" to run in Simulated Sandbox Mode.
-  keyId: localStorage.getItem('gravity_razorpay_key') || "rzp_live_T8A9dCfkzIk2PS",
+  keyId: localStorage.getItem('gravity_razorpay_key') || "",
   currency: "INR" // Currency code (INR is standard for Indian transactions)
 };
 
@@ -2258,6 +2258,21 @@ function initPortalAuth() {
     const symbol = isIndian ? '₹' : '$';
     const currencyCode = isIndian ? "INR" : "USD";
     const rawAmount = Math.round(data.payAmount * 100); // minor units (paise/cents)
+
+    // Fetch Razorpay Key ID dynamically if not already loaded
+    if (!RAZORPAY_CONFIG.keyId) {
+      try {
+        const keyRes = await fetch('/.netlify/functions/get-razorpay-key');
+        if (keyRes.ok) {
+          const keyData = await keyRes.json();
+          if (keyData.keyId) {
+            RAZORPAY_CONFIG.keyId = keyData.keyId;
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching Razorpay key dynamically:", err);
+      }
+    }
 
     // A. Use Real Razorpay SDK popup if SDK is loaded and Key ID is set
     if (typeof Razorpay !== 'undefined' && RAZORPAY_CONFIG.keyId) {
