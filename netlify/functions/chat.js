@@ -36,7 +36,7 @@ exports.handler = async function (event, context) {
 
     // Parse the incoming body from the client (contains contents, systemInstruction, etc.)
     const clientBody = JSON.parse(event.body);
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
     // Request Google's Gemini API
     const response = await fetch(url, {

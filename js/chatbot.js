@@ -440,6 +440,34 @@ const CONFIG = {
     ensureIconsRendered();
   }
 
+  // Get sandbox/RAG response locally
+  function getLocalSandboxResponse(text) {
+    const cleanedText = text.toLowerCase();
+    let matchedReply = "";
+
+    // Check predefined Q&A
+    for (const qa of SANDBOX_QA) {
+      if (qa.keywords.some(keyword => cleanedText.includes(keyword))) {
+        matchedReply = qa.reply;
+        break;
+      }
+    }
+
+    // Search local PDF index if not answered by Q&A
+    if (!matchedReply && state.pdfChunks.length > 0) {
+      const matchedChunks = searchChunks(text, 2);
+      if (matchedChunks.length > 0) {
+        matchedReply = `Found relevant information in **${matchedChunks[0].pdfName}**:\n\n"${matchedChunks[0].text.trim()}..."`;
+      }
+    }
+
+    if (!matchedReply) {
+      matchedReply = "I'm sorry, I don't have a direct answer for that. Feel free to ask about our services, departments, executive team, or business growth!";
+    }
+
+    return matchedReply;
+  }
+
   // Send message processing
   async function handleUserMessageSend() {
     const inputField = document.getElementById("chatbot-input-field");
@@ -507,57 +535,34 @@ ${pdfContext}`;
         await new Promise(r => setTimeout(r, 800)); // Simulate thinking
         hideTypingIndicator();
 
-        const cleanedText = text.toLowerCase();
-        let matchedReply = "";
-
-        // Check our predefined responses
-        for (const qa of SANDBOX_QA) {
-          if (qa.keywords.some(keyword => cleanedText.includes(keyword))) {
-            matchedReply = qa.reply;
-            break;
-          }
-        }
-
-        // If PDF chunks are loaded, let's search them locally for keyword hits!
-        if (!matchedReply && state.pdfChunks.length > 0) {
-          const matchedChunks = searchChunks(text, 2);
-          if (matchedChunks.length > 0) {
-            matchedReply = `Found relevant information in **${matchedChunks[0].pdfName}**:\n\n"${matchedChunks[0].text.trim()}..."`;
-          }
-        }
-
-        if (!matchedReply) {
-          if (state.isDevMode) {
-            matchedReply = "I couldn't find a direct match in Sandbox mode.\n\nTo unlock live answers and full reasoning capabilities, please double-click the chat header, open settings, and paste a Gemini API Key.";
-          } else {
-            matchedReply = "I'm sorry, I don't have a direct answer for that. Feel free to ask about our services, departments, executive team, or business growth!";
-          }
+        let matchedReply = getLocalSandboxResponse(text);
+        if (state.isDevMode && matchedReply.startsWith("I'm sorry")) {
+          matchedReply = "I couldn't find a direct match in Sandbox mode.\n\nTo unlock live answers and full reasoning capabilities, please double-click the chat header, open settings, and paste a Gemini API Key.";
         }
 
         addMessage("bot", matchedReply);
       }
     } catch (err) {
-      console.error(err);
+      console.error("Live AI Call failed, falling back to local database:", err);
       hideTypingIndicator();
-      
-      let errorMsg = "I am experiencing technical difficulties answering that right now. Please try asking about our departments, leadership, or timeline!";
-      
-      // Proactive CORS file:/// check
-      if (window.location.protocol === "file:") {
-        errorMsg = "⚠️ **Local File Origin Block (CORS)**: It looks like you opened this website directly as a local file (`file:///...`). Browsers block API requests from local file protocols for security.\n\nTo fix this and test your Gemini API key, **please run a local web server** (such as VS Code's **Live Server** extension, running `python -m http.server`, or Node's `npx serve`) and access the page through `http://localhost`.";
-      } else if (err.message && (err.message.includes("denied access") || err.message.includes("403"))) {
-        errorMsg = `⚠️ **API Key / Project Denied Access**: The Gemini API returned an error: "${err.message}".\n\n**How to resolve this:**\n1. Ensure your Gemini API Key in Netlify environment variables (\`GEMINI_API_KEY\`) is correct and valid.\n2. **CRITICAL**: If you recently updated the environment variables in the Netlify site settings, you **must trigger a new deployment** (re-deploy the site) for Netlify's serverless functions to pick up the new keys.\n3. Make sure your Google Cloud Project or API Key is active and not restricted in Google AI Studio or Google Cloud Console.`;
-      } else if (state.isDevMode) {
-        errorMsg = `⚠️ **Error calling AI**: ${err.message || "Unknown error occurred."}\n\nPlease check your Gemini API key configurations or proxy settings.`;
+
+      // Automatic Graceful Fallback to Sandbox/RAG
+      const localReply = getLocalSandboxResponse(text);
+
+      let warningPrefix = "";
+      if (state.isDevMode) {
+        warningPrefix = `⚠️ **[Dev Warning: Live AI Failed]** *(Using Local Fallback)*\nError: ${err.message || "Unknown error"}\n\n`;
+      } else if (window.location.protocol === "file:") {
+        warningPrefix = `⚠️ **[CORS Fallback]** *(Browsers block localhost/local file API requests)*\n\n`;
       }
-      
-      addMessage("bot", errorMsg);
+
+      addMessage("bot", warningPrefix + localReply);
     }
   }
 
   // Call Google Gemini API or Proxy Endpoint
   async function callGeminiOrProxy(apiKey, proxyUrl, systemPrompt, chatHistory, userMessage) {
-    const url = proxyUrl ? proxyUrl : `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    const url = proxyUrl ? proxyUrl : `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
     
     // Format message history for Gemini (alternate user/model roles)
     const contents = [];
