@@ -3536,6 +3536,18 @@ function initPortalAuth() {
   async function handleGoogleCredentialResponse(response) {
     const payload = decodeJwtResponse(response.credential);
     const detectedCountry = (payload.locale && (payload.locale.toUpperCase().endsWith('-IN') || payload.locale.toUpperCase().includes('IN'))) ? 'India' : 'Other';
+    const googleAvatarUrl = (payload.picture || '') + '?provider=google';
+
+    // Record Google logins in local list for dashboard drop-downs
+    const localUsers = JSON.parse(localStorage.getItem('gravity-registered-users')) || [];
+    if (!localUsers.some(u => u.email === payload.email)) {
+      localUsers.push({
+        username: payload.name,
+        email: payload.email,
+        avatarUrl: googleAvatarUrl
+      });
+      localStorage.setItem('gravity-registered-users', JSON.stringify(localUsers));
+    }
     
     if (supabaseClient) {
       const { data, error } = await supabaseClient.auth.signInWithIdToken({
@@ -3552,7 +3564,8 @@ function initPortalAuth() {
           email: payload.email,
           country: detectedCountry,
           locale: payload.locale,
-          uid: "local_" + Math.random().toString(36).substring(2, 10)
+          uid: "local_" + Math.random().toString(36).substring(2, 10),
+          avatarUrl: googleAvatarUrl
         });
       } else if (data.user) {
         await supabaseClient
@@ -3560,7 +3573,8 @@ function initPortalAuth() {
           .upsert({ 
             id: data.user.id, 
             username: payload.name, 
-            email: payload.email
+            email: payload.email,
+            avatar_url: googleAvatarUrl
           });
 
         loginSuccess({
@@ -3569,7 +3583,8 @@ function initPortalAuth() {
           email: payload.email,
           uid: data.user.id,
           country: detectedCountry,
-          locale: payload.locale
+          locale: payload.locale,
+          avatarUrl: googleAvatarUrl
         });
       }
     } else {
@@ -3578,7 +3593,8 @@ function initPortalAuth() {
         username: payload.name,
         email: payload.email,
         country: detectedCountry,
-        locale: payload.locale
+        locale: payload.locale,
+        avatarUrl: googleAvatarUrl
       });
     }
   }
@@ -4274,24 +4290,41 @@ async function populateNotificationUserSelect() {
   if (supabaseClient) {
     const { data, error } = await supabaseClient
       .from('profiles')
-      .select('id, username, email');
+      .select('id, username, email, avatar_url');
     if (!error && data) {
-      users = data;
+      users = data.map(u => ({
+        id: u.id,
+        username: u.username,
+        email: u.email,
+        avatar_url: u.avatar_url
+      }));
     }
   }
   
   const localUsers = JSON.parse(localStorage.getItem('gravity-registered-users')) || [];
   localUsers.forEach(lu => {
-    const mockId = 'local_' + lu.username.toLowerCase();
+    const mockId = 'local_' + lu.username.toLowerCase().replace(/\s+/g, '_');
     if (!users.some(u => u.email === lu.email)) {
-      users.push({ id: mockId, username: lu.username, email: lu.email });
+      users.push({
+        id: mockId,
+        username: lu.username,
+        email: lu.email,
+        avatar_url: lu.avatarUrl || lu.avatar_url
+      });
     }
   });
 
-  users.forEach(u => {
+  // Filter only for Google logins
+  const googleLogins = users.filter(u => 
+    (u.avatar_url && u.avatar_url.includes('provider=google')) ||
+    (u.avatar_url && u.avatar_url.includes('googleusercontent.com')) ||
+    (u.email && u.email.toLowerCase().endsWith('@gmail.com'))
+  );
+
+  googleLogins.forEach(u => {
     const opt = document.createElement('option');
     opt.value = u.id;
-    opt.innerText = `${u.username} (${u.email})`;
+    opt.innerText = `${u.username} (${u.email}) [Google]`;
     selectElem.appendChild(opt);
   });
 }
