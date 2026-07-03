@@ -1332,7 +1332,6 @@ function initPortalAuth() {
     if (currentSession) {
       document.getElementById('profile-username').value = currentSession.username || 'User';
       document.getElementById('profile-phone').value = currentSession.phone || '';
-      document.getElementById('profile-country').value = currentSession.country || detectUserCountry(currentSession);
       document.getElementById('profile-email').value = currentSession.email || '';
       document.getElementById('sidebar-username').innerText = currentSession.username || 'User';
       
@@ -1459,7 +1458,13 @@ function initPortalAuth() {
     e.preventDefault();
     const updatedUsername = document.getElementById('profile-username').value.trim();
     const updatedPhone = document.getElementById('profile-phone').value.trim();
-    const updatedCountry = document.getElementById('profile-country').value;
+    
+    // Auto-detect country based on manual country code prefix in phone number
+    const normalizedPhone = updatedPhone.replace(/\s+/g, '');
+    let updatedCountry = 'Other';
+    if (normalizedPhone.startsWith('+91') || normalizedPhone.startsWith('91')) {
+      updatedCountry = 'India';
+    }
     if (updatedUsername.length < 3) {
       alert("Username must be at least 3 characters long.");
       return;
