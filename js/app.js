@@ -1177,6 +1177,12 @@ function initPortalAuth() {
   const sidebarBackdrop = document.getElementById('user-sidebar-backdrop');
   const sidebarClose = document.getElementById('sidebar-close-btn');
   const sidebarLogout = document.getElementById('sidebar-logout-btn');
+
+  // Admin Sidebar Elements
+  const adminSidebar = document.getElementById('admin-sidebar');
+  const adminSidebarBackdrop = document.getElementById('admin-sidebar-backdrop');
+  const adminSidebarClose = document.getElementById('admin-sidebar-close-btn');
+  const adminSidebarLogout = document.getElementById('admin-sidebar-logout-btn');
   const profileForm = document.getElementById('profile-settings-form');
   const dockBtns = document.querySelectorAll('.dock-btn');
   let highestZIndex = 1040;
@@ -1320,7 +1326,11 @@ function initPortalAuth() {
 
   // Sidebar Open/Close/Toggle Handlers
   function toggleSidebar() {
-    if (sidebar.classList.contains('open')) {
+    const isCtrlOpen = (currentSession && currentSession.role === 'admin') 
+      ? adminSidebar.classList.contains('open')
+      : sidebar.classList.contains('open');
+
+    if (isCtrlOpen) {
       closeSidebar();
     } else {
       openSidebar();
@@ -1329,36 +1339,58 @@ function initPortalAuth() {
 
   function openSidebar() {
     closePortal(); // Ensure modal is closed
-    sidebar.style.display = 'flex';
-    sidebar.offsetHeight; // Trigger reflow
-    sidebar.classList.add('open');
-    if (sidebarBackdrop) {
-      sidebarBackdrop.classList.add('open');
+    const isAdmin = currentSession && currentSession.role === 'admin';
+    const targetSidebar = isAdmin ? adminSidebar : sidebar;
+    const targetBackdrop = isAdmin ? adminSidebarBackdrop : sidebarBackdrop;
+
+    targetSidebar.style.display = 'flex';
+    targetSidebar.offsetHeight; // Trigger reflow
+    targetSidebar.classList.add('open');
+    if (targetBackdrop) {
+      targetBackdrop.classList.add('open');
     }
 
-    // Update Profile values inside elements
-    if (currentSession) {
-      document.getElementById('profile-username').value = currentSession.username || 'User';
-      document.getElementById('profile-phone').value = currentSession.phone || '';
-      document.getElementById('profile-email').value = currentSession.email || '';
-      document.getElementById('sidebar-username').innerText = currentSession.username || 'User';
+    if (isAdmin) {
+      // Admin sidebar updates
+      initAdminEvents();
+      const dept = getDepartmentForEmail(currentSession.email);
+      const isSuper = (dept === 'all');
       
-      // Load avatar info
-      pendingAvatarUrl = currentSession.avatarUrl || '';
-      const avatarUrlInput = document.getElementById('profile-avatar-url');
-      if (avatarUrlInput) avatarUrlInput.value = pendingAvatarUrl;
-      const avatarFileInput = document.getElementById('profile-avatar-file');
-      if (avatarFileInput) avatarFileInput.value = '';
+      // Update admin details in sidebar
+      const adminUsernameElem = document.getElementById('admin-sidebar-username');
+      if (adminUsernameElem) {
+        adminUsernameElem.innerText = currentSession.username || 'System Admin';
+      }
       
-      updateProfileAvatarPreview();
-      updateSidebarAvatar();
+      // Show/hide Founder/CEO only menu buttons
+      document.querySelectorAll('#admin-sidebar .super-admin-only').forEach(elem => {
+        elem.style.display = isSuper ? 'flex' : 'none';
+      });
+    } else {
+      // Standard client sidebar updates
+      if (currentSession) {
+        document.getElementById('profile-username').value = currentSession.username || 'User';
+        document.getElementById('profile-phone').value = currentSession.phone || '';
+        document.getElementById('profile-email').value = currentSession.email || '';
+        document.getElementById('sidebar-username').innerText = currentSession.username || 'User';
+        
+        // Load avatar info
+        pendingAvatarUrl = currentSession.avatarUrl || '';
+        const avatarUrlInput = document.getElementById('profile-avatar-url');
+        if (avatarUrlInput) avatarUrlInput.value = pendingAvatarUrl;
+        const avatarFileInput = document.getElementById('profile-avatar-file');
+        if (avatarFileInput) avatarFileInput.value = '';
+        
+        updateProfileAvatarPreview();
+        updateSidebarAvatar();
+      }
+      
+      // Trigger rendering of dynamic views for user
+      renderNotifications();
+      renderPayments();
+      renderPurchasedServices();
+      renderServiceTracking();
     }
-    
-    // Trigger rendering of dynamic views
-    renderNotifications();
-    renderPayments();
-    renderPurchasedServices();
-    renderServiceTracking();
     
     // Trigger Lucide SVG rendering inside Sidebar
     if (typeof lucide !== 'undefined') {
@@ -1371,11 +1403,20 @@ function initPortalAuth() {
     if (sidebarBackdrop) {
       sidebarBackdrop.classList.remove('open');
     }
+    adminSidebar.classList.remove('open');
+    if (adminSidebarBackdrop) {
+      adminSidebarBackdrop.classList.remove('open');
+    }
+    
     // Close all open floating windows as well
     closeAllWindows();
+    
     setTimeout(() => {
       if (!sidebar.classList.contains('open')) {
         sidebar.style.display = 'none';
+      }
+      if (!adminSidebar.classList.contains('open')) {
+        adminSidebar.style.display = 'none';
       }
     }, 400);
   }
@@ -1386,8 +1427,20 @@ function initPortalAuth() {
   if (sidebarBackdrop) {
     sidebarBackdrop.addEventListener('click', closeSidebar);
   }
+  if (adminSidebarClose) {
+    adminSidebarClose.addEventListener('click', closeSidebar);
+  }
+  if (adminSidebarBackdrop) {
+    adminSidebarBackdrop.addEventListener('click', closeSidebar);
+  }
   if (sidebarLogout) {
     sidebarLogout.addEventListener('click', () => {
+      closeSidebar();
+      performLogout();
+    });
+  }
+  if (adminSidebarLogout) {
+    adminSidebarLogout.addEventListener('click', () => {
       closeSidebar();
       performLogout();
     });
@@ -3148,7 +3201,36 @@ function initPortalAuth() {
     if (windowId === 'payments') renderPayments();
     if (windowId === 'buyed-services') renderPurchasedServices();
     if (windowId === 'track-services') renderServiceTracking();
-    if (windowId === 'admin-panel') renderAdminPanel();
+    
+    if (windowId === 'admin-overview') {
+      const dept = getDepartmentForEmail(currentSession?.email);
+      loadAdminOverviewStats(dept);
+    }
+    if (windowId === 'admin-notifications') {
+      const targetSelect = document.getElementById('admin-window-notif-target');
+      const userSelectContainer = document.getElementById('admin-window-notif-user-select-container');
+      if (targetSelect && userSelectContainer) {
+        if (targetSelect.value === 'individual') {
+          userSelectContainer.style.display = 'block';
+          populateNotificationUserSelect();
+        } else {
+          userSelectContainer.style.display = 'none';
+        }
+      }
+    }
+    if (windowId === 'admin-progress') {
+      const dept = getDepartmentForEmail(currentSession?.email);
+      loadProgressClientDropdown(dept);
+    }
+    if (windowId === 'admin-refunds') {
+      loadAdminRefundsList();
+    }
+    if (windowId === 'admin-payments') {
+      loadAdminPaymentsList();
+    }
+    if (windowId === 'admin-pricing') {
+      loadAdminPricingManager();
+    }
 
     // Trigger Lucide SVG rendering inside the window
     if (typeof lucide !== 'undefined') {
@@ -3629,12 +3711,8 @@ function initPortalAuth() {
     updateAuthUI();
     
     // Open correct dashboard/sidebar
-    if (sessionData.role === 'admin') {
-      openPortal('admin-dashboard');
-    } else {
-      closePortal();
-      openSidebar();
-    }
+    closePortal();
+    openSidebar();
   }
 
   function showError(elem, text) {
@@ -4078,162 +4156,113 @@ function serviceMatchesDepartment(serviceId, department) {
   return false;
 }
 
-async function renderAdminPanel() {
-  if (!currentSession || currentSession.role !== 'admin') return;
+function initAdminEvents() {
+  if (window.adminEventsBound) return;
 
-  const email = currentSession.email || "";
-  const dept = getDepartmentForEmail(email);
-
-  // Display role & dept label
-  const roleLabel = document.getElementById('admin-role-label');
-  const deptLabel = document.getElementById('admin-dept-label');
-  if (roleLabel) {
-    const displayRole = email.split('@')[0].toUpperCase();
-    roleLabel.innerText = displayRole === 'ADMIN' ? 'MASTER ADMIN' : displayRole;
-  }
-  if (deptLabel) {
-    deptLabel.innerText = dept.toUpperCase();
-  }
-
-  // Toggle tab headers based on permission (only Founder/CEO/Super-Admin get access to Refund, Payments, Pricing)
-  const isSuper = (dept === 'all');
-  const refundTabHeader = document.getElementById('admin-refund-tab-header');
-  const paymentsTabHeader = document.getElementById('admin-payments-tab-header');
-  const pricingTabHeader = document.getElementById('admin-pricing-tab-header');
-  if (refundTabHeader) refundTabHeader.style.display = isSuper ? 'block' : 'none';
-  if (paymentsTabHeader) paymentsTabHeader.style.display = isSuper ? 'block' : 'none';
-  if (pricingTabHeader) pricingTabHeader.style.display = isSuper ? 'block' : 'none';
-
-  // Bind tab switching once
-  if (!window.adminTabsBound) {
-    const tabBtns = document.querySelectorAll('.admin-tab-btn');
-    tabBtns.forEach(btn => {
-      btn.addEventListener('click', () => {
-        tabBtns.forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        
-        const targetTabId = btn.getAttribute('data-tab');
-        const tabContents = document.querySelectorAll('.admin-tab-content');
-        tabContents.forEach(content => {
-          if (content.id === targetTabId) {
-            content.classList.add('active');
-          } else {
-            content.classList.remove('active');
-          }
-        });
-      });
+  const targetSelect = document.getElementById('admin-window-notif-target');
+  const userSelectContainer = document.getElementById('admin-window-notif-user-select-container');
+  if (targetSelect && userSelectContainer) {
+    targetSelect.addEventListener('change', async () => {
+      if (targetSelect.value === 'individual') {
+        userSelectContainer.style.display = 'block';
+        await populateNotificationUserSelect();
+      } else {
+        userSelectContainer.style.display = 'none';
+      }
     });
-    
-    // Target Audience selection logic
-    const targetSelect = document.getElementById('admin-window-notif-target');
-    const userSelectContainer = document.getElementById('admin-window-notif-user-select-container');
-    if (targetSelect && userSelectContainer) {
-      targetSelect.addEventListener('change', async () => {
-        if (targetSelect.value === 'individual') {
-          userSelectContainer.style.display = 'block';
-          await populateNotificationUserSelect();
-        } else {
-          userSelectContainer.style.display = 'none';
-        }
-      });
-    }
+  }
 
-    // Notification submission
-    const notifForm = document.getElementById('admin-window-notification-form');
-    if (notifForm) {
-      notifForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const title = document.getElementById('admin-window-notif-title').value.trim();
-        const desc = document.getElementById('admin-window-notif-desc').value.trim();
-        const target = targetSelect ? targetSelect.value : 'group';
-        const userSelect = document.getElementById('admin-window-notif-user-select');
-        const targetUserId = target === 'individual' && userSelect ? userSelect.value : null;
+  const notifForm = document.getElementById('admin-window-notification-form');
+  if (notifForm) {
+    notifForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const title = document.getElementById('admin-window-notif-title').value.trim();
+      const desc = document.getElementById('admin-window-notif-desc').value.trim();
+      const target = targetSelect ? targetSelect.value : 'group';
+      const userSelect = document.getElementById('admin-window-notif-user-select');
+      const targetUserId = target === 'individual' && userSelect ? userSelect.value : null;
 
-        try {
-          await publishTargetedNotification(title, desc, targetUserId);
-          alert(`Notification successfully dispatched to ${target === 'group' ? 'all users' : 'selected user'}!`);
-          notifForm.reset();
-          if (userSelectContainer) userSelectContainer.style.display = 'none';
-        } catch (err) {
-          alert(`Error sending notification: ${err.message}`);
-        }
-      });
-    }
+      try {
+        await publishTargetedNotification(title, desc, targetUserId);
+        alert(`Notification successfully dispatched to ${target === 'group' ? 'all users' : 'selected user'}!`);
+        notifForm.reset();
+        if (userSelectContainer) userSelectContainer.style.display = 'none';
+      } catch (err) {
+        alert(`Error sending notification: ${err.message}`);
+      }
+    });
+  }
 
-    // Client Progress select change
-    const clientSelect = document.getElementById('admin-progress-client-select');
-    const progressControls = document.getElementById('admin-progress-controls');
-    if (clientSelect && progressControls) {
-      clientSelect.addEventListener('change', () => {
-        const purchaseId = clientSelect.value;
-        if (!purchaseId) {
-          progressControls.style.display = 'none';
-          return;
-        }
+  const clientSelect = document.getElementById('admin-progress-client-select');
+  const progressControls = document.getElementById('admin-progress-controls');
+  if (clientSelect && progressControls) {
+    clientSelect.addEventListener('change', () => {
+      const purchaseId = clientSelect.value;
+      if (!purchaseId) {
+        progressControls.style.display = 'none';
+        return;
+      }
+      
+      progressControls.style.display = 'block';
+      loadClientProjectDetails(purchaseId);
+    });
+  }
+
+  const progressForm = document.getElementById('admin-progress-update-form');
+  if (progressForm) {
+    progressForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const purchaseId = document.getElementById('admin-progress-client-select').value;
+      const step = document.getElementById('admin-progress-step-select').value;
+      
+      try {
+        await updateClientProjectProgress(purchaseId, step);
+        alert("Client project progress successfully updated!");
         
-        progressControls.style.display = 'block';
+        // Refresh dropdown and stats
+        const dept = getDepartmentForEmail(currentSession?.email);
+        await loadProgressClientDropdown(dept);
+        await loadAdminOverviewStats(dept);
+        
+        if (typeof renderServiceTracking === 'function') {
+          renderServiceTracking();
+        }
+      } catch (err) {
+        alert(`Error saving progress: ${err.message}`);
+      }
+    });
+  }
+
+  const addTimeBtn = document.getElementById('admin-progress-add-time-btn');
+  if (addTimeBtn) {
+    addTimeBtn.addEventListener('click', async () => {
+      const purchaseId = document.getElementById('admin-progress-client-select').value;
+      const minutes = parseInt(document.getElementById('admin-progress-time-input').value) || 0;
+      if (!purchaseId || minutes <= 0) {
+        alert("Please select a client project and enter minutes.");
+        return;
+      }
+
+      try {
+        const deadline = new Date(Date.now() + minutes * 60 * 1000).toISOString();
+        await updateClientProjectDeadline(purchaseId, deadline);
+        alert(`Timer successfully set! Estimated delivery deadline updated.`);
+        
+        // Refresh progress view and stats
+        const dept = getDepartmentForEmail(currentSession?.email);
+        await loadAdminOverviewStats(dept);
         loadClientProjectDetails(purchaseId);
-      });
-    }
-
-    // Client Progress update submission
-    const progressForm = document.getElementById('admin-progress-update-form');
-    if (progressForm) {
-      progressForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const purchaseId = document.getElementById('admin-progress-client-select').value;
-        const step = document.getElementById('admin-progress-step-select').value;
         
-        try {
-          await updateClientProjectProgress(purchaseId, step);
-          alert("Client project progress successfully updated!");
-          await renderAdminPanel();
-          // Also refresh tracking view on client side in case they are looking at it
-          if (typeof renderServiceTracking === 'function') {
-            renderServiceTracking();
-          }
-        } catch (err) {
-          alert(`Error saving progress: ${err.message}`);
+        if (typeof renderServiceTracking === 'function') {
+          renderServiceTracking();
         }
-      });
-    }
-
-    // Add time button helper
-    const addTimeBtn = document.getElementById('admin-progress-add-time-btn');
-    if (addTimeBtn) {
-      addTimeBtn.addEventListener('click', async () => {
-        const purchaseId = document.getElementById('admin-progress-client-select').value;
-        const minutes = parseInt(document.getElementById('admin-progress-time-input').value) || 0;
-        if (!purchaseId || minutes <= 0) {
-          alert("Please select a client project and enter minutes.");
-          return;
-        }
-
-        try {
-          const deadline = new Date(Date.now() + minutes * 60 * 1000).toISOString();
-          await updateClientProjectDeadline(purchaseId, deadline);
-          alert(`Timer successfully set! Estimated delivery deadline updated.`);
-          await renderAdminPanel();
-          if (typeof renderServiceTracking === 'function') {
-            renderServiceTracking();
-          }
-        } catch (err) {
-          alert(`Error updating deadline: ${err.message}`);
-        }
-      });
-    }
-
-    window.adminTabsBound = true;
+      } catch (err) {
+        alert(`Error updating deadline: ${err.message}`);
+      }
+    });
   }
 
-  // Load Overview Stats & Tables
-  await loadAdminOverviewStats(dept);
-  await loadProgressClientDropdown(dept);
-  if (isSuper) {
-    await loadAdminRefundsList();
-    await loadAdminPaymentsList();
-    await loadAdminPricingManager();
-  }
+  window.adminEventsBound = true;
 }
 
 async function populateNotificationUserSelect() {
@@ -4268,6 +4297,12 @@ async function populateNotificationUserSelect() {
 }
 
 async function loadAdminOverviewStats(dept) {
+  const isSuper = (dept === 'all');
+  const roleLabel = document.getElementById('admin-role-label');
+  const deptLabel = document.getElementById('admin-dept-label');
+  if (roleLabel) roleLabel.innerText = isSuper ? 'FOUNDER/CEO' : 'DEPARTMENT HEAD';
+  if (deptLabel) deptLabel.innerText = dept.toUpperCase();
+
   let purchases = [];
   let txs = [];
 

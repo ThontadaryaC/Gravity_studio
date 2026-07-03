@@ -3201,6 +3201,15 @@ body.dark-theme .user-sidebar {
   transform: translateX(0);
 }
 
+/* Admin Theme Sidebar Drawer */
+.user-sidebar.admin-theme {
+  border-left: 1px solid rgba(176, 38, 255, 0.3) !important;
+  box-shadow: -10px 0 40px rgba(176, 38, 255, 0.15) !important;
+}
+.user-sidebar.admin-theme #admin-sidebar-avatar-placeholder {
+  box-shadow: 0 0 10px rgba(176, 38, 255, 0.5);
+}
+
 /* Sidebar Header */
 .sidebar-header {
   padding: 2rem 1.5rem 1.5rem;
