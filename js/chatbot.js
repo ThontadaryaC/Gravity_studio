@@ -14,9 +14,9 @@ const CONFIG = {
   // IMPORTANT: Set this to "" when deploying to production to keep it secure!
   apiKey: "", 
   
-  // Set proxy endpoint here if hosting a Netlify serverless function to hide the key.
-  // Automatically defaults to Netlify serverless endpoint in production, and empty (direct API) on localhost.
-  apiProxyUrl: window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" ? "" : "/.netlify/functions/chat", 
+  // Set proxy endpoint here if hosting a serverless function to hide the key.
+  // Automatically defaults to Vercel serverless endpoint in production, and empty (direct API) on localhost.
+  apiProxyUrl: window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" ? "" : "/api/chat", 
   
   // Directory where PDF files are stored (relative to index.html or remote bucket)
   pdfDirectory: "https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/",

@@ -1180,6 +1180,39 @@ function initPortalAuth() {
   const profileForm = document.getElementById('profile-settings-form');
   const dockBtns = document.querySelectorAll('.dock-btn');
   let highestZIndex = 1040;
+  let pendingAvatarUrl = '';
+
+  function updateSidebarAvatar() {
+    const avatarElem = document.getElementById('sidebar-avatar-placeholder');
+    if (!avatarElem) return;
+    if (currentSession && currentSession.avatarUrl) {
+      avatarElem.style.backgroundImage = `url(${currentSession.avatarUrl})`;
+      avatarElem.style.backgroundSize = 'cover';
+      avatarElem.style.backgroundPosition = 'center';
+      avatarElem.innerText = '';
+      avatarElem.style.boxShadow = '0 0 15px rgba(176, 38, 255, 0.5)';
+    } else {
+      avatarElem.style.backgroundImage = '';
+      const firstLetter = (currentSession && currentSession.username ? currentSession.username : 'U').charAt(0).toUpperCase();
+      avatarElem.innerText = firstLetter;
+      avatarElem.style.boxShadow = '0 0 15px rgba(176, 38, 255, 0.3)';
+    }
+  }
+
+  function updateProfileAvatarPreview() {
+    const previewElem = document.getElementById('profile-avatar-preview');
+    if (!previewElem) return;
+    if (pendingAvatarUrl) {
+      previewElem.style.backgroundImage = `url(${pendingAvatarUrl})`;
+      previewElem.style.backgroundSize = 'cover';
+      previewElem.style.backgroundPosition = 'center';
+      previewElem.innerText = '';
+    } else {
+      previewElem.style.backgroundImage = '';
+      const firstLetter = (currentSession && currentSession.username ? currentSession.username : 'U').charAt(0).toUpperCase();
+      previewElem.innerText = firstLetter;
+    }
+  }
   
   if (!loginBtn || !overlay || !sidebar) return;
 
@@ -1204,18 +1237,24 @@ function initPortalAuth() {
   // Initialize Session
   let currentSession = JSON.parse(localStorage.getItem('gravity-user-session')) || null;
   updateAuthUI();
+  if (currentSession) {
+    const usernameElem = document.getElementById('sidebar-username');
+    if (usernameElem) usernameElem.innerText = currentSession.username || 'User';
+    updateSidebarAvatar();
+  }
 
   // Sync session with Supabase if active
   if (supabaseClient) {
     supabaseClient.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         if (!currentSession || currentSession.uid !== session.user.id) {
-          supabaseClient.from('profiles').select('username').eq('id', session.user.id).single().then(({ data: profile }) => {
+          supabaseClient.from('profiles').select('username, avatar_url').eq('id', session.user.id).single().then(({ data: profile }) => {
             currentSession = {
               role: 'user',
               username: profile ? profile.username : session.user.email.split('@')[0],
               email: session.user.email,
               uid: session.user.id,
+              avatarUrl: profile ? profile.avatar_url : '',
               phone: (currentSession && currentSession.uid === session.user.id) ? (currentSession.phone || '') : '',
               country: (currentSession && currentSession.uid === session.user.id) ? (currentSession.country || '') : ''
             };
@@ -1223,9 +1262,8 @@ function initPortalAuth() {
             updateAuthUI();
             
             const usernameElem = document.getElementById('sidebar-username');
-            const avatarElem = document.getElementById('sidebar-avatar-placeholder');
             if (usernameElem) usernameElem.innerText = currentSession.username;
-            if (avatarElem) avatarElem.innerText = currentSession.username.charAt(0).toUpperCase();
+            updateSidebarAvatar();
           });
         }
       }
@@ -1298,9 +1336,15 @@ function initPortalAuth() {
       document.getElementById('profile-email').value = currentSession.email || '';
       document.getElementById('sidebar-username').innerText = currentSession.username || 'User';
       
-      // Avatar placeholder letter
-      const firstLetter = (currentSession.username || 'U').charAt(0).toUpperCase();
-      document.getElementById('sidebar-avatar-placeholder').innerText = firstLetter;
+      // Load avatar info
+      pendingAvatarUrl = currentSession.avatarUrl || '';
+      const avatarUrlInput = document.getElementById('profile-avatar-url');
+      if (avatarUrlInput) avatarUrlInput.value = pendingAvatarUrl;
+      const avatarFileInput = document.getElementById('profile-avatar-file');
+      if (avatarFileInput) avatarFileInput.value = '';
+      
+      updateProfileAvatarPreview();
+      updateSidebarAvatar();
     }
     
     // Trigger rendering of dynamic views
@@ -1352,6 +1396,64 @@ function initPortalAuth() {
     });
   }
 
+  // Bind close buttons for dashboard windows
+  const windowCloseBtns = document.querySelectorAll('.window-close-btn');
+  windowCloseBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const windowId = btn.getAttribute('data-close');
+      const dockBtn = document.querySelector(`.dock-btn[data-window="${windowId}"]`);
+      closeWindow(windowId, dockBtn);
+    });
+  });
+
+  // Profile Avatar Interactive Handlers
+  const uploadAvatarBtn = document.getElementById('upload-avatar-btn');
+  const removeAvatarBtn = document.getElementById('remove-avatar-btn');
+  const avatarFileInput = document.getElementById('profile-avatar-file');
+  const avatarUrlInput = document.getElementById('profile-avatar-url');
+
+  if (uploadAvatarBtn && avatarFileInput) {
+    uploadAvatarBtn.addEventListener('click', () => {
+      avatarFileInput.click();
+    });
+  }
+
+  if (avatarFileInput) {
+    avatarFileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        if (file.size > 2 * 1024 * 1024) {
+          alert("Image size should be less than 2MB.");
+          avatarFileInput.value = '';
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          pendingAvatarUrl = event.target.result;
+          if (avatarUrlInput) avatarUrlInput.value = ''; // Clear URL input when file is uploaded
+          updateProfileAvatarPreview();
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+  }
+
+  if (avatarUrlInput) {
+    avatarUrlInput.addEventListener('input', (e) => {
+      pendingAvatarUrl = e.target.value.trim();
+      updateProfileAvatarPreview();
+    });
+  }
+
+  if (removeAvatarBtn) {
+    removeAvatarBtn.addEventListener('click', () => {
+      pendingAvatarUrl = '';
+      if (avatarUrlInput) avatarUrlInput.value = '';
+      if (avatarFileInput) avatarFileInput.value = '';
+      updateProfileAvatarPreview();
+    });
+  }
+
   // Profile Form Edit Handler
   profileForm.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -1366,13 +1468,25 @@ function initPortalAuth() {
     // Update Supabase profiles table if active
     if (supabaseClient && currentSession && currentSession.uid && !currentSession.uid.startsWith('local_')) {
       try {
-        // Note: phone and country columns do not exist in the database profiles table, only update username
-        await supabaseClient
+        // Try updating username and avatar_url
+        const { error } = await supabaseClient
           .from('profiles')
           .update({ 
-            username: updatedUsername
+            username: updatedUsername,
+            avatar_url: pendingAvatarUrl
           })
           .eq('id', currentSession.uid);
+          
+        if (error) {
+          // If error occurs, fallback to only updating username (e.g. if avatar_url doesn't exist)
+          console.warn("Avatar sync failed, trying username only update", error.message);
+          await supabaseClient
+            .from('profiles')
+            .update({ 
+              username: updatedUsername
+            })
+            .eq('id', currentSession.uid);
+        }
       } catch (err) {
         console.warn("Failed to sync profile settings to Supabase", err);
       }
@@ -1381,6 +1495,7 @@ function initPortalAuth() {
     currentSession.username = updatedUsername;
     currentSession.phone = updatedPhone;
     currentSession.country = updatedCountry;
+    currentSession.avatarUrl = pendingAvatarUrl;
     localStorage.setItem('gravity-user-session', JSON.stringify(currentSession));
     
     // Update local registrations list if user registered locally
@@ -1390,12 +1505,13 @@ function initPortalAuth() {
       users[userIndex].username = updatedUsername;
       users[userIndex].phone = updatedPhone;
       users[userIndex].country = updatedCountry;
+      users[userIndex].avatarUrl = pendingAvatarUrl;
       localStorage.setItem('gravity-registered-users', JSON.stringify(users));
     }
 
     // Update UI elements
     document.getElementById('sidebar-username').innerText = updatedUsername;
-    document.getElementById('sidebar-avatar-placeholder').innerText = updatedUsername.charAt(0).toUpperCase();
+    updateSidebarAvatar();
     updateAuthUI();
     renderPayments(); // Re-render payment catalog with country pricing
     
@@ -2055,7 +2171,7 @@ function initPortalAuth() {
         const sessionRes = await supabaseClient.auth.getSession();
         const session = sessionRes.data.session;
         if (session) {
-          const response = await fetch('/.netlify/functions/admin-action', {
+          const response = await fetch('/api/admin-action', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -2285,7 +2401,7 @@ function initPortalAuth() {
     // Fetch Razorpay Key ID dynamically if not already loaded
     if (!RAZORPAY_CONFIG.keyId) {
       try {
-        const keyRes = await fetch('/.netlify/functions/get-razorpay-key');
+        const keyRes = await fetch('/api/get-razorpay-key');
         if (keyRes.ok) {
           const keyData = await keyRes.json();
           if (keyData.keyId) {
@@ -2301,7 +2417,7 @@ function initPortalAuth() {
     if (typeof Razorpay !== 'undefined' && RAZORPAY_CONFIG.keyId) {
       try {
         // 1. Fetch secure order ID from serverless function
-        const orderRes = await fetch('/.netlify/functions/create-razorpay-order', {
+        const orderRes = await fetch('/api/create-razorpay-order', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -2331,7 +2447,7 @@ function initPortalAuth() {
             handler: async function (response) {
               // 2. Verify payment signature on the server side
               try {
-                const verifyRes = await fetch('/.netlify/functions/verify-razorpay-signature', {
+                const verifyRes = await fetch('/api/verify-razorpay-signature', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
@@ -2823,7 +2939,7 @@ function initPortalAuth() {
           const sessionRes = await supabaseClient.auth.getSession();
           const session = sessionRes.data.session;
           if (session) {
-            const response = await fetch('/.netlify/functions/admin-action', {
+            const response = await fetch('/api/admin-action', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -3172,7 +3288,10 @@ function initPortalAuth() {
           loginSuccess({
             role: 'user',
             username: foundUser.username,
-            email: foundUser.email
+            email: foundUser.email,
+            phone: foundUser.phone || '',
+            country: foundUser.country || '',
+            avatarUrl: foundUser.avatarUrl || ''
           });
         } else {
           showError(userSigninError, 'Incorrect password.');
@@ -3808,7 +3927,7 @@ function initPortalAuth() {
         try {
           supabaseClient.auth.getSession().then(async ({ data: { session } }) => {
             if (session) {
-              const response = await fetch('/.netlify/functions/admin-action', {
+              const response = await fetch('/api/admin-action', {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
