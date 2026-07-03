@@ -4023,7 +4023,6 @@ function initPortalAuth() {
       renderServiceTracking();
     });
   }
-}
 
 // ==========================================================================
 // XI. ROLE-BASED ADMIN CONTROL & CLIENT PROGRESS TRACKING HELPER FUNCTIONS
