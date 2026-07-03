@@ -1542,14 +1542,15 @@ function initPortalAuth() {
     if (!container) return;
 
     let notifs = [];
-    if (supabaseClient) {
+    if (supabaseClient && currentSession) {
       const { data, error } = await supabaseClient
         .from('notifications')
         .select('*')
         .order('created_at', { ascending: false });
       
       if (!error && data) {
-        notifs = data.map(n => ({
+        const filtered = data.filter(n => !n.user_id || n.user_id === currentSession.uid);
+        notifs = filtered.map(n => ({
           id: n.id,
           title: n.title,
           desc: n.desc_text,
@@ -1558,9 +1559,13 @@ function initPortalAuth() {
         }));
       } else {
         notifs = JSON.parse(localStorage.getItem('gravity-system-notifications')) || [];
+        notifs = notifs.filter(n => !n.userId || n.userId === currentSession.uid);
       }
     } else {
       notifs = JSON.parse(localStorage.getItem('gravity-system-notifications')) || [];
+      if (currentSession) {
+        notifs = notifs.filter(n => !n.userId || n.userId === currentSession.uid);
+      }
     }
 
     container.innerHTML = '';
@@ -2002,25 +2007,41 @@ function initPortalAuth() {
       div.style.borderRadius = '12px';
 
       let statusMsg = '';
-      let percent = 50;
-      let step1 = 'completed'; // Booking
-      let step2 = 'active';    // Production
-      let step3 = 'pending';   // Approval
-      let step4 = 'pending';   // Delivery
+      let percent = 0;
       let simulateBtnHtml = '';
       let finalPayBtnHtml = '';
 
-      if (p.status === 'advance_paid') {
-        statusMsg = `Preparing the ${p.serviceName.toLowerCase()}. It will be provided within 2 hours.`;
-        percent = 50;
-        simulateBtnHtml = `<button class="admin-action-btn simulate-complete-btn" data-id="${p.id}" style="margin-top:1rem; background:rgba(176, 38, 255, 0.15); border:1px solid var(--neon-purple); border-radius:6px; color:var(--neon-purple); font-size:0.75rem; padding:0.4rem 0.6rem; cursor:pointer; font-weight:bold; transition:all 0.2s;">[Dev Simulate] Complete Production</button>`;
+      // Set up progress steps list
+      const steps = [
+        { key: 'progress_planning', label: 'Planning' },
+        { key: 'progress_modeling', label: 'Modeling' },
+        { key: 'progress_developing', label: 'Developing' },
+        { key: 'progress_preprocessing', label: 'Preprocessing' },
+        { key: 'progress_testing', label: 'Testing' },
+        { key: 'progress_ready_to_produce', label: 'Ready to Produce' }
+      ];
+
+      let currentStepIndex = 0;
+      if (p.status === 'advance_paid' || p.status === 'progress_planning') {
+        currentStepIndex = 0;
+        statusMsg = `Planning Phase active. Designing blueprints and layout drafts for your ${p.serviceName.toLowerCase()}.`;
+      } else if (p.status === 'progress_modeling') {
+        currentStepIndex = 1;
+        statusMsg = `Modeling Phase active. Building wireframes, design drafts, and 3D mockup assets.`;
+      } else if (p.status === 'progress_developing') {
+        currentStepIndex = 2;
+        statusMsg = `Development Phase active. Coding system logic, styling user interface, and structuring assets.`;
+      } else if (p.status === 'progress_preprocessing') {
+        currentStepIndex = 3;
+        statusMsg = `Preprocessing Phase active. Compiling assets, database configurations, and optimization algorithms.`;
+      } else if (p.status === 'progress_testing') {
+        currentStepIndex = 4;
+        statusMsg = `Testing & Quality Assurance active. Performing security audits, stress checks, and bug sweeps.`;
       } else if (p.status === 'completed') {
+        currentStepIndex = 5;
         statusMsg = p.postponed 
-          ? `Waiting for your final payment. Delivery postponed by 24 hours because the final 50% payment was not received 12 hours prior to the original deadline.`
-          : `Production completed. Awaiting remaining 50% final payment to release files. Note: Payment must be made at least 12 hours before the deadline: ${new Date(p.deliveryDeadline).toLocaleString()}.`;
-        percent = 75;
-        step2 = 'completed';
-        step3 = 'active';
+          ? `Production completed! Waiting for final payment. Delivery postponed by 24 hours because the final 50% payment was not received 12 hours prior to the original deadline.`
+          : `Production completed! Awaiting remaining 50% final payment to release source files. Note: Payment must be made at least 12 hours before the deadline: ${new Date(p.deliveryDeadline).toLocaleString()}.`;
         finalPayBtnHtml = `
           <div style="margin-top:1rem; display:flex; gap:0.5rem; align-items:center;">
             <button class="invoice-action-btn pay-final-btn" data-id="${p.id}" style="padding:0.4rem 0.75rem; background:rgba(0, 240, 255, 0.15); border:1px solid var(--neon-cyan); border-radius:6px; color:var(--neon-cyan); font-weight:bold; font-size:0.8rem; cursor:pointer;">Pay Remaining 50% ($${(p.totalCost - p.paidAmount).toFixed(2)})</button>
@@ -2029,17 +2050,13 @@ function initPortalAuth() {
           </div>
         `;
       } else if (p.status === 'refund_requested') {
+        currentStepIndex = 5;
         statusMsg = `Dispute Filed. Under review by Gravity administration. Files held in escrow.`;
-        percent = 75;
-        step2 = 'completed';
-        step3 = 'active'; // In dispute state
       } else if (p.status === 'refund_denied') {
+        currentStepIndex = 5;
         statusMsg = p.postponed 
-          ? `Waiting for your final payment. Delivery postponed by 24 hours because the final 50% payment was not received 12 hours prior to the original deadline.`
-          : `Refund Dispute Denied by administration. Awaiting remaining 50% final payment to release files. Note: Payment must be made at least 12 hours before the deadline: ${new Date(p.deliveryDeadline).toLocaleString()}.`;
-        percent = 75;
-        step2 = 'completed';
-        step3 = 'active';
+          ? `Refund Dispute Denied. Waiting for final payment. Delivery postponed by 24 hours because the final 50% payment was not received 12 hours prior to the original deadline.`
+          : `Refund Dispute Denied by administration. Awaiting remaining 50% final payment to release source files. Note: Payment must be made at least 12 hours before the deadline: ${new Date(p.deliveryDeadline).toLocaleString()}.`;
         finalPayBtnHtml = `
           <div style="margin-top:1rem; display:flex; gap:0.5rem; align-items:center;">
             <button class="invoice-action-btn pay-final-btn" data-id="${p.id}" style="padding:0.4rem 0.75rem; background:rgba(0, 240, 255, 0.15); border:1px solid var(--neon-cyan); border-radius:6px; color:var(--neon-cyan); font-weight:bold; font-size:0.8rem; cursor:pointer;">Pay Remaining 50% ($${(p.totalCost - p.paidAmount).toFixed(2)})</button>
@@ -2047,11 +2064,8 @@ function initPortalAuth() {
           </div>
         `;
       } else if (p.status === 'fully_paid') {
+        currentStepIndex = 6; // All complete
         statusMsg = `Delivered! Source files and production assets are ready for download.`;
-        percent = 100;
-        step2 = 'completed';
-        step3 = 'completed';
-        step4 = 'completed';
         finalPayBtnHtml = `
           <div style="margin-top:1rem; display:flex; gap:0.5rem; align-items:center;">
             <button class="admin-action-btn download-assets-btn" style="background:rgba(57, 255, 20, 0.15); border:1px solid var(--neon-green); border-radius:6px; color:var(--neon-green); font-size:0.8rem; padding:0.5rem 1rem; cursor:pointer; font-weight:bold;" onclick="alert('Downloading standard zip package containing your compiled assets...')">
@@ -2061,6 +2075,29 @@ function initPortalAuth() {
           </div>
         `;
       }
+
+      // Calculate fill bar percentage (e.g. from 0% to 100%)
+      percent = p.status === 'fully_paid' ? 100 : Math.round((currentStepIndex / 5) * 100);
+
+      // Generate stepper HTML
+      let stepperNodesHtml = '';
+      steps.forEach((step, idx) => {
+        let nodeClass = '';
+        if (p.status === 'fully_paid') {
+          nodeClass = 'completed';
+        } else if (idx < currentStepIndex) {
+          nodeClass = 'completed';
+        } else if (idx === currentStepIndex) {
+          nodeClass = 'active';
+        }
+
+        stepperNodesHtml += `
+          <li class="progress-step-node ${nodeClass}">
+            <div class="step-dot">${idx + 1}</div>
+            <div class="step-label">${step.label}</div>
+          </li>
+        `;
+      });
 
       div.innerHTML = `
         <div class="tracking-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
@@ -2076,12 +2113,13 @@ function initPortalAuth() {
         <p style="margin:0 0 1rem 0; font-size:0.8rem; color:${p.postponed ? 'var(--neon-amber)' : 'var(--text-muted)'}; padding-left:10px;">
           <strong>Estimated Delivery Deadline:</strong> ${new Date(p.deliveryDeadline).toLocaleString()}
         </p>
-        <ul class="tracking-steps" style="display:flex; justify-content:space-between; padding:0; margin:0; list-style:none; font-size:0.75rem;">
-          <li class="${step1}" style="color:${step1 === 'completed' ? 'var(--neon-green)' : 'var(--text-muted)'}">Advance Paid</li>
-          <li class="${step2}" style="color:${step2 === 'completed' ? 'var(--neon-green)' : (step2 === 'active' ? 'var(--neon-cyan)' : 'var(--text-muted)')}">Production</li>
-          <li class="${step3}" style="color:${step3 === 'completed' ? 'var(--neon-green)' : (step3 === 'active' ? (p.status === 'refund_requested' ? 'var(--neon-amber)' : 'var(--neon-cyan)') : 'var(--text-muted)')}">${p.status === 'refund_requested' ? 'Disputed' : 'Final Approval'}</li>
-          <li class="${step4}" style="color:${step4 === 'completed' ? 'var(--neon-green)' : 'var(--text-muted)'}">Delivered</li>
+        <ul class="progress-stepper" style="margin-bottom: 1.5rem;">
+          <div class="progress-stepper-fill" style="width: ${percent === 100 ? '100%' : Math.max(0, percent - 8) + '%'}"></div>
+          ${stepperNodesHtml}
         </ul>
+        <div class="countdown-timer" data-deadline="${p.deliveryDeadline}" data-status="${p.status}" style="font-family: monospace; font-size: 0.85rem; color: var(--neon-cyan); margin: 0.5rem 0 1rem 10px; border-left:2px solid var(--neon-cyan); padding-left:8px;">
+          Calculating remaining time...
+        </div>
         ${simulateBtnHtml}
         ${finalPayBtnHtml}
       `;
@@ -2157,6 +2195,55 @@ function initPortalAuth() {
     });
 
     if (window.lucide) lucide.createIcons();
+
+    // Start countdown timer interval if not already running
+    if (window.countdownIntervalId) {
+      clearInterval(window.countdownIntervalId);
+    }
+    const timers = document.querySelectorAll('.countdown-timer');
+    if (timers.length > 0) {
+      window.countdownIntervalId = setInterval(() => {
+        const activeTimers = document.querySelectorAll('.countdown-timer');
+        if (activeTimers.length === 0) {
+          clearInterval(window.countdownIntervalId);
+          window.countdownIntervalId = null;
+          return;
+        }
+        
+        activeTimers.forEach(timer => {
+          const deadlineStr = timer.getAttribute('data-deadline');
+          const purchaseStatus = timer.getAttribute('data-status');
+          
+          if (purchaseStatus === 'fully_paid') {
+            timer.innerHTML = `<strong>Project status:</strong> <span style="font-weight:bold; color:var(--neon-green);">DELIVERED</span>`;
+            return;
+          }
+
+          if (!deadlineStr) {
+            timer.innerText = "No deadline configured.";
+            return;
+          }
+
+          const diff = new Date(deadlineStr).getTime() - Date.now();
+          if (diff <= 0) {
+            timer.innerHTML = `<strong>Time status:</strong> <span style="font-weight:bold; color:var(--neon-pink);">TIME LIMIT REACHED</span>`;
+            return;
+          }
+
+          const days = Math.floor(diff / (24 * 60 * 60 * 1000));
+          const hours = Math.floor((diff % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+          const minutes = Math.floor((diff % (60 * 60 * 1000)) / (60 * 1000));
+          const seconds = Math.floor((diff % (60 * 1000)) / 1000);
+
+          let timeText = "";
+          if (days > 0) timeText += `${days}d `;
+          if (hours > 0 || days > 0) timeText += `${hours}h `;
+          timeText += `${minutes}m ${seconds}s`;
+
+          timer.innerHTML = `<strong>Time Remaining:</strong> <span style="font-weight:bold; color:var(--neon-cyan);">${timeText}</span>`;
+        });
+      }, 1000);
+    }
   }
 
   // Add system notifications dynamically
@@ -3053,6 +3140,7 @@ function initPortalAuth() {
     if (windowId === 'payments') renderPayments();
     if (windowId === 'buyed-services') renderPurchasedServices();
     if (windowId === 'track-services') renderServiceTracking();
+    if (windowId === 'admin-panel') renderAdminPanel();
 
     // Trigger Lucide SVG rendering inside the window
     if (typeof lucide !== 'undefined') {
@@ -3125,23 +3213,27 @@ function initPortalAuth() {
   function updateAuthUI() {
     const userIcon = loginBtn.querySelector('.portal-user-icon');
     const adminIcon = loginBtn.querySelector('.portal-admin-icon');
+    const sidebarAdminBtn = document.getElementById('sidebar-admin-btn');
     
     loginBtn.className = 'control-btn'; // Reset classes
 
     if (!currentSession) {
       if (userIcon) userIcon.style.display = 'block';
       if (adminIcon) adminIcon.style.display = 'none';
+      if (sidebarAdminBtn) sidebarAdminBtn.style.display = 'none';
       loginBtn.setAttribute('data-tooltip', 'Portal Sign-In');
       loginBtn.setAttribute('aria-label', 'Open Login Portal');
     } else if (currentSession.role === 'admin') {
       if (userIcon) userIcon.style.display = 'none';
       if (adminIcon) adminIcon.style.display = 'block';
+      if (sidebarAdminBtn) sidebarAdminBtn.style.display = 'flex';
       loginBtn.classList.add('logged-in-admin');
       loginBtn.setAttribute('data-tooltip', 'Admin Terminal Active');
       loginBtn.setAttribute('aria-label', 'Open Admin Console');
     } else {
       if (userIcon) userIcon.style.display = 'block';
       if (adminIcon) adminIcon.style.display = 'none';
+      if (sidebarAdminBtn) sidebarAdminBtn.style.display = 'none';
       loginBtn.classList.add('logged-in-user');
       loginBtn.setAttribute('data-tooltip', `User Portal (${currentSession.username})`);
       loginBtn.setAttribute('aria-label', 'Open User Workspace');
@@ -3437,6 +3529,27 @@ function initPortalAuth() {
       return;
     }
 
+    // 2. Secret department-head & master admin credentials bypass (works in both offline and online modes)
+    const DEMO_ADMINS = {
+      'admin@gravitystudios.com': 'AdminSecurePassword2026!',
+      'founder@gravitystudios.com': 'FounderPass2026!',
+      'ceo@gravitystudios.com': 'CeoPass2026!',
+      'ai@gravitystudios.com': 'AiPass2026!',
+      'dev@gravitystudios.com': 'DevPass2026!',
+      'design@gravitystudios.com': 'DesignPass2026!',
+      'video@gravitystudios.com': 'VideoPass2026!',
+      'marketing@gravitystudios.com': 'MarketingPass2026!',
+      'support@gravitystudios.com': 'SupportPass2026!'
+    };
+    if (DEMO_ADMINS[email] && DEMO_ADMINS[email] === password) {
+      loginSuccess({
+        role: 'admin',
+        email: email,
+        uid: 'demo_' + email.split('@')[0]
+      });
+      return;
+    }
+
     if (supabaseClient) {
       if (submitBtn) {
         submitBtn.innerText = "AUTHENTICATING...";
@@ -3479,16 +3592,8 @@ function initPortalAuth() {
         showError(adminLoginError, `SYSTEM ERROR: ${err.message}`);
       }
     } else {
-      // Offline/Demo Sandbox Mode fallback
-      if (email === 'admin@gravitystudios.com' && password === 'AdminSecurePassword2026!') {
-        loginSuccess({
-          role: 'admin',
-          email: email,
-          uid: 'demo_admin_user'
-        });
-      } else {
-        showError(adminLoginError, 'DEMO SYSTEM: Enter admin@gravitystudios.com / AdminSecurePassword2026!');
-      }
+      // Offline fallback error if not found in bypass dictionary
+      showError(adminLoginError, 'ACCESS DENIED: Invalid admin credentials.');
     }
   });
 
@@ -3918,5 +4023,669 @@ function initPortalAuth() {
       renderServiceTracking();
     });
   }
+}
+
+// ==========================================================================
+// XI. ROLE-BASED ADMIN CONTROL & CLIENT PROGRESS TRACKING HELPER FUNCTIONS
+// ==========================================================================
+
+function getDepartmentForEmail(email) {
+  if (!email) return 'none';
+  const cleanEmail = email.toLowerCase().trim();
+  if (cleanEmail === 'founder@gravitystudios.com' || cleanEmail === 'ceo@gravitystudios.com' || cleanEmail === 'admin@gravitystudios.com') {
+    return 'all';
+  }
+  const prefix = cleanEmail.split('@')[0];
+  if (prefix === 'ai') return 'ai';
+  if (prefix === 'dev' || prefix === 'web') return 'dev';
+  if (prefix === 'design') return 'design';
+  if (prefix === 'video') return 'video';
+  if (prefix === 'marketing') return 'marketing';
+  if (prefix === 'support') return 'support';
+  return 'none';
+}
+
+function serviceMatchesDepartment(serviceId, department) {
+  if (!serviceId) return false;
+  if (department === 'all') return true;
+  const cleanId = serviceId.toLowerCase();
+  if (department === 'ai') {
+    return cleanId.startsWith('ai_') || cleanId === 'custom_ai_solution' || cleanId === 'enterprise_ai';
+  }
+  if (department === 'dev') {
+    return [
+      'business_website', 'premium_website', 'web_application', 'mobile_app', 
+      'saas_platform', 'crm_erp_system', 'dashboard_development', 
+      'api_integration', 'cloud_deployment', 'startup_mvp', 'cto_service'
+    ].includes(cleanId);
+  }
+  if (department === 'design') {
+    return ['logo_design', 'brand_identity', 'ui_ux_design', 'presentation_design', 'graphic_design'].includes(cleanId);
+  }
+  if (department === 'video') {
+    return ['ai_video', 'animation', 'explainer_video', 'motion_graphics', 'product_advertisement'].includes(cleanId);
+  }
+  if (department === 'marketing') {
+    return ['seo', 'social_media', 'google_ads', 'meta_ads', 'email_marketing'].includes(cleanId);
+  }
+  if (department === 'support') {
+    return ['domain_hosting', 'website_maintenance', 'security_audit'].includes(cleanId);
+  }
+  return false;
+}
+
+async function renderAdminPanel() {
+  if (!currentSession || currentSession.role !== 'admin') return;
+
+  const email = currentSession.email || "";
+  const dept = getDepartmentForEmail(email);
+
+  // Display role & dept label
+  const roleLabel = document.getElementById('admin-role-label');
+  const deptLabel = document.getElementById('admin-dept-label');
+  if (roleLabel) {
+    const displayRole = email.split('@')[0].toUpperCase();
+    roleLabel.innerText = displayRole === 'ADMIN' ? 'MASTER ADMIN' : displayRole;
+  }
+  if (deptLabel) {
+    deptLabel.innerText = dept.toUpperCase();
+  }
+
+  // Toggle tab headers based on permission (only Founder/CEO/Super-Admin get access to Refund, Payments, Pricing)
+  const isSuper = (dept === 'all');
+  const refundTabHeader = document.getElementById('admin-refund-tab-header');
+  const paymentsTabHeader = document.getElementById('admin-payments-tab-header');
+  const pricingTabHeader = document.getElementById('admin-pricing-tab-header');
+  if (refundTabHeader) refundTabHeader.style.display = isSuper ? 'block' : 'none';
+  if (paymentsTabHeader) paymentsTabHeader.style.display = isSuper ? 'block' : 'none';
+  if (pricingTabHeader) pricingTabHeader.style.display = isSuper ? 'block' : 'none';
+
+  // Bind tab switching once
+  if (!window.adminTabsBound) {
+    const tabBtns = document.querySelectorAll('.admin-tab-btn');
+    tabBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        tabBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        
+        const targetTabId = btn.getAttribute('data-tab');
+        const tabContents = document.querySelectorAll('.admin-tab-content');
+        tabContents.forEach(content => {
+          if (content.id === targetTabId) {
+            content.classList.add('active');
+          } else {
+            content.classList.remove('active');
+          }
+        });
+      });
+    });
+    
+    // Target Audience selection logic
+    const targetSelect = document.getElementById('admin-window-notif-target');
+    const userSelectContainer = document.getElementById('admin-window-notif-user-select-container');
+    if (targetSelect && userSelectContainer) {
+      targetSelect.addEventListener('change', async () => {
+        if (targetSelect.value === 'individual') {
+          userSelectContainer.style.display = 'block';
+          await populateNotificationUserSelect();
+        } else {
+          userSelectContainer.style.display = 'none';
+        }
+      });
+    }
+
+    // Notification submission
+    const notifForm = document.getElementById('admin-window-notification-form');
+    if (notifForm) {
+      notifForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const title = document.getElementById('admin-window-notif-title').value.trim();
+        const desc = document.getElementById('admin-window-notif-desc').value.trim();
+        const target = targetSelect ? targetSelect.value : 'group';
+        const userSelect = document.getElementById('admin-window-notif-user-select');
+        const targetUserId = target === 'individual' && userSelect ? userSelect.value : null;
+
+        try {
+          await publishTargetedNotification(title, desc, targetUserId);
+          alert(`Notification successfully dispatched to ${target === 'group' ? 'all users' : 'selected user'}!`);
+          notifForm.reset();
+          if (userSelectContainer) userSelectContainer.style.display = 'none';
+        } catch (err) {
+          alert(`Error sending notification: ${err.message}`);
+        }
+      });
+    }
+
+    // Client Progress select change
+    const clientSelect = document.getElementById('admin-progress-client-select');
+    const progressControls = document.getElementById('admin-progress-controls');
+    if (clientSelect && progressControls) {
+      clientSelect.addEventListener('change', () => {
+        const purchaseId = clientSelect.value;
+        if (!purchaseId) {
+          progressControls.style.display = 'none';
+          return;
+        }
+        
+        progressControls.style.display = 'block';
+        loadClientProjectDetails(purchaseId);
+      });
+    }
+
+    // Client Progress update submission
+    const progressForm = document.getElementById('admin-progress-update-form');
+    if (progressForm) {
+      progressForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const purchaseId = document.getElementById('admin-progress-client-select').value;
+        const step = document.getElementById('admin-progress-step-select').value;
+        
+        try {
+          await updateClientProjectProgress(purchaseId, step);
+          alert("Client project progress successfully updated!");
+          await renderAdminPanel();
+          // Also refresh tracking view on client side in case they are looking at it
+          if (typeof renderServiceTracking === 'function') {
+            renderServiceTracking();
+          }
+        } catch (err) {
+          alert(`Error saving progress: ${err.message}`);
+        }
+      });
+    }
+
+    // Add time button helper
+    const addTimeBtn = document.getElementById('admin-progress-add-time-btn');
+    if (addTimeBtn) {
+      addTimeBtn.addEventListener('click', async () => {
+        const purchaseId = document.getElementById('admin-progress-client-select').value;
+        const minutes = parseInt(document.getElementById('admin-progress-time-input').value) || 0;
+        if (!purchaseId || minutes <= 0) {
+          alert("Please select a client project and enter minutes.");
+          return;
+        }
+
+        try {
+          const deadline = new Date(Date.now() + minutes * 60 * 1000).toISOString();
+          await updateClientProjectDeadline(purchaseId, deadline);
+          alert(`Timer successfully set! Estimated delivery deadline updated.`);
+          await renderAdminPanel();
+          if (typeof renderServiceTracking === 'function') {
+            renderServiceTracking();
+          }
+        } catch (err) {
+          alert(`Error updating deadline: ${err.message}`);
+        }
+      });
+    }
+
+    window.adminTabsBound = true;
+  }
+
+  // Load Overview Stats & Tables
+  await loadAdminOverviewStats(dept);
+  await loadProgressClientDropdown(dept);
+  if (isSuper) {
+    await loadAdminRefundsList();
+    await loadAdminPaymentsList();
+    await loadAdminPricingManager();
+  }
+}
+
+async function populateNotificationUserSelect() {
+  const selectElem = document.getElementById('admin-window-notif-user-select');
+  if (!selectElem) return;
+  selectElem.innerHTML = '<option value="">-- Select User --</option>';
+
+  let users = [];
+  if (supabaseClient) {
+    const { data, error } = await supabaseClient
+      .from('profiles')
+      .select('id, username, email');
+    if (!error && data) {
+      users = data;
+    }
+  }
+  
+  const localUsers = JSON.parse(localStorage.getItem('gravity-registered-users')) || [];
+  localUsers.forEach(lu => {
+    const mockId = 'local_' + lu.username.toLowerCase();
+    if (!users.some(u => u.email === lu.email)) {
+      users.push({ id: mockId, username: lu.username, email: lu.email });
+    }
+  });
+
+  users.forEach(u => {
+    const opt = document.createElement('option');
+    opt.value = u.id;
+    opt.innerText = `${u.username} (${u.email})`;
+    selectElem.appendChild(opt);
+  });
+}
+
+async function loadAdminOverviewStats(dept) {
+  let purchases = [];
+  let txs = [];
+
+  if (supabaseClient) {
+    const { data: purData } = await supabaseClient.from('purchases').select('*');
+    if (purData) purchases = purData;
+
+    const { data: txData } = await supabaseClient.from('transactions').select('*');
+    if (txData) txs = txData;
+  } else {
+    purchases = JSON.parse(localStorage.getItem('gravity-user-purchases')) || [];
+    txs = JSON.parse(localStorage.getItem('gravity-transactions')) || [];
+  }
+
+  // Filter purchases by department
+  const deptPurchases = purchases.filter(p => serviceMatchesDepartment(p.service_id || p.serviceId, dept));
+  const activeCount = deptPurchases.filter(p => p.status !== 'refund_approved' && p.status !== 'fully_paid').length;
+
+  // Filter transactions by department
+  const deptTxs = txs.filter(t => {
+    const prices = getServicePrices();
+    const service = prices.find(s => s.name === t.service);
+    return service ? serviceMatchesDepartment(service.id, dept) : (dept === 'all');
+  });
+
+  const totalRevenue = deptTxs.reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
+
+  const activeCountElem = document.getElementById('admin-stat-active-services');
+  const revenueElem = document.getElementById('admin-stat-total-payments');
+
+  if (activeCountElem) activeCountElem.innerText = activeCount;
+  if (revenueElem) {
+    const symbol = currentSession && currentSession.country === 'IN' ? '₹' : '$';
+    revenueElem.innerText = `${symbol}${totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
+}
+
+async function loadProgressClientDropdown(dept) {
+  const selectElem = document.getElementById('admin-progress-client-select');
+  if (!selectElem) return;
+  
+  const prevVal = selectElem.value;
+  selectElem.innerHTML = '<option value="">-- Select Active Project --</option>';
+
+  let purchases = [];
+  if (supabaseClient) {
+    const { data, error } = await supabaseClient
+      .from('purchases')
+      .select('*, profiles(username, email)')
+      .order('created_at', { ascending: false });
+    
+    if (!error && data) {
+      purchases = data;
+    }
+  } else {
+    purchases = JSON.parse(localStorage.getItem('gravity-user-purchases')) || [];
+  }
+
+  // Filter to show active projects
+  const activeProjects = purchases.filter(p => {
+    const statusVal = p.status;
+    const isAct = statusVal !== 'refund_approved' && statusVal !== 'fully_paid';
+    const isMatch = serviceMatchesDepartment(p.service_id || p.serviceId, dept);
+    return isAct && isMatch;
+  });
+
+  activeProjects.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.id;
+    const userLabel = p.profiles ? p.profiles.username : (p.username || 'Client');
+    const emailLabel = p.profiles ? p.profiles.email : (p.email || '');
+    opt.innerText = `${p.service_name || p.serviceName} (${userLabel} - ${emailLabel})`;
+    selectElem.appendChild(opt);
+  });
+
+  if (prevVal) {
+    selectElem.value = prevVal;
+  }
+}
+
+async function loadClientProjectDetails(purchaseId) {
+  let p = null;
+  if (supabaseClient) {
+    const { data } = await supabaseClient.from('purchases').select('*').eq('id', purchaseId).single();
+    if (data) p = data;
+  } else {
+    const purchases = JSON.parse(localStorage.getItem('gravity-user-purchases')) || [];
+    p = purchases.find(item => item.id === purchaseId);
+  }
+
+  if (!p) return;
+
+  const infoElem = document.getElementById('admin-progress-client-info');
+  if (infoElem) {
+    infoElem.innerText = `Updating: ${p.service_name || p.serviceName}`;
+  }
+
+  // Set step selection
+  const stepSelect = document.getElementById('admin-progress-step-select');
+  if (stepSelect) {
+    let stepVal = p.status;
+    if (stepVal === 'advance_paid') stepVal = 'progress_planning';
+    if (stepVal === 'completed') stepVal = 'progress_ready_to_produce';
+    stepSelect.value = stepVal;
+  }
+
+  // Set remaining time input
+  const timeInput = document.getElementById('admin-progress-time-input');
+  const deadline = p.delivery_deadline || p.deliveryDeadline;
+  if (timeInput && deadline) {
+    const deadlineTime = new Date(deadline).getTime();
+    const remainingMin = Math.max(1, Math.round((deadlineTime - Date.now()) / (60 * 1000)));
+    timeInput.value = remainingMin;
+  } else if (timeInput) {
+    timeInput.value = 120;
+  }
+}
+
+async function updateClientProjectProgress(purchaseId, progressStep) {
+  let dbStatus = progressStep;
+  if (progressStep === 'progress_ready_to_produce') {
+    dbStatus = 'completed';
+  }
+
+  if (supabaseClient) {
+    const { error } = await supabaseClient
+      .from('purchases')
+      .update({ status: dbStatus })
+      .eq('id', purchaseId);
+    
+    if (error) throw error;
+  } else {
+    const purchases = JSON.parse(localStorage.getItem('gravity-user-purchases')) || [];
+    const idx = purchases.findIndex(item => item.id === purchaseId);
+    if (idx !== -1) {
+      purchases[idx].status = dbStatus;
+      localStorage.setItem('gravity-user-purchases', JSON.stringify(purchases));
+    }
+  }
+
+  // Notify client
+  let serviceName = "Your service";
+  let clientId = null;
+  
+  if (supabaseClient) {
+    const { data } = await supabaseClient.from('purchases').select('service_name, user_id').eq('id', purchaseId).single();
+    if (data) {
+      serviceName = data.service_name;
+      clientId = data.user_id;
+    }
+  } else {
+    const purchases = JSON.parse(localStorage.getItem('gravity-user-purchases')) || [];
+    const item = purchases.find(u => u.id === purchaseId);
+    if (item) {
+      serviceName = item.serviceName;
+      clientId = 'local_user';
+    }
+  }
+
+  const stepLabelsMap = {
+    'progress_planning': 'Planning Phase',
+    'progress_modeling': 'Modeling Phase',
+    'progress_developing': 'Developing Phase',
+    'progress_preprocessing': 'Preprocessing Phase',
+    'progress_testing': 'Testing & QA Phase',
+    'progress_ready_to_produce': 'Ready to Produce & Awaiting Final Invoice Payment',
+    'completed': 'Ready to Produce & Awaiting Final Invoice Payment',
+    'fully_paid': 'Delivered & Complete'
+  };
+
+  const friendlyStep = stepLabelsMap[progressStep] || progressStep;
+  await publishTargetedNotification(
+    `Project Status Update: ${serviceName}`,
+    `Your creative team has updated the status of your project '${serviceName}' to: ${friendlyStep}.`,
+    clientId
+  );
+}
+
+async function updateClientProjectDeadline(purchaseId, deadlineIso) {
+  if (supabaseClient) {
+    const { error } = await supabaseClient
+      .from('purchases')
+      .update({ delivery_deadline: deadlineIso })
+      .eq('id', purchaseId);
+    
+    if (error) throw error;
+  } else {
+    const purchases = JSON.parse(localStorage.getItem('gravity-user-purchases')) || [];
+    const idx = purchases.findIndex(item => item.id === purchaseId);
+    if (idx !== -1) {
+      purchases[idx].deliveryDeadline = deadlineIso;
+      localStorage.setItem('gravity-user-purchases', JSON.stringify(purchases));
+    }
+  }
+}
+
+async function loadAdminRefundsList() {
+  const container = document.getElementById('admin-window-refund-claims-list');
+  if (!container) return;
+
+  let refunds = [];
+  if (supabaseClient) {
+    const { data, error } = await supabaseClient
+      .from('refunds')
+      .select('*, purchases(*, profiles(*))')
+      .order('created_at', { ascending: false });
+
+    if (!error && data) {
+      refunds = data.map(r => ({
+        id: r.id,
+        purchaseId: r.purchase_id,
+        user: r.purchases && r.purchases.profiles ? r.purchases.profiles.username : 'User',
+        serviceName: r.purchases ? r.purchases.service_name : 'Service',
+        explanation: r.explanation,
+        fileName: r.evidence_url ? r.evidence_url.split('/').pop() : 'Evidence',
+        amount: r.purchases ? parseFloat(r.purchases.paid_amount) : 0,
+        status: r.status,
+        evidenceUrl: r.evidence_url
+      }));
+    }
+  } else {
+    refunds = JSON.parse(localStorage.getItem('gravity-refunds')) || [];
+  }
+
+  container.innerHTML = '';
+  if (refunds.length === 0) {
+    container.innerHTML = `<p class="text-muted">> Awaiting refund dispute submissions...</p>`;
+  } else {
+    refunds.forEach(ref => {
+      const div = document.createElement('div');
+      div.className = 'admin-refund-row';
+      div.style.padding = '0.5rem';
+      div.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
+      div.style.marginBottom = '0.5rem';
+
+      let buttonsHtml = '';
+      if (ref.status === 'pending') {
+        buttonsHtml = `
+          <div style="margin-top:0.35rem; display:flex; gap:0.5rem;">
+            <button class="admin-window-claim-btn approve" data-id="${ref.id}" style="background:#4caf50; color:#fff; border:none; padding:0.2rem 0.5rem; font-family:inherit; font-size:0.7rem; font-weight:bold; border-radius:3px; cursor:pointer;">Approve</button>
+            <button class="admin-window-claim-btn deny" data-id="${ref.id}" style="background:#ff3366; color:#fff; border:none; padding:0.2rem 0.5rem; font-family:inherit; font-size:0.7rem; font-weight:bold; border-radius:3px; cursor:pointer;">Deny</button>
+          </div>
+        `;
+      } else {
+        buttonsHtml = `<div style="font-size:0.7rem; color:${ref.status === 'approved' ? 'var(--neon-green)' : 'var(--neon-pink)'}; font-weight:bold; margin-top:0.25rem;">> CLAIM ${ref.status.toUpperCase()}</div>`;
+      }
+
+      let proofHtml = ref.evidenceUrl ? `<div style="font-size:0.75rem;"><a href="${ref.evidenceUrl}" target="_blank" style="color:var(--neon-amber); text-decoration:underline;">View Evidence</a></div>` : '';
+
+      div.innerHTML = `
+        <div style="color:#fff; font-weight:bold;">User: ${ref.user} • Service: ${ref.serviceName}</div>
+        <div style="font-size:0.75rem; color:var(--text-muted);">Reason: "${ref.explanation}"</div>
+        ${proofHtml}
+        ${buttonsHtml}
+      `;
+      container.appendChild(div);
+    });
+
+    container.querySelectorAll('.admin-window-claim-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-id');
+        const action = btn.classList.contains('approve') ? 'approve' : 'deny';
+        await processRefundClaim(id, action);
+        await loadAdminRefundsList();
+      });
+    });
+  }
+}
+
+async function loadAdminPaymentsList() {
+  const container = document.getElementById('admin-window-payments-log-list');
+  if (!container) return;
+
+  let txs = [];
+  if (supabaseClient) {
+    const { data, error } = await supabaseClient
+      .from('transactions')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (!error && data) {
+      txs = data;
+    }
+  } else {
+    txs = JSON.parse(localStorage.getItem('gravity-transactions')) || [];
+  }
+
+  container.innerHTML = '';
+  if (txs.length === 0) {
+    container.innerHTML = `<p class="text-muted">> No payment transactions recorded yet.</p>`;
+  } else {
+    txs.forEach(t => {
+      const div = document.createElement('div');
+      div.className = 'admin-payment-row';
+      div.style.padding = '0.3rem 0';
+      div.style.borderBottom = '1px solid rgba(255,255,255,0.03)';
+      
+      let label = t.type === 'booking' ? 'ADVANCE' : 'FINAL';
+      if (t.amount < 0) label = 'REFUND';
+
+      const symbol = t.currency === 'INR' ? '₹' : '$';
+      div.innerHTML = `
+        <span class="text-green">> [${t.date}]</span>
+        <span style="color:#fff; font-weight:bold;">${symbol}${Math.abs(t.amount).toLocaleString()}</span>
+        <span style="color:var(--neon-cyan);">(${label})</span>
+        <span style="color:var(--text-muted);">by ${t.username} (${t.service})</span>
+      `;
+      container.appendChild(div);
+    });
+  }
+}
+
+async function loadAdminPricingManager() {
+  const container = document.getElementById('admin-window-pricing-inputs');
+  const form = document.getElementById('admin-window-pricing-form');
+  if (!container || !form) return;
+
+  const prices = getServicePrices();
+  container.innerHTML = '';
+
+  prices.forEach(s => {
+    const row = document.createElement('div');
+    row.className = 'pricing-edit-row';
+    row.style.display = 'flex';
+    row.style.justifyContent = 'space-between';
+    row.style.alignItems = 'center';
+    row.style.gap = '0.5rem';
+    row.style.padding = '0.35rem 0';
+    row.style.borderBottom = '1px solid rgba(255,255,255,0.03)';
+
+    row.innerHTML = `
+      <span style="color:#fff; font-size:0.8rem; font-weight:bold; flex:1;">${s.name}</span>
+      <div style="display:flex; gap:0.25rem; align-items:center;">
+        <span style="color:var(--text-muted); font-size:0.75rem;">₹</span>
+        <input type="number" class="price-window-input-inr" data-id="${s.id}" value="${s.priceINR}" style="width:70px; background:rgba(0,0,0,0.3); border:1px solid var(--glass-border); color:#fff; padding:0.25rem; font-family:monospace; border-radius:3px;">
+        <span style="color:var(--text-muted); font-size:0.75rem; margin-left:0.25rem;">$</span>
+        <input type="number" class="price-window-input-usd" data-id="${s.id}" value="${s.priceUSD}" style="width:60px; background:rgba(0,0,0,0.3); border:1px solid var(--glass-border); color:#fff; padding:0.25rem; font-family:monospace; border-radius:3px;">
+      </div>
+    `;
+    container.appendChild(row);
+  });
+
+  if (!window.adminPricingBound) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const updatedPrices = prices.map(s => {
+        const inrInput = form.querySelector(`.price-window-input-inr[data-id="${s.id}"]`);
+        const usdInput = form.querySelector(`.price-window-input-usd[data-id="${s.id}"]`);
+        return {
+          ...s,
+          priceINR: inrInput ? parseFloat(inrInput.value) || 0 : s.priceINR,
+          priceUSD: usdInput ? parseFloat(usdInput.value) || 0 : s.priceUSD
+        };
+      });
+
+      localStorage.setItem('gravity_service_prices', JSON.stringify(updatedPrices));
+
+      if (supabaseClient) {
+        try {
+          const { data: { session } } = await supabaseClient.auth.getSession();
+          if (session) {
+            await fetch('/api/admin-action', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session.access_token}`
+              },
+              body: JSON.stringify({
+                action: 'update-pricing',
+                payload: { updatedPrices }
+              })
+            });
+          } else {
+            await supabaseClient.from('service_catalog').upsert(updatedPrices.map(u => ({
+              id: u.id,
+              name: u.name,
+              price_inr: u.priceINR,
+              price_usd: u.priceUSD
+            })));
+          }
+        } catch(err) {
+          console.warn("Supabase pricing sync warning:", err);
+        }
+      }
+
+      alert("Pricing catalog updated successfully!");
+      if (typeof renderAdminPricingEditor === 'function') {
+        renderAdminPricingEditor();
+      }
+    });
+    window.adminPricingBound = true;
+  }
+}
+
+async function publishTargetedNotification(title, desc, targetUserId) {
+  if (supabaseClient) {
+    const { error } = await supabaseClient
+      .from('notifications')
+      .insert([{
+        title: title,
+        desc_text: desc,
+        time_label: "Just now",
+        is_read: false,
+        user_id: targetUserId
+      }]);
+    if (error) throw error;
+  } else {
+    const notifs = JSON.parse(localStorage.getItem('gravity-system-notifications')) || [];
+    notifs.unshift({
+      id: Date.now(),
+      title: title,
+      desc: desc,
+      time: "Just now",
+      read: false,
+      userId: targetUserId
+    });
+    localStorage.setItem('gravity-system-notifications', JSON.stringify(notifs));
+  }
+  
+  if (typeof renderNotifications === 'function') {
+    await renderNotifications();
+  }
+}
 }
 

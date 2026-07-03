@@ -4048,3 +4048,149 @@ body.dark-theme .window-header {
   font-size: 0.8rem;
 }
 
+/* --- ADMIN PANEL TABS & HORIZONTAL TRACKING STEPPER --- */
+
+/* Progress Stepper Styling */
+.progress-stepper {
+  display: flex;
+  justify-content: space-between;
+  position: relative;
+  margin: 1.5rem 0 1.25rem 0;
+  padding: 0;
+  list-style: none;
+}
+.progress-stepper::before {
+  content: "";
+  position: absolute;
+  top: 14px;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  z-index: 1;
+}
+.progress-step-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  text-align: center;
+}
+.step-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #0d0a1b;
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: bold;
+  color: var(--text-muted);
+  transition: all 0.3s ease;
+  margin-bottom: 0.4rem;
+}
+.step-label {
+  font-size: 0.65rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  transition: all 0.3s ease;
+}
+
+/* Completed Step state */
+.progress-step-node.completed .step-dot {
+  background: var(--neon-green);
+  border-color: var(--neon-green);
+  color: #000;
+  box-shadow: 0 0 10px rgba(57, 255, 20, 0.4);
+}
+.progress-step-node.completed .step-label {
+  color: var(--neon-green);
+  font-weight: 600;
+}
+
+/* Active Step state */
+.progress-step-node.active .step-dot {
+  background: #0d0a1b;
+  border-color: var(--neon-cyan);
+  color: var(--neon-cyan);
+  box-shadow: 0 0 10px rgba(0, 240, 255, 0.4);
+}
+.progress-step-node.active .step-label {
+  color: var(--neon-cyan);
+  font-weight: 600;
+}
+
+/* Connector Line progress */
+.progress-stepper-fill {
+  position: absolute;
+  top: 14px;
+  left: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--neon-green), var(--neon-cyan));
+  z-index: 1;
+  transition: width 0.4s ease;
+}
+
+/* Tabbed Layout for Admin Panel */
+.admin-tab-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.admin-tab-headers {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--glass-border);
+  padding-bottom: 0.5rem;
+  margin-bottom: 1rem;
+  overflow-x: auto;
+}
+.admin-tab-btn {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--glass-border);
+  color: var(--text-muted);
+  padding: 0.4rem 0.7rem;
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: bold;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+.admin-tab-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+.admin-tab-btn.active {
+  background: rgba(176, 38, 255, 0.15);
+  border-color: var(--neon-purple);
+  color: var(--neon-purple);
+  box-shadow: 0 0 8px rgba(176, 38, 255, 0.2);
+}
+.admin-tab-content {
+  display: none;
+  flex: 1;
+  overflow-y: auto;
+}
+.admin-tab-content.active {
+  display: block;
+}
+
+/* Admin sidebar layout elements */
+#sidebar-admin-btn {
+  border: 1px solid rgba(255, 51, 102, 0.2);
+}
+#sidebar-admin-btn:hover {
+  background: rgba(255, 51, 102, 0.08);
+  border-color: var(--neon-pink);
+}
+#sidebar-admin-btn i {
+  color: var(--neon-pink) !important;
+}
+
+
