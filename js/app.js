@@ -3239,7 +3239,7 @@ function initPortalAuth() {
         sidebarAdminBtn.style.display = (currentSession.role === 'admin') ? 'flex' : 'none';
       }
       loginBtn.classList.add('logged-in-user');
-      const displayName = currentSession.username || (currentSession.role === 'admin' ? 'admin' : 'User');
+      const displayName = currentSession.username || (currentSession.role === 'admin' ? 'Member' : 'User');
       loginBtn.setAttribute('data-tooltip', `User Portal (${displayName})`);
       loginBtn.setAttribute('aria-label', 'Open User Workspace');
     }
