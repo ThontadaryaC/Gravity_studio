@@ -1305,8 +1305,6 @@ function initPortalAuth() {
         // Single/Double click: Normal user login or workspace toggle
         if (!currentSession) {
           openPortal('user-login');
-        } else if (currentSession.role === 'admin') {
-          openWindow('admin-panel', document.getElementById('sidebar-admin-btn'));
         } else {
           toggleSidebar();
         }
@@ -3227,25 +3225,22 @@ function initPortalAuth() {
     
     loginBtn.className = 'control-btn'; // Reset classes
 
+    // Always show the user login icon and hide the admin icon to keep the admin portal hidden
+    if (userIcon) userIcon.style.display = 'block';
+    if (adminIcon) adminIcon.style.display = 'none';
+
     if (!currentSession) {
-      if (userIcon) userIcon.style.display = 'block';
-      if (adminIcon) adminIcon.style.display = 'none';
       if (sidebarAdminBtn) sidebarAdminBtn.style.display = 'none';
       loginBtn.setAttribute('data-tooltip', 'Portal Sign-In');
       loginBtn.setAttribute('aria-label', 'Open Login Portal');
-    } else if (currentSession.role === 'admin') {
-      if (userIcon) userIcon.style.display = 'none';
-      if (adminIcon) adminIcon.style.display = 'block';
-      if (sidebarAdminBtn) sidebarAdminBtn.style.display = 'flex';
-      loginBtn.classList.add('logged-in-admin');
-      loginBtn.setAttribute('data-tooltip', 'Admin Terminal Active');
-      loginBtn.setAttribute('aria-label', 'Open Admin Console');
     } else {
-      if (userIcon) userIcon.style.display = 'block';
-      if (adminIcon) adminIcon.style.display = 'none';
-      if (sidebarAdminBtn) sidebarAdminBtn.style.display = 'none';
+      // Both admin and standard users visual styling are identical in header
+      if (sidebarAdminBtn) {
+        sidebarAdminBtn.style.display = (currentSession.role === 'admin') ? 'flex' : 'none';
+      }
       loginBtn.classList.add('logged-in-user');
-      loginBtn.setAttribute('data-tooltip', `User Portal (${currentSession.username})`);
+      const displayName = currentSession.username || (currentSession.role === 'admin' ? 'admin' : 'User');
+      loginBtn.setAttribute('data-tooltip', `User Portal (${displayName})`);
       loginBtn.setAttribute('aria-label', 'Open User Workspace');
     }
   }
