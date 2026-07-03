@@ -2413,148 +2413,92 @@ function initPortalAuth() {
       }
     }
 
-    // A. Use Real Razorpay SDK popup if SDK is loaded and Key ID is set
-    if (typeof Razorpay !== 'undefined' && RAZORPAY_CONFIG.keyId) {
-      try {
-        // 1. Fetch secure order ID from serverless function
-        const orderRes = await fetch('/api/create-razorpay-order', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            amount: rawAmount,
-            currency: currencyCode,
-            receipt: `rcpt_${data.id || Date.now()}`
-          })
-        });
+    if (typeof Razorpay === 'undefined') {
+      alert("Razorpay Payment Gateway SDK is not loaded. Please check your internet connection.");
+      return;
+    }
 
-        if (!orderRes.ok) {
-          throw new Error(`Failed to generate order ID on server (HTTP ${orderRes.status})`);
-        }
+    if (!RAZORPAY_CONFIG.keyId) {
+      alert("Razorpay Key ID is not configured. Please set the RAZORPAY_KEY_ID environment variable on your server.");
+      return;
+    }
 
-        const orderData = await orderRes.json();
-        
-        if (orderData.simulated) {
-          console.warn("Server responded with a simulated order. Falling back to sandbox checkout.");
-        } else {
-          const options = {
-            key: RAZORPAY_CONFIG.keyId,
-            amount: rawAmount,
-            currency: currencyCode,
-            name: "Gravity Studios",
-            description: `${data.type === 'booking' ? '50% Booking Advance' : '50% Final Settlement'} for ${data.serviceName}`,
-            image: "https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/logo.png",
-            order_id: orderData.id, // Secure Order ID from server
-            handler: async function (response) {
-              // 2. Verify payment signature on the server side
-              try {
-                const verifyRes = await fetch('/api/verify-razorpay-signature', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    orderId: response.razorpay_order_id,
-                    paymentId: response.razorpay_payment_id,
-                    signature: response.razorpay_signature
-                  })
-                });
+    try {
+      // 1. Fetch secure order ID from serverless function
+      const orderRes = await fetch('/api/create-razorpay-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: rawAmount,
+          currency: currencyCode,
+          receipt: `rcpt_${data.id || Date.now()}`
+        })
+      });
 
-                if (!verifyRes.ok) {
-                  const errJson = await verifyRes.json();
-                  throw new Error(errJson.error?.message || "Signature verification failed.");
-                }
-
-                const verifyData = await verifyRes.json();
-                if (verifyData.verified) {
-                  const txId = response.razorpay_payment_id;
-                  processSuccessPayment(txId, 'Razorpay SDK');
-                } else {
-                  alert("Payment verification failed: Signature mismatch.");
-                }
-              } catch (err) {
-                console.error("Razorpay secure verification error:", err);
-                alert(`Payment Verification Failed: ${err.message}. Please contact support.`);
-              }
-            },
-            prefill: {
-              name: currentSession ? currentSession.username : 'User',
-              email: currentSession ? currentSession.email : 'client@gravity.com',
-              contact: currentSession && currentSession.phone ? currentSession.phone : '+91 98920 10101'
-            },
-            theme: {
-              color: "#b026ff"
-            }
-          };
-
-          const rzp = new Razorpay(options);
-          rzp.on('payment.failed', function (response){
-            alert("Payment failed: " + response.error.description);
-          });
-          rzp.open();
-          return;
-        }
-      } catch (err) {
-        console.error("Error setting up Razorpay SDK transaction:", err);
-        alert(`Razorpay SDK setup error: ${err.message}. Falling back to sandbox checkout simulation.`);
+      if (!orderRes.ok) {
+        const errData = await orderRes.json();
+        throw new Error(errData.error?.message || `HTTP error ${orderRes.status}`);
       }
+
+      const orderData = await orderRes.json();
+      
+      const options = {
+        key: RAZORPAY_CONFIG.keyId,
+        amount: rawAmount,
+        currency: currencyCode,
+        name: "Gravity Studios",
+        description: `${data.type === 'booking' ? '50% Booking Advance' : '50% Final Settlement'} for ${data.serviceName}`,
+        image: "https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/logo.png",
+        order_id: orderData.id,
+        handler: async function (response) {
+          // 2. Verify payment signature on the server side
+          try {
+            const verifyRes = await fetch('/api/verify-razorpay-signature', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                orderId: response.razorpay_order_id,
+                paymentId: response.razorpay_payment_id,
+                signature: response.razorpay_signature
+              })
+            });
+
+            if (!verifyRes.ok) {
+              const errJson = await verifyRes.json();
+              throw new Error(errJson.error?.message || "Signature verification failed.");
+            }
+
+            const verifyData = await verifyRes.json();
+            if (verifyData.verified) {
+              const txId = response.razorpay_payment_id;
+              processSuccessPayment(txId, 'Razorpay SDK');
+            } else {
+              alert("Payment verification failed: Signature mismatch.");
+            }
+          } catch (err) {
+            console.error("Razorpay secure verification error:", err);
+            alert(`Payment Verification Failed: ${err.message}. Please contact support.`);
+          }
+        },
+        prefill: {
+          name: currentSession ? currentSession.username : 'User',
+          email: currentSession ? currentSession.email : 'client@gravity.com',
+          contact: currentSession && currentSession.phone ? currentSession.phone : '+91 98920 10101'
+        },
+        theme: {
+          color: "#b026ff"
+        }
+      };
+
+      const rzp = new Razorpay(options);
+      rzp.on('payment.failed', function (response){
+        alert("Payment failed: " + response.error.description);
+      });
+      rzp.open();
+    } catch (err) {
+      console.error("Error setting up Razorpay SDK transaction:", err);
+      alert(`Razorpay SDK setup error: ${err.message}`);
     }
-    
-    // B. Fallback to Simulated Modal Sandbox
-    document.getElementById('razorpay-item-name').innerText = `${data.type === 'booking' ? '50% Booking Advance' : '50% Final Settlement'} for ${data.serviceName}`;
-    document.getElementById('razorpay-item-amount').innerText = `${symbol}${data.payAmount.toLocaleString()}`;
-    razorpayPayBtn.innerText = `Pay ${symbol}${data.payAmount.toLocaleString()}`;
-    
-    // Fill details from session
-    if (currentSession) {
-      document.getElementById('razorpay-user-email').innerText = currentSession.email || 'client@gravity.com';
-      document.getElementById('razorpay-user-phone').innerText = currentSession.phone || '+91 98920 10101'; // Simulated local contact
-    }
-
-    razorpayOverlay.style.display = 'flex';
-  }
-
-  // Method switching (Simulated Overlay)
-  if (methodUpi && methodCard) {
-    methodUpi.addEventListener('click', () => {
-      methodUpi.classList.add('active');
-      methodCard.classList.remove('active');
-      formUpi.style.display = 'block';
-      formCard.style.display = 'none';
-    });
-
-    methodCard.addEventListener('click', () => {
-      methodCard.classList.add('active');
-      methodUpi.classList.remove('active');
-      formCard.style.display = 'block';
-      formUpi.style.display = 'none';
-    });
-  }
-
-  // Cancel Payment (Simulated Overlay)
-  if (razorpayCancelBtn) {
-    razorpayCancelBtn.addEventListener('click', () => {
-      razorpayOverlay.style.display = 'none';
-      activePayment = null;
-    });
-  }
-
-  // Submit Simulated Payment
-  if (razorpayPayBtn) {
-    razorpayPayBtn.addEventListener('click', () => {
-      if (!activePayment) return;
-
-      razorpayPayBtn.innerText = "Processing secure checkout...";
-      razorpayPayBtn.disabled = true;
-
-      // Simulate network delay
-      setTimeout(async () => {
-        const methodUsed = methodUpi.classList.contains('active') ? 'UPI' : 'Card';
-        const txId = "pay_" + Math.random().toString(36).substring(2, 10).toUpperCase();
-        
-        await processSuccessPayment(txId, methodUsed);
-        
-        razorpayPayBtn.innerText = "Pay";
-        razorpayPayBtn.disabled = false;
-      }, 1200);
-    });
   }
 
   /* ==========================================================================

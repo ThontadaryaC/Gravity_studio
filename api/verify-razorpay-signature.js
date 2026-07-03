@@ -33,10 +33,8 @@ module.exports = async (req, res) => {
 
     const keySecret = process.env.RAZORPAY_KEY_SECRET;
 
-    // Simulated verification if env var is missing and it was a simulated order
-    if (!keySecret || orderId.startsWith("order_sim_")) {
-      console.warn("Razorpay key secret missing or simulated order detected. Simulating signature verification.");
-      return res.status(200).json({ verified: true, simulated: true });
+    if (!keySecret) {
+      return res.status(500).json({ error: { message: "Razorpay server key secret is missing. Please configure RAZORPAY_KEY_SECRET." } });
     }
 
     // Perform real HMAC-SHA256 signature verification

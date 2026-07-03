@@ -32,16 +32,11 @@ module.exports = async (req, res) => {
     const keyId = process.env.RAZORPAY_KEY_ID;
     const keySecret = process.env.RAZORPAY_KEY_SECRET;
 
-    // Check if live credentials are configured. If not, fallback to simulated mode.
     if (!keyId || !keySecret) {
-      console.warn("Razorpay environment variables are missing. Falling back to simulated Order ID.");
-      const simulatedOrderId = "order_sim_" + Math.random().toString(36).substring(2, 12).toUpperCase();
-      return res.status(200).json({
-        id: simulatedOrderId,
-        simulated: true,
-        amount,
-        currency,
-        receipt
+      return res.status(500).json({ 
+        error: { 
+          message: "Razorpay server environment variables are missing. Please configure RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in the dashboard." 
+        } 
       });
     }
 
