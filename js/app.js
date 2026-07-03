@@ -1654,10 +1654,18 @@ function initPortalAuth() {
       const div = document.createElement('div');
       div.className = `notif-item ${notif.read ? '' : 'unread'}`;
       div.innerHTML = `
-        <div class="notif-title" style="font-weight:700; color:var(--text-pure);">${notif.title}</div>
-        <div class="notif-desc" style="font-size:0.85rem; color:var(--text-muted); margin:0.25rem 0;">${notif.desc}</div>
-        <div class="notif-time" style="font-size:0.75rem; color:var(--neon-cyan);">${notif.time}</div>
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:0.5rem;">
+          <div style="flex:1;">
+            <div class="notif-title" style="font-weight:700; color:var(--text-pure);">${notif.title}</div>
+            <div class="notif-desc" style="font-size:0.85rem; color:var(--text-muted); margin:0.25rem 0;">${notif.desc}</div>
+            <div class="notif-time" style="font-size:0.75rem; color:var(--neon-cyan);">${notif.time}</div>
+          </div>
+          <button class="notif-share-btn" title="Share Notification" style="background:transparent; border:none; color:var(--text-muted); cursor:pointer; padding:0.25rem; border-radius:4px; display:flex; align-items:center; justify-content:center; transition: all 0.2s; margin-top: -2px;">
+            <i data-lucide="share-2" style="width:14px; height:14px;"></i>
+          </button>
+        </div>
       `;
+
       // Mark as read when clicked or viewed
       div.addEventListener('click', async () => {
         if (!notif.read) {
@@ -1673,6 +1681,29 @@ function initPortalAuth() {
           await renderNotifications();
         }
       });
+
+      // Share button click handler
+      const shareBtn = div.querySelector('.notif-share-btn');
+      if (shareBtn) {
+        shareBtn.addEventListener('click', (e) => {
+          e.stopPropagation(); // Avoid triggering mark-as-read click event
+          const shareText = `Gravity Update: ${notif.title}\n\n${notif.desc}`;
+          if (navigator.share) {
+            navigator.share({
+              title: notif.title,
+              text: notif.desc,
+            }).catch(err => console.warn("Share failed:", err));
+          } else {
+            // Fallback: Copy to clipboard
+            navigator.clipboard.writeText(shareText).then(() => {
+              alert("Notification copied to clipboard!");
+            }).catch(() => {
+              alert("Failed to copy notification.");
+            });
+          }
+        });
+      }
+
       container.appendChild(div);
     });
   }
@@ -3532,6 +3563,14 @@ function initPortalAuth() {
     }
   }
 
+  // Client-side UUID generator
+  function generateUUID() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  }
+
   // Handle Google OAuth JWT Response Token
   async function handleGoogleCredentialResponse(response) {
     const payload = decodeJwtResponse(response.credential);
@@ -3557,14 +3596,39 @@ function initPortalAuth() {
 
       if (error) {
         console.warn(`Supabase Google Authentication failed: ${error.message}. Falling back to local authentication session.`);
-        // Fallback to local session if Google OAuth Provider is not enabled in Supabase Dashboard
+        // Fallback: Generate UUID and sync profile in database even in local fallback mode
+        const fallbackUid = generateUUID();
+        try {
+          const { error: upsertError } = await supabaseClient
+            .from('profiles')
+            .upsert({ 
+              id: fallbackUid, 
+              username: payload.name, 
+              email: payload.email,
+              avatar_url: googleAvatarUrl
+            });
+          
+          if (upsertError) {
+            console.warn("Local fallback upsert with avatar_url failed, trying basic insert:", upsertError.message);
+            await supabaseClient
+              .from('profiles')
+              .upsert({ 
+                id: fallbackUid, 
+                username: payload.name, 
+                email: payload.email
+              });
+          }
+        } catch (dbErr) {
+          console.warn("Database sync error during local fallback:", dbErr.message);
+        }
+
         loginSuccess({
           role: 'user',
           username: payload.name,
           email: payload.email,
           country: detectedCountry,
           locale: payload.locale,
-          uid: "local_" + Math.random().toString(36).substring(2, 10),
+          uid: fallbackUid,
           avatarUrl: googleAvatarUrl
         });
       } else if (data.user) {
@@ -3604,12 +3668,26 @@ function initPortalAuth() {
         });
       }
     } else {
+      const fallbackUid = generateUUID();
+      try {
+        await supabaseClient
+          .from('profiles')
+          .upsert({ 
+            id: fallbackUid, 
+            username: payload.name, 
+            email: payload.email
+          });
+      } catch (dbErr) {
+        console.warn("Offline fallback profile upsert skipped or failed:", dbErr.message);
+      }
+
       loginSuccess({
         role: 'user',
         username: payload.name,
         email: payload.email,
         country: detectedCountry,
         locale: payload.locale,
+        uid: fallbackUid,
         avatarUrl: googleAvatarUrl
       });
     }
