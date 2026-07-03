@@ -2449,8 +2449,8 @@ function initPortalAuth() {
       
       const options = {
         key: RAZORPAY_CONFIG.keyId,
-        amount: rawAmount,
-        currency: currencyCode,
+        amount: orderData.amount, // Synchronized with Razorpay backend order response
+        currency: orderData.currency, // Synchronized with Razorpay backend order response
         name: "Gravity Studios",
         description: `${data.type === 'booking' ? '50% Booking Advance' : '50% Final Settlement'} for ${data.serviceName}`,
         image: "https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/logo.png",
@@ -2488,7 +2488,7 @@ function initPortalAuth() {
         prefill: {
           name: currentSession ? currentSession.username : 'User',
           email: currentSession ? currentSession.email : 'client@gravity.com',
-          contact: currentSession && currentSession.phone ? currentSession.phone : '+91 98920 10101'
+          contact: (currentSession && currentSession.phone ? currentSession.phone : '+919892010101').replace(/[^+\d]/g, '')
         },
         theme: {
           color: "#b026ff"
