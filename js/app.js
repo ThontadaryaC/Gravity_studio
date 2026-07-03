@@ -3568,14 +3568,30 @@ function initPortalAuth() {
           avatarUrl: googleAvatarUrl
         });
       } else if (data.user) {
-        await supabaseClient
-          .from('profiles')
-          .upsert({ 
-            id: data.user.id, 
-            username: payload.name, 
-            email: payload.email,
-            avatar_url: googleAvatarUrl
-          });
+        try {
+          const { error: upsertError } = await supabaseClient
+            .from('profiles')
+            .upsert({ 
+              id: data.user.id, 
+              username: payload.name, 
+              email: payload.email,
+              avatar_url: googleAvatarUrl
+            });
+          
+          if (upsertError) {
+            console.warn("Google profile upsert with avatar_url failed, falling back to basic insert:", upsertError.message);
+            // Fallback: Try updating profiles without avatar_url in case the column is missing in their database
+            await supabaseClient
+              .from('profiles')
+              .upsert({ 
+                id: data.user.id, 
+                username: payload.name, 
+                email: payload.email
+              });
+          }
+        } catch (err) {
+          console.warn("Failed to sync Google profile details:", err.message);
+        }
 
         loginSuccess({
           role: 'user',
@@ -4314,12 +4330,14 @@ async function populateNotificationUserSelect() {
     }
   });
 
-  // Filter only for Google logins
-  const googleLogins = users.filter(u => 
-    (u.avatar_url && u.avatar_url.includes('provider=google')) ||
-    (u.avatar_url && u.avatar_url.includes('googleusercontent.com')) ||
-    (u.email && u.email.toLowerCase().endsWith('@gmail.com'))
-  );
+  // Filter only for Google logins (excluding master admin accounts)
+  const googleLogins = users.filter(u => {
+    const emailLower = u.email ? u.email.toLowerCase() : "";
+    const isMasterAdmin = emailLower === 'founder@gravitystudios.com' || 
+                          emailLower === 'ceo@gravitystudios.com' || 
+                          emailLower === 'admin@gravitystudios.com';
+    return !isMasterAdmin;
+  });
 
   googleLogins.forEach(u => {
     const opt = document.createElement('option');
