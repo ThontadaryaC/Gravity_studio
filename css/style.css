@@ -214,6 +214,7 @@ body::after {
   height: 100vh;
   z-index: 2;
   pointer-events: none;
+  display: none;
 }
 
 /* --- 10-SECOND INTRO LOADER (HIGH FIDELITY INTRO VIDEO) --- */
@@ -3859,5 +3860,178 @@ body.dark-theme .window-header {
   font-weight: 700;
   text-transform: uppercase;
   display: inline-block;
+}
+
+/* --- SEO AND INLINE STYLE DEPRECATION OPTIMIZATIONS --- */
+
+/* Hide admin shield icon by default to prevent inline display: none */
+.portal-admin-icon {
+  display: none;
+}
+
+/* Revenue Section Title and Subtitle */
+.revenue-card-title {
+  font-family: var(--font-header);
+  font-size: 1.35rem;
+  color: var(--text-pure);
+  margin-bottom: 0.5rem;
+}
+
+.revenue-card-subtitle {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+/* Org Chart Connective Line */
+.org-connect-line {
+  height: 1.5rem;
+  width: 2px;
+  background: var(--neon-cyan);
+  box-shadow: 0 0 5px var(--neon-cyan-glow);
+  margin: 0 auto; /* center alignment */
+}
+
+/* Employee Details Responsibilities List */
+.node-details-list {
+  list-style: none;
+  padding-left: 0;
+  margin-bottom: 1.5rem;
+}
+
+/* Payments Catalog & Billing styles */
+.catalog-section {
+  margin-bottom: 1.5rem;
+}
+.catalog-section h5 {
+  margin-bottom: 0.75rem;
+  color: var(--neon-cyan);
+  border-bottom: 1px solid var(--glass-border);
+  padding-bottom: 0.25rem;
+}
+.service-catalog-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.catalog-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+}
+.catalog-card h6 {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--text-pure);
+}
+.catalog-card span {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+.catalog-pay-btn {
+  padding: 0.5rem 0.75rem;
+  background: rgba(176, 38, 255, 0.15);
+  border: 1px solid var(--neon-purple);
+  border-radius: 6px;
+  color: var(--neon-purple);
+  font-weight: 600;
+  font-family: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.billing-history-section {
+  margin-bottom: 1.5rem;
+}
+.billing-history-section h5 {
+  margin-bottom: 0.75rem;
+  color: var(--neon-cyan);
+  border-bottom: 1px solid var(--glass-border);
+  padding-bottom: 0.25rem;
+}
+
+/* Refund / Dispute Panel styles */
+.refund-section {
+  display: none;
+  padding: 1rem;
+  background: rgba(255, 51, 102, 0.04);
+  border: 1px solid rgba(255, 51, 102, 0.2);
+  border-radius: 12px;
+}
+.refund-section h5 {
+  margin: 0 0 0.5rem 0;
+  color: #ff3366;
+}
+.refund-section p {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 1rem;
+}
+.refund-input-group {
+  margin-bottom: 0.75rem;
+}
+.refund-input-group label {
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: bold;
+}
+.refund-textarea {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--glass-border);
+  color: #fff;
+  width: 100%;
+  padding: 0.5rem;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 0.85rem;
+  height: 60px;
+  resize: none;
+}
+.refund-upload-box {
+  border: 2px dashed rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  padding: 1.25rem;
+  text-align: center;
+  cursor: pointer;
+  background: rgba(0, 0, 0, 0.15);
+  transition: all 0.2s;
+}
+.refund-upload-box i {
+  color: #ff3366;
+  width: 28px;
+  height: 28px;
+  margin-bottom: 0.5rem;
+}
+.refund-upload-box p {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-pure);
+}
+.refund-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+.refund-btn-cancel {
+  padding: 0.5rem 1rem;
+  background: transparent;
+  border: 1px solid var(--glass-border);
+  border-radius: 6px;
+  color: var(--text-pure);
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+.refund-btn-submit {
+  padding: 0.5rem 1rem;
+  background: #ff3366;
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 0.8rem;
 }
 

@@ -107,6 +107,26 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
   renderAllIcons();
+
+  // Decode obfuscated email in footer to protect against bots
+  function initEmailObfuscation() {
+    document.querySelectorAll('.obfuscated-email').forEach(el => {
+      const user = el.getAttribute('data-user');
+      const domain = el.getAttribute('data-domain');
+      if (user && domain) {
+        const email = `${user}@${domain}`;
+        const link = document.createElement('a');
+        link.href = `mailto:${email}`;
+        link.textContent = email;
+        link.style.color = 'inherit';
+        link.style.textDecoration = 'none';
+        el.innerHTML = '';
+        el.appendChild(link);
+      }
+    });
+  }
+  initEmailObfuscation();
+
   initThemeToggle();
   initPortalAuth();
   initIntroLoader();

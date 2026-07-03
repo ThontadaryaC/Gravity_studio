@@ -1,0 +1,21 @@
+# Ant I Gravity Studios
+
+Ant I Gravity Studios is a high-performance startup ecosystem merging cutting-edge software engineering, custom artificial intelligence systems, hyper-realistic VFX production, and next-generation animation studios.
+
+## Project Directory & Sections
+- **Home**: Landing page ("Welcome to Ant I Gravity, Defining Entertainment")
+- **Leadership**: Board & Executive officers:
+  - **Ajay Raj B.K**: Founder & Creative Director
+  - **Shashank Raj B.K**: Co-Founder & CEO
+  - **Thontadaraya**: CTO (Technology Head)
+  - **Munish**: CMO (Marketing Head)
+- **Media Showcase**: Video gallery and VFX portfolio.
+- **Revenue & Growth**: Financial projections and strategic commercial directive.
+- **Hierarchy & Org Chart**: Node-based structure of operational tiers.
+- **Milestone Timeline**: Historical timeline of accomplishments.
+- **Creative & Tech Departments**: Catalog of the 18 active sub-departments.
+
+## Core Technologies
+- Frontend: Vanilla HTML, CSS, JavaScript
+- Libraries: Three.js (WebGL Cosmic Background), Lucide (SVG Icons), Razorpay checkout SDK
+- Integration: Supabase client SDK for cloud database sync
