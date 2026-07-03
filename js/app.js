@@ -69,6 +69,41 @@ const DEFAULT_SERVICE_PRICES = [
   { id: "enterprise_ai", name: "Enterprise AI Solutions", priceINR: 500000, priceUSD: 25000, priceMaxINR: 2500000, priceMaxUSD: 100000, rangeINR: "₹5,00,000+ (Custom Quote)", rangeUSD: "Starting at $25,000 (Custom Quote)" }
 ];
 
+const ADMIN_ROLE_DETAILS = {
+  'f0000000-0000-0000-0000-000000000001': {
+    username: 'Ajay Raj B.K',
+    title: 'Founder & Creative Director'
+  },
+  'c0000000-0000-0000-0000-000000000002': {
+    username: 'Shashank Raj B.K',
+    title: 'Co-Founder & CEO'
+  },
+  'a0000000-0000-0000-0000-000000000003': {
+    username: 'Thontadaraya',
+    title: 'CTO (Technology Head)'
+  },
+  'd0000000-0000-0000-0000-000000000004': {
+    username: 'Pruthvi Raj',
+    title: 'CIO (IT Head)'
+  },
+  'e0000000-0000-0000-0000-000000000005': {
+    username: 'Shreyas',
+    title: 'COO & Site Engineer'
+  },
+  'v0000000-0000-0000-0000-000000000006': {
+    username: 'Munish',
+    title: 'CMO (Marketing Head)'
+  },
+  'm0000000-0000-0000-0000-000000000007': {
+    username: 'Subhash',
+    title: 'Sales & Pricing Lead'
+  },
+  's0000000-0000-0000-0000-000000000008': {
+    username: 'Pavan Krishna',
+    title: 'CHRO (HR Head)'
+  }
+};
+
 function getServicePrices() {
   const stored = localStorage.getItem('gravity_service_prices');
   if (stored) {
@@ -1190,18 +1225,36 @@ function initPortalAuth() {
 
   function updateSidebarAvatar() {
     const avatarElem = document.getElementById('sidebar-avatar-placeholder');
-    if (!avatarElem) return;
-    if (currentSession && currentSession.avatarUrl) {
-      avatarElem.style.backgroundImage = `url(${currentSession.avatarUrl})`;
-      avatarElem.style.backgroundSize = 'cover';
-      avatarElem.style.backgroundPosition = 'center';
-      avatarElem.innerText = '';
-      avatarElem.style.boxShadow = '0 0 15px rgba(176, 38, 255, 0.5)';
-    } else {
-      avatarElem.style.backgroundImage = '';
-      const firstLetter = (currentSession && currentSession.username ? currentSession.username : 'U').charAt(0).toUpperCase();
-      avatarElem.innerText = firstLetter;
-      avatarElem.style.boxShadow = '0 0 15px rgba(176, 38, 255, 0.3)';
+    const adminAvatarElem = document.getElementById('admin-sidebar-avatar-placeholder');
+
+    if (avatarElem) {
+      if (currentSession && currentSession.avatarUrl) {
+        avatarElem.style.backgroundImage = `url(${currentSession.avatarUrl})`;
+        avatarElem.style.backgroundSize = 'cover';
+        avatarElem.style.backgroundPosition = 'center';
+        avatarElem.innerText = '';
+        avatarElem.style.boxShadow = '0 0 15px rgba(176, 38, 255, 0.5)';
+      } else {
+        avatarElem.style.backgroundImage = '';
+        const firstLetter = (currentSession && currentSession.username ? currentSession.username : 'U').charAt(0).toUpperCase();
+        avatarElem.innerText = firstLetter;
+        avatarElem.style.boxShadow = '0 0 15px rgba(176, 38, 255, 0.3)';
+      }
+    }
+
+    if (adminAvatarElem) {
+      if (currentSession && currentSession.avatarUrl) {
+        adminAvatarElem.style.backgroundImage = `url(${currentSession.avatarUrl})`;
+        adminAvatarElem.style.backgroundSize = 'cover';
+        adminAvatarElem.style.backgroundPosition = 'center';
+        adminAvatarElem.innerText = '';
+        adminAvatarElem.style.boxShadow = '0 0 15px rgba(176, 38, 255, 0.5)';
+      } else {
+        adminAvatarElem.style.backgroundImage = '';
+        const firstLetter = (currentSession && currentSession.username ? currentSession.username : 'A').charAt(0).toUpperCase();
+        adminAvatarElem.innerText = firstLetter;
+        adminAvatarElem.style.boxShadow = '0 0 15px rgba(176, 38, 255, 0.3)';
+      }
     }
   }
 
@@ -1255,7 +1308,7 @@ function initPortalAuth() {
       if (session) {
         if (!currentSession || currentSession.uid !== session.user.id) {
           supabaseClient.from('profiles').select('username, avatar_url').eq('id', session.user.id).single().then(({ data: profile }) => {
-            currentSession = {
+            let sessionObj = {
               role: 'user',
               username: profile ? profile.username : session.user.email.split('@')[0],
               email: session.user.email,
@@ -1264,6 +1317,14 @@ function initPortalAuth() {
               phone: (currentSession && currentSession.uid === session.user.id) ? (currentSession.phone || '') : '',
               country: (currentSession && currentSession.uid === session.user.id) ? (currentSession.country || '') : ''
             };
+
+            if (ADMIN_ROLE_DETAILS[sessionObj.uid]) {
+              const details = ADMIN_ROLE_DETAILS[sessionObj.uid];
+              sessionObj.role = 'admin';
+              sessionObj.username = details.username;
+            }
+
+            currentSession = sessionObj;
             localStorage.setItem('gravity-user-session', JSON.stringify(currentSession));
             updateAuthUI();
             
@@ -1360,6 +1421,17 @@ function initPortalAuth() {
       const adminUsernameElem = document.getElementById('admin-sidebar-username');
       if (adminUsernameElem) {
         adminUsernameElem.innerText = currentSession.username || 'System Admin';
+      }
+
+      // Dynamic badge-tier update for admins
+      const adminBadgeElem = document.querySelector('#admin-sidebar .badge-tier');
+      if (adminBadgeElem) {
+        const uid = currentSession.uid;
+        if (ADMIN_ROLE_DETAILS[uid]) {
+          adminBadgeElem.innerText = ADMIN_ROLE_DETAILS[uid].title;
+        } else {
+          adminBadgeElem.innerText = 'System Operator';
+        }
       }
       
       // Show/hide Founder/CEO only menu buttons
@@ -3317,6 +3389,7 @@ function initPortalAuth() {
       switchTab('user-signin-form');
     } else if (targetInterface === 'admin-login') {
       adminLoginInterface.style.display = 'block';
+      updateAdminRoleSelectDropdown();
     } else if (targetInterface === 'admin-dashboard') {
       adminDashboardInterface.style.display = 'block';
       renderAdminDashboard();
@@ -3721,22 +3794,105 @@ function initPortalAuth() {
     'support': 's0000000-0000-0000-0000-000000000008'
   };
 
+  async function fetchClaimedRoles() {
+    const claimed = {};
+    const roleUuids = Object.values(ADMIN_ROLE_UUIDS);
+    
+    // 1. Fetch from Supabase if client is active
+    if (supabaseClient) {
+      try {
+        const { data, error } = await supabaseClient
+          .from('profiles')
+          .select('*')
+          .in('id', roleUuids);
+        
+        if (!error && data) {
+          data.forEach(profile => {
+            const roleKey = Object.keys(ADMIN_ROLE_UUIDS).find(k => ADMIN_ROLE_UUIDS[k] === profile.id);
+            if (roleKey) {
+              claimed[roleKey] = {
+                email: (profile.email || '').toLowerCase().trim(),
+                username: profile.username
+              };
+            }
+          });
+        }
+      } catch (dbErr) {
+        console.warn("Could not query role bindings from database:", dbErr.message);
+      }
+    }
+    
+    // 2. Fetch from Local Storage Locks (fallback/offline mode)
+    const localLocks = JSON.parse(localStorage.getItem('gravity-admin-locks')) || {};
+    Object.keys(localLocks).forEach(roleKey => {
+      if (!claimed[roleKey]) {
+        claimed[roleKey] = {
+          email: (localLocks[roleKey].email || '').toLowerCase().trim(),
+          username: `admin_role:${roleKey}|pwd:${localLocks[roleKey].password}`
+        };
+      }
+    });
+    
+    return claimed;
+  }
+
+  async function updateAdminRoleSelectDropdown() {
+    const selectElem = document.getElementById('admin-role-select');
+    if (!selectElem) return;
+    
+    const claimed = await fetchClaimedRoles();
+    
+    const ALL_ROLE_OPTIONS = [
+      { value: 'founder', text: 'FOUNDER' },
+      { value: 'ceo', text: 'CEO' },
+      { value: 'ai', text: 'AI & AUTOMATION HEAD' },
+      { value: 'dev', text: 'WEB & APP DEV HEAD' },
+      { value: 'design', text: '3D DESIGN HEAD' },
+      { value: 'video', text: 'VIDEO PRODUCTION HEAD' },
+      { value: 'marketing', text: 'SEO & DIGITAL MARKETING HEAD' },
+      { value: 'support', text: 'HOSTING & SUPPORT HEAD' }
+    ];
+    
+    selectElem.innerHTML = '';
+    
+    let count = 0;
+    ALL_ROLE_OPTIONS.forEach(opt => {
+      if (!claimed[opt.value]) {
+        const option = document.createElement('option');
+        option.value = opt.value;
+        option.innerText = opt.text;
+        selectElem.appendChild(option);
+        count++;
+      }
+    });
+    
+    const inputGroup = selectElem.closest('.portal-input-group');
+    if (count === 0) {
+      if (inputGroup) {
+        inputGroup.style.display = 'none';
+      }
+      selectElem.removeAttribute('required');
+    } else {
+      if (inputGroup) {
+        inputGroup.style.display = 'block';
+      }
+      selectElem.setAttribute('required', 'required');
+    }
+  }
+
+  // Populate dropdown on script load
+  updateAdminRoleSelectDropdown();
+
   adminLoginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     adminLoginError.style.display = 'none';
 
-    const selectedRole = document.getElementById('admin-role-select').value;
-    const email = document.getElementById('admin-email').value.trim();
+    const email = document.getElementById('admin-email').value.trim().toLowerCase();
     const password = document.getElementById('admin-password').value;
+    const selectedRole = document.getElementById('admin-role-select')?.value;
 
     const submitBtn = adminLoginForm.querySelector('button[type="submit"]');
     const originalText = submitBtn ? submitBtn.innerText : "INITIALIZE OVERRIDE";
-
-    const roleUuid = ADMIN_ROLE_UUIDS[selectedRole];
-    if (!roleUuid) {
-      showError(adminLoginError, 'SYSTEM ERROR: Invalid role selection.');
-      return;
-    }
 
     if (submitBtn) {
       submitBtn.innerText = "AUTHENTICATING...";
@@ -3744,41 +3900,108 @@ function initPortalAuth() {
     }
 
     try {
-      let existingBinding = null;
+      // Fetch claimed roles mapping
+      const claimed = await fetchClaimedRoles();
       
-      // 1. Query Supabase profiles table for this role's UUID
-      if (supabaseClient) {
-        try {
-          const { data, error } = await supabaseClient
-            .from('profiles')
-            .select('*')
-            .eq('id', roleUuid)
-            .maybeSingle();
+      // 1. Check if the entered email is already bound to any role
+      let boundRole = null;
+      Object.keys(claimed).forEach(roleKey => {
+        if (claimed[roleKey].email === email) {
+          boundRole = roleKey;
+        }
+      });
 
-          if (!error && data) {
-            existingBinding = data;
+      if (boundRole) {
+        // Subsequent login: recognized by email encapsulated role
+        const roleUuid = ADMIN_ROLE_UUIDS[boundRole];
+        const expectedUsername = `admin_role:${boundRole}|pwd:${password}`;
+        
+        let existingBinding = null;
+        if (supabaseClient) {
+          try {
+            const { data, error } = await supabaseClient
+              .from('profiles')
+              .select('*')
+              .eq('id', roleUuid)
+              .maybeSingle();
+
+            if (!error && data) {
+              existingBinding = data;
+            }
+          } catch (dbErr) {
+            console.warn("Could not query role binding from database:", dbErr.message);
           }
-        } catch (dbErr) {
-          console.warn("Could not query role binding from database, falling back to local locks:", dbErr.message);
         }
-      }
 
-      // 2. Query Local Storage Locks (fallback/offline mode)
-      if (!existingBinding) {
-        const localLocks = JSON.parse(localStorage.getItem('gravity-admin-locks')) || {};
-        if (localLocks[selectedRole]) {
-          existingBinding = {
-            id: roleUuid,
-            email: localLocks[selectedRole].email,
-            username: `admin_role:${selectedRole}|pwd:${localLocks[selectedRole].password}`
-          };
+        if (!existingBinding) {
+          const localLocks = JSON.parse(localStorage.getItem('gravity-admin-locks')) || {};
+          if (localLocks[boundRole]) {
+            existingBinding = {
+              id: roleUuid,
+              email: localLocks[boundRole].email,
+              username: `admin_role:${boundRole}|pwd:${localLocks[boundRole].password}`
+            };
+          }
         }
-      }
 
-      const expectedUsername = `admin_role:${selectedRole}|pwd:${password}`;
+        if (submitBtn) {
+          submitBtn.innerText = originalText;
+          submitBtn.disabled = false;
+        }
 
-      if (!existingBinding) {
-        // Role is UNCLAIMED - Claim/bind it now!
+        if (existingBinding && existingBinding.username === expectedUsername) {
+          loginSuccess({
+            role: 'admin',
+            email: email,
+            uid: roleUuid,
+            username: `${boundRole.toUpperCase()} Head`
+          });
+        } else {
+          showError(adminLoginError, `ACCESS DENIED: Incorrect password for this corporate position.`);
+        }
+      } else {
+        // First-time registration/claiming
+        if (!selectedRole) {
+          if (submitBtn) {
+            submitBtn.innerText = originalText;
+            submitBtn.disabled = false;
+          }
+          showError(adminLoginError, `ACCESS DENIED: No available positions left to claim. Please check with the system administrator.`);
+          return;
+        }
+
+        const roleUuid = ADMIN_ROLE_UUIDS[selectedRole];
+        if (!roleUuid) {
+          if (submitBtn) {
+            submitBtn.innerText = originalText;
+            submitBtn.disabled = false;
+          }
+          showError(adminLoginError, 'SYSTEM ERROR: Invalid role selection.');
+          return;
+        }
+
+        if (claimed[selectedRole]) {
+          if (submitBtn) {
+            submitBtn.innerText = originalText;
+            submitBtn.disabled = false;
+          }
+          showError(adminLoginError, `ACCESS DENIED: The position of ${selectedRole.toUpperCase()} is already claimed.`);
+          return;
+        }
+
+        // Verify duplicate email constraint (no email should be same for different roles)
+        let emailAlreadyClaimed = Object.values(claimed).some(c => c.email === email);
+        if (emailAlreadyClaimed) {
+          if (submitBtn) {
+            submitBtn.innerText = originalText;
+            submitBtn.disabled = false;
+          }
+          showError(adminLoginError, `ACCESS DENIED: This email is already associated with another corporate position.`);
+          return;
+        }
+
+        const expectedUsername = `admin_role:${selectedRole}|pwd:${password}`;
+
         if (supabaseClient) {
           try {
             await supabaseClient
@@ -3803,33 +4026,13 @@ function initPortalAuth() {
           submitBtn.disabled = false;
         }
 
+        // Claimed successfully and log in
         loginSuccess({
           role: 'admin',
           email: email,
           uid: roleUuid,
           username: `${selectedRole.toUpperCase()} Head`
         });
-      } else {
-        // Role is CLAIMED/LOCKED - Verify email and password
-        const isMatch = (existingBinding.email === email && existingBinding.username === expectedUsername);
-
-        if (submitBtn) {
-          submitBtn.innerText = originalText;
-          submitBtn.disabled = false;
-        }
-
-        if (isMatch) {
-          // Login successful
-          loginSuccess({
-            role: 'admin',
-            email: email,
-            uid: roleUuid,
-            username: `${selectedRole.toUpperCase()} Head`
-          });
-        } else {
-          // Access Denied
-          showError(adminLoginError, `ACCESS DENIED: This position is locked to a different administrator account.`);
-        }
       }
     } catch (err) {
       if (submitBtn) {
@@ -3850,6 +4053,13 @@ function initPortalAuth() {
   }
 
   function loginSuccess(sessionData) {
+    // Intercept corporate/admin role by UUID to assign role: 'admin' and their real name
+    if (ADMIN_ROLE_DETAILS[sessionData.uid]) {
+      const details = ADMIN_ROLE_DETAILS[sessionData.uid];
+      sessionData.role = 'admin';
+      sessionData.username = details.username;
+    }
+
     if (!sessionData.country) {
       sessionData.country = detectUserCountry(sessionData);
     }
@@ -4283,16 +4493,16 @@ function getDepartmentForEmail(email) {
 
   if (!email) return 'none';
   const cleanEmail = email.toLowerCase().trim();
-  if (cleanEmail === 'founder@gravitystudios.com' || cleanEmail === 'ceo@gravitystudios.com' || cleanEmail === 'admin@gravitystudios.com') {
+  if (cleanEmail === 'founder@gravitystudios.com' || cleanEmail === 'ceo@gravitystudios.com' || cleanEmail === 'admin@gravitystudios.com' || cleanEmail === 'ajay@gravitystudios.com' || cleanEmail === 'shashank@gravitystudios.com') {
     return 'all';
   }
   const prefix = cleanEmail.split('@')[0];
-  if (prefix === 'ai') return 'ai';
-  if (prefix === 'dev' || prefix === 'web') return 'dev';
-  if (prefix === 'design') return 'design';
-  if (prefix === 'video') return 'video';
-  if (prefix === 'marketing') return 'marketing';
-  if (prefix === 'support') return 'support';
+  if (prefix === 'ai' || prefix === 'thontadaraya') return 'ai';
+  if (prefix === 'dev' || prefix === 'web' || prefix === 'pruthvi') return 'dev';
+  if (prefix === 'design' || prefix === 'shreyas') return 'design';
+  if (prefix === 'video' || prefix === 'munish') return 'video';
+  if (prefix === 'marketing' || prefix === 'subhash') return 'marketing';
+  if (prefix === 'support' || prefix === 'pavan') return 'support';
   return 'none';
 }
 
@@ -4469,10 +4679,8 @@ async function populateNotificationUserSelect() {
 
   // Filter only for Google logins (excluding master admin accounts)
   const googleLogins = users.filter(u => {
-    const emailLower = u.email ? u.email.toLowerCase() : "";
-    const isMasterAdmin = emailLower === 'founder@gravitystudios.com' || 
-                          emailLower === 'ceo@gravitystudios.com' || 
-                          emailLower === 'admin@gravitystudios.com';
+    const isMasterAdmin = u.id === 'f0000000-0000-0000-0000-000000000001' || 
+                          u.id === 'c0000000-0000-0000-0000-000000000002';
     return !isMasterAdmin;
   });
 
