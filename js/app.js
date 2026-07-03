@@ -3710,87 +3710,133 @@ function initPortalAuth() {
   // Admin Secure Sign-In Form Handler
   const adminLoginForm = document.getElementById('admin-login-form');
   const adminLoginError = document.getElementById('admin-login-error');
+  const ADMIN_ROLE_UUIDS = {
+    'founder': 'f0000000-0000-0000-0000-000000000001',
+    'ceo': 'c0000000-0000-0000-0000-000000000002',
+    'ai': 'a0000000-0000-0000-0000-000000000003',
+    'dev': 'd0000000-0000-0000-0000-000000000004',
+    'design': 'e0000000-0000-0000-0000-000000000005',
+    'video': 'v0000000-0000-0000-0000-000000000006',
+    'marketing': 'm0000000-0000-0000-0000-000000000007',
+    'support': 's0000000-0000-0000-0000-000000000008'
+  };
+
   adminLoginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     adminLoginError.style.display = 'none';
 
+    const selectedRole = document.getElementById('admin-role-select').value;
     const email = document.getElementById('admin-email').value.trim();
     const password = document.getElementById('admin-password').value;
 
     const submitBtn = adminLoginForm.querySelector('button[type="submit"]');
-    const originalText = submitBtn ? submitBtn.innerText : "SIGN IN";
+    const originalText = submitBtn ? submitBtn.innerText : "INITIALIZE OVERRIDE";
 
-    // 1. Enforce corporate domain rule on frontend
-    if (!email.endsWith('@gravitystudios.com')) {
-      showError(adminLoginError, 'ACCESS DENIED: Email must be a verified corporate address (@gravitystudios.com).');
+    const roleUuid = ADMIN_ROLE_UUIDS[selectedRole];
+    if (!roleUuid) {
+      showError(adminLoginError, 'SYSTEM ERROR: Invalid role selection.');
       return;
     }
 
-    // 2. Secret department-head & master admin credentials bypass (works in both offline and online modes)
-    const DEMO_ADMINS = {
-      'admin@gravitystudios.com': 'AdminSecurePassword2026!',
-      'founder@gravitystudios.com': 'FounderPass2026!',
-      'ceo@gravitystudios.com': 'CeoPass2026!',
-      'ai@gravitystudios.com': 'AiPass2026!',
-      'dev@gravitystudios.com': 'DevPass2026!',
-      'design@gravitystudios.com': 'DesignPass2026!',
-      'video@gravitystudios.com': 'VideoPass2026!',
-      'marketing@gravitystudios.com': 'MarketingPass2026!',
-      'support@gravitystudios.com': 'SupportPass2026!'
-    };
-    if (DEMO_ADMINS[email] && DEMO_ADMINS[email] === password) {
-      loginSuccess({
-        role: 'admin',
-        email: email,
-        uid: 'demo_' + email.split('@')[0]
-      });
-      return;
+    if (submitBtn) {
+      submitBtn.innerText = "AUTHENTICATING...";
+      submitBtn.disabled = true;
     }
 
-    if (supabaseClient) {
-      if (submitBtn) {
-        submitBtn.innerText = "AUTHENTICATING...";
-        submitBtn.disabled = true;
+    try {
+      let existingBinding = null;
+      
+      // 1. Query Supabase profiles table for this role's UUID
+      if (supabaseClient) {
+        try {
+          const { data, error } = await supabaseClient
+            .from('profiles')
+            .select('*')
+            .eq('id', roleUuid)
+            .maybeSingle();
+
+          if (!error && data) {
+            existingBinding = data;
+          }
+        } catch (dbErr) {
+          console.warn("Could not query role binding from database, falling back to local locks:", dbErr.message);
+        }
       }
 
-      try {
-        const { data, error } = await supabaseClient.auth.signInWithPassword({
-          email: email,
-          password: password
-        });
-
-        if (submitBtn) {
-          submitBtn.innerText = originalText;
-          submitBtn.disabled = false;
+      // 2. Query Local Storage Locks (fallback/offline mode)
+      if (!existingBinding) {
+        const localLocks = JSON.parse(localStorage.getItem('gravity-admin-locks')) || {};
+        if (localLocks[selectedRole]) {
+          existingBinding = {
+            id: roleUuid,
+            email: localLocks[selectedRole].email,
+            username: `admin_role:${selectedRole}|pwd:${localLocks[selectedRole].password}`
+          };
         }
+      }
 
-        if (error) {
-          showError(adminLoginError, `ACCESS DENIED: ${error.message}`);
-        } else if (data.user) {
-          const userEmail = data.user.email || "";
-          const isAdmin = userEmail.endsWith('@gravitystudios.com') || userEmail === 'admin@gravitystudios.com';
+      const expectedUsername = `admin_role:${selectedRole}|pwd:${password}`;
 
-          if (!isAdmin) {
-            await supabaseClient.auth.signOut();
-            showError(adminLoginError, 'ACCESS DENIED: Account lacks administrator authorization privileges.');
-          } else {
-            loginSuccess({
-              role: 'admin',
-              email: userEmail,
-              uid: data.user.id
-            });
+      if (!existingBinding) {
+        // Role is UNCLAIMED - Claim/bind it now!
+        if (supabaseClient) {
+          try {
+            await supabaseClient
+              .from('profiles')
+              .upsert({
+                id: roleUuid,
+                email: email,
+                username: expectedUsername
+              });
+          } catch (dbUpsertErr) {
+            console.warn("Failed to write admin binding to database:", dbUpsertErr.message);
           }
         }
-      } catch (err) {
+
+        // Save local lock
+        const localLocks = JSON.parse(localStorage.getItem('gravity-admin-locks')) || {};
+        localLocks[selectedRole] = { email, password };
+        localStorage.setItem('gravity-admin-locks', JSON.stringify(localLocks));
+
         if (submitBtn) {
           submitBtn.innerText = originalText;
           submitBtn.disabled = false;
         }
-        showError(adminLoginError, `SYSTEM ERROR: ${err.message}`);
+
+        loginSuccess({
+          role: 'admin',
+          email: email,
+          uid: roleUuid,
+          username: `${selectedRole.toUpperCase()} Head`
+        });
+      } else {
+        // Role is CLAIMED/LOCKED - Verify email and password
+        const isMatch = (existingBinding.email === email && existingBinding.username === expectedUsername);
+
+        if (submitBtn) {
+          submitBtn.innerText = originalText;
+          submitBtn.disabled = false;
+        }
+
+        if (isMatch) {
+          // Login successful
+          loginSuccess({
+            role: 'admin',
+            email: email,
+            uid: roleUuid,
+            username: `${selectedRole.toUpperCase()} Head`
+          });
+        } else {
+          // Access Denied
+          showError(adminLoginError, `ACCESS DENIED: This position is locked to a different administrator account.`);
+        }
       }
-    } else {
-      // Offline fallback error if not found in bypass dictionary
-      showError(adminLoginError, 'ACCESS DENIED: Invalid admin credentials.');
+    } catch (err) {
+      if (submitBtn) {
+        submitBtn.innerText = originalText;
+        submitBtn.disabled = false;
+      }
+      showError(adminLoginError, `SYSTEM ERROR: ${err.message}`);
     }
   });
 
@@ -4222,6 +4268,19 @@ function initPortalAuth() {
 // ==========================================================================
 
 function getDepartmentForEmail(email) {
+  if (currentSession && currentSession.role === 'admin') {
+    const uid = currentSession.uid;
+    if (uid === 'f0000000-0000-0000-0000-000000000001' || uid === 'c0000000-0000-0000-0000-000000000002') {
+      return 'all';
+    }
+    if (uid === 'a0000000-0000-0000-0000-000000000003') return 'ai';
+    if (uid === 'd0000000-0000-0000-0000-000000000004') return 'dev';
+    if (uid === 'e0000000-0000-0000-0000-000000000005') return 'design';
+    if (uid === 'v0000000-0000-0000-0000-000000000006') return 'video';
+    if (uid === 'm0000000-0000-0000-0000-000000000007') return 'marketing';
+    if (uid === 's0000000-0000-0000-0000-000000000008') return 'support';
+  }
+
   if (!email) return 'none';
   const cleanEmail = email.toLowerCase().trim();
   if (cleanEmail === 'founder@gravitystudios.com' || cleanEmail === 'ceo@gravitystudios.com' || cleanEmail === 'admin@gravitystudios.com') {
