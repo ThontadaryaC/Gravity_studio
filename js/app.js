@@ -1280,29 +1280,39 @@ function initPortalAuth() {
   checkHashRoute();
   window.addEventListener('hashchange', checkHashRoute);
 
-  // Secret Footer Trigger
+  // Secret Footer Trigger (Removed double click to keep admin portal hidden)
   const footerLogo = document.querySelector('.footer-logo img');
   if (footerLogo) {
-    footerLogo.style.cursor = 'pointer';
-    footerLogo.addEventListener('dblclick', () => {
-      openPortal('admin-login');
-    });
+    footerLogo.style.cursor = 'default';
   }
 
-  // Header Login Button Click / Double Click Events
-  loginBtn.addEventListener('click', () => {
-    if (!currentSession) {
-      openPortal('user-login');
-    } else if (currentSession.role === 'admin') {
-      openPortal('admin-dashboard');
-    } else {
-      toggleSidebar();
-    }
-  });
+  // Header Login Button Click detection (Single/Double click = User Portal, Triple click = Secret Admin Login)
+  let headerClickCount = 0;
+  let headerClickTimer = null;
 
-  loginBtn.addEventListener('dblclick', (e) => {
-    e.preventDefault();
-    openPortal('admin-login');
+  loginBtn.addEventListener('click', (e) => {
+    headerClickCount++;
+    
+    if (headerClickTimer) {
+      clearTimeout(headerClickTimer);
+    }
+
+    headerClickTimer = setTimeout(() => {
+      if (headerClickCount >= 3) {
+        // Triple click: Open the secret Admin login portal
+        openPortal('admin-login');
+      } else {
+        // Single/Double click: Normal user login or workspace toggle
+        if (!currentSession) {
+          openPortal('user-login');
+        } else if (currentSession.role === 'admin') {
+          openWindow('admin-panel', document.getElementById('sidebar-admin-btn'));
+        } else {
+          toggleSidebar();
+        }
+      }
+      headerClickCount = 0;
+    }, 350); // 350ms click interval detection
   });
 
   closeBtn.addEventListener('click', closePortal);
