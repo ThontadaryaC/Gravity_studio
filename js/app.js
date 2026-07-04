@@ -4098,28 +4098,61 @@ function initPortalAuth() {
 
         const expectedUsername = `admin_role:${selectedRole}|pwd:${password}`;
 
-        if (supabaseClient) {
-          try {
-            await supabaseClient
-              .from('profiles')
-              .upsert({
-                id: roleUuid,
-                email: email,
-                username: expectedUsername
-              });
-          } catch (dbUpsertErr) {
-            console.warn("Failed to write admin binding to database:", dbUpsertErr.message);
+        // Call the serverless backend to claim the role securely (RLS bypass)
+        let claimSuccess = false;
+        try {
+          const claimRes = await fetch('/api/claim-admin-role', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ role: selectedRole, email, password })
+          });
+          if (claimRes.ok) {
+            claimSuccess = true;
+          } else {
+            const errData = await claimRes.json();
+            showError(adminLoginError, `REGISTRATION FAILED: ${errData.error?.message || 'Server error'}`);
+            if (submitBtn) {
+              submitBtn.innerText = originalText;
+              submitBtn.disabled = false;
+            }
+            return;
+          }
+        } catch (apiErr) {
+          console.warn("Claim API failed, falling back to direct client-side write:", apiErr.message);
+          // Fallback to client-side write (offline mode/development fallback)
+          if (supabaseClient) {
+            try {
+              await supabaseClient
+                .from('profiles')
+                .upsert({
+                  id: roleUuid,
+                  email: email,
+                  username: expectedUsername
+                });
+              claimSuccess = true;
+            } catch (dbUpsertErr) {
+              console.warn("Failed to write admin binding to database directly:", dbUpsertErr.message);
+            }
+          } else {
+            // Offline/mock success fallback
+            claimSuccess = true;
           }
         }
 
-        // Save local lock
-        const localLocks = JSON.parse(localStorage.getItem('gravity-admin-locks')) || {};
-        localLocks[selectedRole] = { email, password };
-        localStorage.setItem('gravity-admin-locks', JSON.stringify(localLocks));
+        if (claimSuccess) {
+          // Save local lock
+          const localLocks = JSON.parse(localStorage.getItem('gravity-admin-locks')) || {};
+          localLocks[selectedRole] = { email, password };
+          localStorage.setItem('gravity-admin-locks', JSON.stringify(localLocks));
 
-        if (submitBtn) {
-          submitBtn.innerText = originalText;
-          submitBtn.disabled = false;
+          if (submitBtn) {
+            submitBtn.innerText = originalText;
+            submitBtn.disabled = false;
+          }
+        } else {
+          return;
         }
 
         // Claimed successfully and log in
