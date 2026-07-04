@@ -4016,10 +4016,8 @@ function initPortalAuth() {
     }
 
     try {
-      // Fetch claimed roles mapping
       const claimed = await fetchClaimedRoles();
       
-      // 1. Check if the entered email is already bound to any role
       let boundRole = null;
       Object.keys(claimed).forEach(roleKey => {
         if (claimed[roleKey].email === email) {
@@ -4028,35 +4026,30 @@ function initPortalAuth() {
       });
 
       if (boundRole) {
-        // Subsequent login: recognized by email encapsulated role
         const roleUuid = ADMIN_ROLE_UUIDS[boundRole];
-        const expectedUsername = `admin_role:${boundRole}|pwd:${password}`;
-        
-        let existingBinding = null;
+        let loginOk = false;
+
         if (supabaseClient) {
           try {
-            const { data, error } = await supabaseClient
-              .from('profiles')
-              .select('*')
-              .eq('email', email)
-              .maybeSingle();
+            const { data: authData, error: authError } = await supabaseClient.auth.signInWithPassword({
+              email: email,
+              password: password
+            });
 
-            if (!error && data) {
-              existingBinding = data;
+            if (!authError && authData && authData.user) {
+              loginOk = true;
+            } else {
+              console.warn("Supabase Auth signIn failed:", authError?.message);
             }
           } catch (dbErr) {
             console.warn("Could not query role binding from database:", dbErr.message);
           }
         }
 
-        if (!existingBinding) {
+        if (!loginOk) {
           const localLocks = JSON.parse(localStorage.getItem('gravity-admin-locks')) || {};
-          if (localLocks[boundRole]) {
-            existingBinding = {
-              id: roleUuid,
-              email: localLocks[boundRole].email,
-              username: `admin_role:${boundRole}|pwd:${localLocks[boundRole].password}`
-            };
+          if (localLocks[boundRole] && localLocks[boundRole].password === password) {
+            loginOk = true;
           }
         }
 
@@ -4065,7 +4058,7 @@ function initPortalAuth() {
           submitBtn.disabled = false;
         }
 
-        if (existingBinding && existingBinding.username === expectedUsername) {
+        if (loginOk) {
           loginSuccess({
             role: 'admin',
             email: email,
@@ -4076,7 +4069,6 @@ function initPortalAuth() {
           showError(adminLoginError, `ACCESS DENIED: Incorrect password for this corporate position.`);
         }
       } else {
-        // First-time registration/claiming
         if (!selectedRole) {
           if (submitBtn) {
             submitBtn.innerText = originalText;
@@ -4105,7 +4097,6 @@ function initPortalAuth() {
           return;
         }
 
-        // Verify duplicate email constraint (no email should be same for different roles)
         let emailAlreadyClaimed = Object.values(claimed).some(c => c.email === email);
         if (emailAlreadyClaimed) {
           if (submitBtn) {
@@ -4116,15 +4107,13 @@ function initPortalAuth() {
           return;
         }
 
-        const expectedUsername = `admin_role:${selectedRole}|pwd:${password}`;
+        const displayUsername = `${selectedRole.toUpperCase()} Head`;
 
-        // Attempt client-side signup/signin to satisfy the foreign key profiles_id_fkey constraint
         let claimSuccess = false;
         let finalUid = roleUuid;
 
         if (supabaseClient) {
           try {
-            // 1. Sign up the user in Supabase Auth first
             const { data: authData, error: authError } = await supabaseClient.auth.signUp({
               email: email,
               password: password
@@ -4133,13 +4122,12 @@ function initPortalAuth() {
             if (!authError && authData && authData.user) {
               finalUid = authData.user.id;
               
-              // Now upsert the profile with their real UID
               const { error: profileError } = await supabaseClient
                 .from('profiles')
                 .upsert({
                   id: finalUid,
                   email: email,
-                  username: expectedUsername
+                  username: displayUsername
                 });
               
               if (!profileError) {
@@ -4148,7 +4136,6 @@ function initPortalAuth() {
                 showError(adminLoginError, `REGISTRATION FAILED: ${profileError.message}`);
               }
             } else {
-              // 2. If signUp fails (e.g. user already exists), try logging in to verify and link
               const { data: signInData, error: signInError } = await supabaseClient.auth.signInWithPassword({
                 email: email,
                 password: password
@@ -4157,13 +4144,12 @@ function initPortalAuth() {
               if (!signInError && signInData && signInData.user) {
                 finalUid = signInData.user.id;
                 
-                // Now upsert/update the profile
                 const { error: profileError } = await supabaseClient
                   .from('profiles')
                   .upsert({
                     id: finalUid,
                     email: email,
-                    username: expectedUsername
+                    username: displayUsername
                   });
                 
                 if (!profileError) {
@@ -4172,7 +4158,6 @@ function initPortalAuth() {
                   showError(adminLoginError, `REGISTRATION FAILED: ${profileError.message}`);
                 }
               } else {
-                // Check if we can fallback to the Vercel API
                 try {
                   const claimRes = await fetch('/api/claim-admin-role', {
                     method: 'POST',
@@ -4196,12 +4181,10 @@ function initPortalAuth() {
             showError(adminLoginError, `REGISTRATION FAILED: ${signUpErr.message}`);
           }
         } else {
-          // Offline/mock mode
           claimSuccess = true;
         }
 
         if (claimSuccess) {
-          // Save local lock
           const localLocks = JSON.parse(localStorage.getItem('gravity-admin-locks')) || {};
           localLocks[selectedRole] = { email, password };
           localStorage.setItem('gravity-admin-locks', JSON.stringify(localLocks));
@@ -4210,6 +4193,13 @@ function initPortalAuth() {
             submitBtn.innerText = originalText;
             submitBtn.disabled = false;
           }
+
+          loginSuccess({
+            role: 'admin',
+            email: email,
+            uid: roleUuid,
+            username: displayUsername
+          });
         } else {
           if (submitBtn) {
             submitBtn.innerText = originalText;
@@ -4217,14 +4207,6 @@ function initPortalAuth() {
           }
           return;
         }
-
-        // Claimed successfully and log in
-        loginSuccess({
-          role: 'admin',
-          email: email,
-          uid: roleUuid,
-          username: `${selectedRole.toUpperCase()} Head`
-        });
       }
     } catch (err) {
       if (submitBtn) {
