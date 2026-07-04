@@ -41,6 +41,8 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: { message: "Missing required fields: role, email, password" } });
     }
 
+    const expectedUsername = `admin_role:${role}|pwd:${password}`;
+
     const roleUuid = ADMIN_ROLE_UUIDS[role];
     if (!roleUuid) {
       return res.status(400).json({ error: { message: "Invalid administrative role" } });
@@ -157,7 +159,11 @@ module.exports = async (req, res) => {
           id: roleUuid,
           email: email,
           password: password,
-          email_confirm: true
+          email_confirm: true,
+          user_metadata: {
+            username: expectedUsername,
+            avatar_url: `https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/logo.png`
+          }
         })
       });
       if (!createUserRes.ok) {
@@ -190,7 +196,6 @@ module.exports = async (req, res) => {
     }
 
     // 2. Insert/Upsert the profile in the profiles table (now the foreign key check will succeed!)
-    const expectedUsername = `admin_role:${role}|pwd:${password}`;
     const upsertRes = await fetch(`${SUPABASE_URL}/rest/v1/profiles`, {
       method: "POST",
       headers: {
