@@ -2908,7 +2908,13 @@ function initPortalAuth() {
     disputeForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const purchaseId = document.getElementById('refund-target-purchase-id').value;
-      const explanation = document.getElementById('refund-explanation').value.trim();
+      const rawExplanation = document.getElementById('refund-explanation').value.trim();
+
+      const clientName = currentSession ? currentSession.username : 'Unknown Customer';
+      const clientEmail = currentSession ? currentSession.email : 'Unknown Email';
+      const clientPhone = currentSession ? (currentSession.phone || 'No phone provided') : 'No phone provided';
+
+      const explanation = `${rawExplanation}\n\n[Customer Details:\nName: ${clientName}\nEmail: ${clientEmail}\nContact: ${clientPhone}]`;
 
       if (!selectedFile) {
         alert("Please upload a PDF, JPG, or PNG document proving your dispute.");
@@ -3092,7 +3098,7 @@ function initPortalAuth() {
           p.innerHTML = `
             <div style="color:#fff; font-weight:bold;">User: ${ref.user} • Claim ID: ${ref.id}</div>
             <div style="color:var(--neon-cyan); font-size:0.8rem;">Service: ${ref.serviceName} ($${ref.amount.toFixed(2)} disputed)</div>
-            <div style="color:var(--text-muted); font-size:0.75rem; margin-top:0.15rem;">Reason: "${ref.explanation}"</div>
+            <div style="color:var(--text-muted); font-size:0.75rem; margin-top:0.15rem; white-space:pre-wrap;">Reason: "${ref.explanation}"</div>
             ${proofHtml}
             ${buttonsHtml}
           `;
@@ -5306,7 +5312,7 @@ async function loadAdminRefundsList() {
 
       div.innerHTML = `
         <div style="color:#fff; font-weight:bold;">User: ${ref.user} • Service: ${ref.serviceName}</div>
-        <div style="font-size:0.75rem; color:var(--text-muted);">Reason: "${ref.explanation}"</div>
+        <div style="font-size:0.75rem; color:var(--text-muted); white-space:pre-wrap;">Reason: "${ref.explanation}"</div>
         ${proofHtml}
         ${buttonsHtml}
       `;
