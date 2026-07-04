@@ -3848,6 +3848,32 @@ function initPortalAuth() {
     const claimed = await fetchClaimedRoles();
     const currentValue = selectElem.value;
     
+    // Update diagnostics box
+    const diagBox = document.getElementById('admin-diagnostics-box');
+    if (diagBox) {
+      let diagHtml = '<p style="color: #ff3366;">> DIAGNOSTICS ACTIVE:</p>';
+      const localLocks = JSON.parse(localStorage.getItem('gravity-admin-locks')) || {};
+      diagHtml += `<p style="color: #aaa; margin-left: 10px;"> - Local Locks: ${Object.keys(localLocks).join(', ') || 'None'}</p>`;
+      
+      const dbClaimedKeys = [];
+      if (supabaseClient) {
+        try {
+          const roleUuids = Object.values(ADMIN_ROLE_UUIDS);
+          const { data } = await supabaseClient.from('profiles').select('id').in('id', roleUuids);
+          if (data) {
+            data.forEach(p => {
+              const rKey = Object.keys(ADMIN_ROLE_UUIDS).find(k => ADMIN_ROLE_UUIDS[k] === p.id);
+              if (rKey) dbClaimedKeys.push(rKey);
+            });
+          }
+        } catch (e) {
+          console.warn("Diagnostics failed to fetch database claims:", e.message);
+        }
+      }
+      diagHtml += `<p style="color: #aaa; margin-left: 10px;"> - Database Claims: ${dbClaimedKeys.join(', ') || 'None'}</p>`;
+      diagBox.innerHTML = diagHtml;
+    }
+    
     const ALL_ROLE_OPTIONS = [
       { value: 'founder', text: 'Founder & Creative Director' },
       { value: 'ceo', text: 'Co-Founder & CEO' },
