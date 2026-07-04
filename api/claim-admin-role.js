@@ -100,7 +100,15 @@ module.exports = async (req, res) => {
       });
       if (!createUserRes.ok) {
         const errText = await createUserRes.text();
-        console.log(`Auth user creation response (might already exist): ${errText}`);
+        console.log(`Auth user creation response: ${errText}`);
+        
+        let errData = {};
+        try { errData = JSON.parse(errText); } catch(e) {}
+        const errMsg = errData.msg || errData.message || "";
+        
+        if (errMsg.includes("already exists") || errMsg.includes("already registered") || errText.includes("already exists") || errText.includes("already registered")) {
+          return res.status(400).json({ error: { message: "A user with this email address already exists in Supabase. Please use a different or completely fresh email address." } });
+        }
       }
     } catch (authErr) {
       console.warn("Failed to create auth user:", authErr.message);
