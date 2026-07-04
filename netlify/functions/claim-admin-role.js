@@ -64,51 +64,32 @@ exports.handler = async function (event, context) {
       };
     }
 
-    // 1. Check if the role is already claimed in DB
-    const checkRes = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${roleUuid}`, {
-      method: "GET",
-      headers: {
-        "Authorization": `Bearer ${serviceRoleKey}`,
-        "apikey": serviceRoleKey
+    // 1. Create the user in auth.users using the admin API first (if not already exists)
+    // This resolves the foreign key constraint on the profiles table
+    try {
+      const createUserRes = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${serviceRoleKey}`,
+          "apikey": serviceRoleKey,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          id: roleUuid,
+          email: email,
+          password: password,
+          email_confirm: true
+        })
+      });
+      if (!createUserRes.ok) {
+        const errText = await createUserRes.text();
+        console.log(`Auth user creation response (might already exist): ${errText}`);
       }
-    });
-
-    if (!checkRes.ok) {
-      throw new Error(`Database check failed: ${await checkRes.text()}`);
+    } catch (authErr) {
+      console.warn("Failed to create auth user:", authErr.message);
     }
 
-    const existing = await checkRes.json();
-    if (existing && existing.length > 0) {
-      return {
-        statusCode: 409,
-        headers,
-        body: JSON.stringify({ error: { message: "This corporate position has already been claimed" } })
-      };
-    }
-
-    // 2. Check if the email is already used for another role in DB
-    const emailCheckRes = await fetch(`${SUPABASE_URL}/rest/v1/profiles?email=eq.${encodeURIComponent(email)}`, {
-      method: "GET",
-      headers: {
-        "Authorization": `Bearer ${serviceRoleKey}`,
-        "apikey": serviceRoleKey
-      }
-    });
-
-    if (!emailCheckRes.ok) {
-      throw new Error(`Database email check failed: ${await emailCheckRes.text()}`);
-    }
-
-    const existingEmail = await emailCheckRes.json();
-    if (existingEmail && existingEmail.length > 0) {
-      return {
-        statusCode: 409,
-        headers,
-        body: JSON.stringify({ error: { message: "This email is already associated with another corporate position" } })
-      };
-    }
-
-    // 3. Insert the role binding
+    // 2. Insert/Upsert the profile in the profiles table (now the foreign key check will succeed!)
     const expectedUsername = `admin_role:${role}|pwd:${password}`;
     const upsertRes = await fetch(`${SUPABASE_URL}/rest/v1/profiles`, {
       method: "POST",
@@ -126,7 +107,7 @@ exports.handler = async function (event, context) {
     });
 
     if (!upsertRes.ok) {
-      throw new Error(`Database upsert failed: ${await upsertRes.text()}`);
+      throw new Error("Database upsert failed: " + await upsertRes.text());
     }
 
     return {
