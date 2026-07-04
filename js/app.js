@@ -5,6 +5,13 @@ const supabaseUrl = 'https://kivfatgytkjqoreltuyu.supabase.co';
 const supabaseKey = 'sb_publishable_NGdByzMeaQrwJPw1YKGjnA_issJf05b';
 const supabaseClient = (typeof supabase !== 'undefined') ? supabase.createClient(supabaseUrl, supabaseKey) : null;
 
+// Force clear local admin locks and sessions on first load after this fix
+if (!localStorage.getItem('gravity-force-cleared-locks-v1')) {
+  localStorage.removeItem('gravity-admin-locks');
+  localStorage.removeItem('gravity-user-session');
+  localStorage.setItem('gravity-force-cleared-locks-v1', 'true');
+}
+
 // Razorpay Integration Configuration
 const RAZORPAY_CONFIG = {
   // Enter your Razorpay Key ID here (e.g. "rzp_test_xxxxxxxxxx")
