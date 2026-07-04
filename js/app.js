@@ -90,15 +90,15 @@ const ADMIN_ROLE_DETAILS = {
     username: 'Shreyas',
     title: 'COO & Site Engineer'
   },
-  'v0000000-0000-0000-0000-000000000006': {
+  'b0000000-0000-0000-0000-000000000006': {
     username: 'Munish',
     title: 'CMO (Marketing Head)'
   },
-  'm0000000-0000-0000-0000-000000000007': {
+  'b0000000-0000-0000-0000-000000000007': {
     username: 'Subhash',
     title: 'Sales & Pricing Lead'
   },
-  's0000000-0000-0000-0000-000000000008': {
+  'b0000000-0000-0000-0000-000000000008': {
     username: 'Pavan Krishna',
     title: 'CHRO (HR Head)'
   }
@@ -3789,9 +3789,9 @@ function initPortalAuth() {
     'ai': 'a0000000-0000-0000-0000-000000000003',
     'dev': 'd0000000-0000-0000-0000-000000000004',
     'design': 'e0000000-0000-0000-0000-000000000005',
-    'video': 'v0000000-0000-0000-0000-000000000006',
-    'marketing': 'm0000000-0000-0000-0000-000000000007',
-    'support': 's0000000-0000-0000-0000-000000000008'
+    'video': 'b0000000-0000-0000-0000-000000000006',
+    'marketing': 'b0000000-0000-0000-0000-000000000007',
+    'support': 'b0000000-0000-0000-0000-000000000008'
   };
 
   async function fetchClaimedRoles() {
@@ -4486,9 +4486,9 @@ function getDepartmentForEmail(email) {
     if (uid === 'a0000000-0000-0000-0000-000000000003') return 'ai';
     if (uid === 'd0000000-0000-0000-0000-000000000004') return 'dev';
     if (uid === 'e0000000-0000-0000-0000-000000000005') return 'design';
-    if (uid === 'v0000000-0000-0000-0000-000000000006') return 'video';
-    if (uid === 'm0000000-0000-0000-0000-000000000007') return 'marketing';
-    if (uid === 's0000000-0000-0000-0000-000000000008') return 'support';
+    if (uid === 'b0000000-0000-0000-0000-000000000006') return 'video';
+    if (uid === 'b0000000-0000-0000-0000-000000000007') return 'marketing';
+    if (uid === 'b0000000-0000-0000-0000-000000000008') return 'support';
   }
 
   if (!email) return 'none';
