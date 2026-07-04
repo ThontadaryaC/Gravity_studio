@@ -1802,12 +1802,22 @@ function initPortalAuth() {
     }
 
     notifs.forEach(notif => {
+      let isFounderNotif = notif.title.includes('[FOUNDER]');
+      let displayTitle = notif.title;
+      let badgeHtml = '';
+      if (isFounderNotif) {
+        displayTitle = notif.title.replace(/\[FOUNDER\]/g, '').trim();
+        badgeHtml = `<span style="background:linear-gradient(135deg, var(--neon-pink), var(--neon-purple)); color:#fff; font-size:0.65rem; font-weight:900; padding:0.15rem 0.4rem; border-radius:4px; text-transform:uppercase; box-shadow:0 0 10px rgba(255, 51, 102, 0.4); border: 1px solid rgba(255,255,255,0.15);">FOUNDER</span>`;
+      }
+
       const div = document.createElement('div');
       div.className = `notif-item ${notif.read ? '' : 'unread'}`;
       div.innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:0.5rem;">
           <div style="flex:1;">
-            <div class="notif-title" style="font-weight:700; color:var(--text-pure);">${notif.title}</div>
+            <div class="notif-title" style="font-weight:700; color:var(--text-pure); display:flex; align-items:center; gap:0.4rem;">
+              ${displayTitle} ${badgeHtml}
+            </div>
             <div class="notif-desc" style="font-size:0.85rem; color:var(--text-muted); margin:0.25rem 0;">${notif.desc}</div>
             <div class="notif-time" style="font-size:0.75rem; color:var(--neon-cyan);">${notif.time}</div>
           </div>
@@ -4882,16 +4892,27 @@ async function populateNotificationUserSelect() {
     }
   });
 
-  // Filter only for Google logins (excluding all administrative accounts)
-  const googleLogins = users.filter(u => {
-    const isAnyAdmin = Object.values(ADMIN_ROLE_UUIDS).includes(u.id);
-    return !isAnyAdmin;
+  // Filter based on who is logged in: Founder/CEO sees everyone, other admins see only Google logins (not admins)
+  const dept = getDepartmentForEmail(currentSession?.email);
+  const isSuper = (dept === 'all');
+
+  const filteredUsers = users.filter(u => {
+    if (isSuper) {
+      // Founder/CEO sees ALL accounts (including other admins) except themselves
+      return u.id !== currentSession?.uid;
+    } else {
+      // Other admins see only regular clients (not administrative accounts)
+      const isAnyAdmin = Object.values(ADMIN_ROLE_UUIDS).includes(u.id);
+      return !isAnyAdmin;
+    }
   });
 
-  googleLogins.forEach(u => {
+  filteredUsers.forEach(u => {
     const opt = document.createElement('option');
     opt.value = u.id;
-    opt.innerText = `${u.username} (${u.email}) [Google]`;
+    const isAnyAdmin = Object.values(ADMIN_ROLE_UUIDS).includes(u.id);
+    const labelSuffix = isAnyAdmin ? 'Admin' : 'Google';
+    opt.innerText = `${u.username} (${u.email}) [${labelSuffix}]`;
     selectElem.appendChild(opt);
   });
 }
@@ -4905,8 +4926,8 @@ async function loadAdminActivityFeed() {
   const isSuper = (dept === 'all');
 
   if (isSuper) {
-    if (titleElem) titleElem.innerText = '> GLOBAL GOOGLE LOGINS';
-    feedElem.innerHTML = '<p class="text-muted">> Loading global google logins...</p>';
+    if (titleElem) titleElem.innerText = '> SYSTEM ACCOUNTS';
+    feedElem.innerHTML = '<p class="text-muted">> Loading accounts...</p>';
 
     let users = [];
     if (supabaseClient) {
@@ -4936,17 +4957,14 @@ async function loadAdminActivityFeed() {
       }
     });
 
-    // Filter to only Google logins (not admins)
-    const googleLogins = users.filter(u => {
-      const isAnyAdmin = Object.values(ADMIN_ROLE_UUIDS).includes(u.id);
-      return !isAnyAdmin;
-    });
+    // Founder/CEO sees ALL accounts (including other admins) except themselves
+    const allAccounts = users.filter(u => u.id !== currentSession?.uid);
 
     feedElem.innerHTML = '';
-    if (googleLogins.length === 0) {
-      feedElem.innerHTML = '<p class="text-muted">> No google logins recorded yet.</p>';
+    if (allAccounts.length === 0) {
+      feedElem.innerHTML = '<p class="text-muted">> No accounts registered yet.</p>';
     } else {
-      googleLogins.forEach(u => {
+      allAccounts.forEach(u => {
         const div = document.createElement('div');
         div.style.borderBottom = '1px solid rgba(255, 255, 255, 0.05)';
         div.style.paddingBottom = '0.35rem';
@@ -4961,8 +4979,17 @@ async function loadAdminActivityFeed() {
           avatarHtml = `<div style="${avatarStyle} background-image: url(${actualUrl}); background-size: cover; background-position: center;"></div>`;
         }
 
+        const isAnyAdmin = Object.values(ADMIN_ROLE_UUIDS).includes(u.id);
+        let badgeHtml = '';
+        if (isAnyAdmin) {
+          const roleKey = Object.keys(ADMIN_ROLE_UUIDS).find(k => ADMIN_ROLE_UUIDS[k] === u.id);
+          badgeHtml = `<span style="color: var(--neon-pink); font-weight: bold; font-size: 0.7rem;">[ADMIN: ${roleKey.toUpperCase()}]</span>`;
+        } else {
+          badgeHtml = `<span style="color: var(--neon-green); font-weight: bold; font-size: 0.7rem;">[CLIENT]</span>`;
+        }
+
         div.innerHTML = `
-          <span style="color: var(--neon-green); font-weight: bold; font-size: 0.7rem;">[GOOGLE]</span>
+          ${badgeHtml}
           ${avatarHtml}
           <span style="color: #fff; font-weight: bold;">${u.username}</span>
           <span style="color: var(--text-muted); font-size: 0.75rem;">(${u.email})</span>
@@ -5423,11 +5450,16 @@ async function loadAdminPricingManager() {
 }
 
 async function publishTargetedNotification(title, desc, targetUserId) {
+  let finalTitle = title;
+  if (currentSession && currentSession.uid === ADMIN_ROLE_UUIDS.founder) {
+    finalTitle = `[FOUNDER] ${title}`;
+  }
+
   if (supabaseClient) {
     const { error } = await supabaseClient
       .from('notifications')
       .insert([{
-        title: title,
+        title: finalTitle,
         desc_text: desc,
         time_label: "Just now",
         is_read: false,
@@ -5438,7 +5470,7 @@ async function publishTargetedNotification(title, desc, targetUserId) {
     const notifs = JSON.parse(localStorage.getItem('gravity-system-notifications')) || [];
     notifs.unshift({
       id: Date.now(),
-      title: title,
+      title: finalTitle,
       desc: desc,
       time: "Just now",
       read: false,
