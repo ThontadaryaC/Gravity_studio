@@ -4000,10 +4000,14 @@ function initPortalAuth() {
   if (resetLocksBtn) {
     resetLocksBtn.addEventListener('click', (e) => {
       e.preventDefault();
-      localStorage.removeItem('gravity-admin-locks');
-      localStorage.removeItem('gravity-user-session');
+      // Remove all local storage items starting with 'gravity-'
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('gravity-')) {
+          localStorage.removeItem(key);
+        }
+      });
       localStorage.setItem('gravity-bypass-db-claims', 'true');
-      alert('Local admin locks cleared. Database claims bypassed. All roles are now available for local setup!');
+      alert('All local app data, active sessions, and locks cleared successfully! Database claims bypassed.');
       window.location.reload();
     });
   }
