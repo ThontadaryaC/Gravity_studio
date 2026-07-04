@@ -3931,7 +3931,37 @@ function initPortalAuth() {
         }
       }
       diagHtml += `<p style="color: #aaa; margin-left: 10px; margin-bottom: 5px;"> - Database Claims: ${dbClaimedKeys.join(', ') || 'None'}</p>`;
+      
+      if (dbClaimedKeys.includes('founder')) {
+        diagHtml += `<button id="diag-delete-founder-btn" style="background: #ff3366; color: white; border: none; padding: 4px 8px; margin-top: 8px; cursor: pointer; border-radius: 4px; font-size: 11px; font-family: monospace; display: block;">[ DELETE FOUNDER FROM DATABASE ]</button>`;
+      }
+      
       diagBox.innerHTML = diagHtml;
+
+      const delBtn = document.getElementById('diag-delete-founder-btn');
+      if (delBtn) {
+        delBtn.addEventListener('click', async (e) => {
+          e.preventDefault();
+          delBtn.disabled = true;
+          delBtn.innerText = "DELETING...";
+          try {
+            const res = await fetch('/api/delete-profile?email=founder@gravitystudios.com', { method: 'POST' });
+            const data = await res.json();
+            if (res.ok) {
+              alert(data.message || "Founder deleted successfully!");
+              window.location.reload();
+            } else {
+              alert("Error: " + (data.error?.message || "Failed to delete"));
+              delBtn.disabled = false;
+              delBtn.innerText = "[ DELETE FOUNDER FROM DATABASE ]";
+            }
+          } catch (err) {
+            alert("Error: " + err.message);
+            delBtn.disabled = false;
+            delBtn.innerText = "[ DELETE FOUNDER FROM DATABASE ]";
+          }
+        });
+      }
     }
     
     const ALL_ROLE_OPTIONS = [
@@ -4130,78 +4160,31 @@ function initPortalAuth() {
         const displayUsername = `${selectedRole.toUpperCase()} Head`;
 
         let claimSuccess = false;
-        let finalUid = roleUuid;
 
-        if (supabaseClient) {
-          try {
-            const { data: authData, error: authError } = await supabaseClient.auth.signUp({
-              email: email,
-              password: password
-            });
+        try {
+          // Call the serverless backend to claim the role securely (RLS bypass)
+          const claimRes = await fetch('/api/claim-admin-role', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ role: selectedRole, email, password })
+          });
 
-            if (!authError && authData && authData.user) {
-              finalUid = authData.user.id;
-              
-              const { error: profileError } = await supabaseClient
-                .from('profiles')
-                .upsert({
-                  id: finalUid,
-                  email: email,
-                  username: displayUsername
-                });
-              
-              if (!profileError) {
-                claimSuccess = true;
-              } else {
-                showError(adminLoginError, `REGISTRATION FAILED: ${profileError.message}`);
-              }
-            } else {
-              const { data: signInData, error: signInError } = await supabaseClient.auth.signInWithPassword({
-                email: email,
-                password: password
-              });
-
-              if (!signInError && signInData && signInData.user) {
-                finalUid = signInData.user.id;
-                
-                const { error: profileError } = await supabaseClient
-                  .from('profiles')
-                  .upsert({
-                    id: finalUid,
-                    email: email,
-                    username: displayUsername
-                  });
-                
-                if (!profileError) {
-                  claimSuccess = true;
-                } else {
-                  showError(adminLoginError, `REGISTRATION FAILED: ${profileError.message}`);
-                }
-              } else {
-                try {
-                  const claimRes = await fetch('/api/claim-admin-role', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ role: selectedRole, email, password })
-                  });
-                  if (claimRes.ok) {
-                    claimSuccess = true;
-                  } else {
-                    const errMsg = authError?.message || signInError?.message || "Auth registration failed";
-                    showError(adminLoginError, `REGISTRATION FAILED: ${errMsg}`);
-                  }
-                } catch (e) {
-                  const errMsg = authError?.message || signInError?.message || "Auth registration failed";
-                  showError(adminLoginError, `REGISTRATION FAILED: ${errMsg}`);
-                }
-              }
-            }
-          } catch (signUpErr) {
-            console.warn("Client-side auth signUp failed:", signUpErr.message);
-            showError(adminLoginError, `REGISTRATION FAILED: ${signUpErr.message}`);
+          if (claimRes.ok) {
+            claimSuccess = true;
+          } else {
+            const errData = await claimRes.json();
+            showError(adminLoginError, `REGISTRATION FAILED: ${errData.error?.message || 'Server error'}`);
           }
-        } else {
-          claimSuccess = true;
+        } catch (apiErr) {
+          console.warn("Backend Claim API failed, falling back to local simulation:", apiErr.message);
+          // If offline or local testing without serverless functions running
+          if (!supabaseClient) {
+            claimSuccess = true;
+          } else {
+            showError(adminLoginError, `REGISTRATION FAILED: Could not reach backend serverless function.`);
+          }
         }
 
         if (claimSuccess) {
