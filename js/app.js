@@ -3895,6 +3895,7 @@ function initPortalAuth() {
       
       // Check server key configuration status
       let keyStatusHtml = '<span style="color: #ff3366;">CHECKING...</span>';
+      let foundEnvKeys = 'None';
       try {
         const checkRes = await fetch('/api/get-claimed-roles');
         if (checkRes.ok) {
@@ -3904,6 +3905,9 @@ function initPortalAuth() {
           } else {
             keyStatusHtml = '<span style="color: #ff3333; font-weight: bold;">MISSING (ERROR)</span>';
           }
+          if (checkData.foundKeys && checkData.foundKeys.length > 0) {
+            foundEnvKeys = checkData.foundKeys.join(', ');
+          }
         } else {
           keyStatusHtml = '<span style="color: #ff9900; font-weight: bold;">UNREACHABLE</span>';
         }
@@ -3911,6 +3915,7 @@ function initPortalAuth() {
         keyStatusHtml = `<span style="color: #ff3333; font-weight: bold;">API ERROR (${err.message})</span>`;
       }
       diagHtml += `<p style="color: #eee; margin-left: 10px; margin-bottom: 5px;"> - Server Key Status: ${keyStatusHtml}</p>`;
+      diagHtml += `<p style="color: #888; margin-left: 10px; margin-bottom: 5px;"> - Detected Env Keys: [ ${foundEnvKeys} ]</p>`;
 
       const localLocks = JSON.parse(localStorage.getItem('gravity-admin-locks')) || {};
       diagHtml += `<p style="color: #aaa; margin-left: 10px; margin-bottom: 5px;"> - Local Locks: ${Object.keys(localLocks).join(', ') || 'None'}</p>`;

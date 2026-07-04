@@ -29,13 +29,14 @@ exports.handler = async function (event, context) {
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     const keyConfigured = !!serviceRoleKey;
+    const foundKeys = Object.keys(process.env).filter(k => k.includes("SUPABASE") || k.includes("KEY"));
 
     if (!serviceRoleKey) {
       console.warn("SUPABASE_SERVICE_ROLE_KEY is missing on server.");
       return {
         statusCode: 200,
         headers,
-        body: JSON.stringify({ claimed: {}, keyConfigured })
+        body: JSON.stringify({ claimed: {}, keyConfigured, foundKeys })
       };
     }
 
@@ -69,7 +70,7 @@ exports.handler = async function (event, context) {
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify({ claimed, keyConfigured })
+      body: JSON.stringify({ claimed, keyConfigured, foundKeys })
     };
   } catch (err) {
     console.error("Get Claimed Roles Error:", err);
