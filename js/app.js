@@ -3846,6 +3846,7 @@ function initPortalAuth() {
     if (!selectElem) return;
     
     const claimed = await fetchClaimedRoles();
+    const currentValue = selectElem.value;
     
     const ALL_ROLE_OPTIONS = [
       { value: 'founder', text: 'Founder & Creative Director' },
@@ -3870,6 +3871,10 @@ function initPortalAuth() {
         count++;
       }
     });
+
+    if (currentValue && Array.from(selectElem.options).some(opt => opt.value === currentValue)) {
+      selectElem.value = currentValue;
+    }
     
     const inputGroup = selectElem.closest('.portal-input-group');
     if (count === 0) {
@@ -3887,6 +3892,18 @@ function initPortalAuth() {
 
   // Populate dropdown on script load
   updateAdminRoleSelectDropdown();
+
+  // Reset local locks and sessions handler
+  const resetLocksBtn = document.getElementById('admin-reset-locks');
+  if (resetLocksBtn) {
+    resetLocksBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      localStorage.removeItem('gravity-admin-locks');
+      localStorage.removeItem('gravity-user-session');
+      alert('Local admin locks and active sessions cleared successfully!');
+      window.location.reload();
+    });
+  }
 
   // Dynamic Role Selection visibility based on typed email
   const adminEmailInput = document.getElementById('admin-email');
@@ -4533,7 +4550,7 @@ function getDepartmentForEmail(email) {
     return 'all';
   }
   const prefix = cleanEmail.split('@')[0];
-  if (prefix === 'ai' || prefix === 'thontadaraya') return 'ai';
+  if (prefix === 'ai' || prefix === 'thontadaraya' || prefix === 'thontadarya') return 'ai';
   if (prefix === 'dev' || prefix === 'web' || prefix === 'pruthvi') return 'dev';
   if (prefix === 'design' || prefix === 'shreyas') return 'design';
   if (prefix === 'video' || prefix === 'munish') return 'video';
