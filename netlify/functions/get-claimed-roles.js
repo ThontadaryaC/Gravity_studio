@@ -28,12 +28,14 @@ exports.handler = async function (event, context) {
     const SUPABASE_URL = process.env.SUPABASE_URL || "https://kivfatgytkjqoreltuyu.supabase.co";
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+    const keyConfigured = !!serviceRoleKey;
+
     if (!serviceRoleKey) {
       console.warn("SUPABASE_SERVICE_ROLE_KEY is missing on server.");
       return {
         statusCode: 200,
         headers,
-        body: JSON.stringify({ claimed: {} })
+        body: JSON.stringify({ claimed: {}, keyConfigured })
       };
     }
 
@@ -67,7 +69,7 @@ exports.handler = async function (event, context) {
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify({ claimed })
+      body: JSON.stringify({ claimed, keyConfigured })
     };
   } catch (err) {
     console.error("Get Claimed Roles Error:", err);

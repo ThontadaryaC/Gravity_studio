@@ -3891,9 +3891,29 @@ function initPortalAuth() {
     // Update diagnostics box
     const diagBox = document.getElementById('admin-diagnostics-box');
     if (diagBox) {
-      let diagHtml = '<p style="color: #ff3366;">> DIAGNOSTICS ACTIVE:</p>';
+      let diagHtml = '<p style="color: #ff3366; font-weight: bold; margin-bottom: 5px;">> DIAGNOSTICS ACTIVE:</p>';
+      
+      // Check server key configuration status
+      let keyStatusHtml = '<span style="color: #ff3366;">CHECKING...</span>';
+      try {
+        const checkRes = await fetch('/api/get-claimed-roles');
+        if (checkRes.ok) {
+          const checkData = await checkRes.json();
+          if (checkData.keyConfigured) {
+            keyStatusHtml = '<span style="color: #00ff66; font-weight: bold;">CONNECTED (OK)</span>';
+          } else {
+            keyStatusHtml = '<span style="color: #ff3333; font-weight: bold;">MISSING (ERROR)</span>';
+          }
+        } else {
+          keyStatusHtml = '<span style="color: #ff9900; font-weight: bold;">UNREACHABLE</span>';
+        }
+      } catch (err) {
+        keyStatusHtml = `<span style="color: #ff3333; font-weight: bold;">API ERROR (${err.message})</span>`;
+      }
+      diagHtml += `<p style="color: #eee; margin-left: 10px; margin-bottom: 5px;"> - Server Key Status: ${keyStatusHtml}</p>`;
+
       const localLocks = JSON.parse(localStorage.getItem('gravity-admin-locks')) || {};
-      diagHtml += `<p style="color: #aaa; margin-left: 10px;"> - Local Locks: ${Object.keys(localLocks).join(', ') || 'None'}</p>`;
+      diagHtml += `<p style="color: #aaa; margin-left: 10px; margin-bottom: 5px;"> - Local Locks: ${Object.keys(localLocks).join(', ') || 'None'}</p>`;
       
       const dbClaimedKeys = [];
       if (supabaseClient) {
@@ -3910,7 +3930,7 @@ function initPortalAuth() {
           console.warn("Diagnostics failed to fetch database claims:", e.message);
         }
       }
-      diagHtml += `<p style="color: #aaa; margin-left: 10px;"> - Database Claims: ${dbClaimedKeys.join(', ') || 'None'}</p>`;
+      diagHtml += `<p style="color: #aaa; margin-left: 10px; margin-bottom: 5px;"> - Database Claims: ${dbClaimedKeys.join(', ') || 'None'}</p>`;
       diagBox.innerHTML = diagHtml;
     }
     

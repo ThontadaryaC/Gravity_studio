@@ -33,9 +33,11 @@ module.exports = async (req, res) => {
     const SUPABASE_URL = process.env.SUPABASE_URL || "https://kivfatgytkjqoreltuyu.supabase.co";
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+    const keyConfigured = !!serviceRoleKey;
+
     if (!serviceRoleKey) {
       console.warn("SUPABASE_SERVICE_ROLE_KEY is missing on server.");
-      return res.status(200).json({ claimed: {} });
+      return res.status(200).json({ claimed: {}, keyConfigured });
     }
 
     const roleUuids = Object.values(ADMIN_ROLE_UUIDS);
@@ -65,7 +67,7 @@ module.exports = async (req, res) => {
       }
     });
 
-    return res.status(200).json({ claimed });
+    return res.status(200).json({ claimed, keyConfigured });
   } catch (err) {
     console.error("Get Claimed Roles Error:", err);
     return res.status(500).json({ error: { message: err.message || "Internal Server Error" } });
