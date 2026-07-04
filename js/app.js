@@ -1394,7 +1394,7 @@ function initPortalAuth() {
 
   // Sidebar Open/Close/Toggle Handlers
   function toggleSidebar() {
-    const isCtrlOpen = (currentSession && currentSession.role === 'admin') 
+    const isCtrlOpen = (currentSession && currentSession.role === 'admin' && !currentSession.viewAsClient) 
       ? adminSidebar.classList.contains('open')
       : sidebar.classList.contains('open');
 
@@ -1407,7 +1407,7 @@ function initPortalAuth() {
 
   function openSidebar() {
     closePortal(); // Ensure modal is closed
-    const isAdmin = currentSession && currentSession.role === 'admin';
+    const isAdmin = currentSession && currentSession.role === 'admin' && !currentSession.viewAsClient;
     const targetSidebar = isAdmin ? adminSidebar : sidebar;
     const targetBackdrop = isAdmin ? adminSidebarBackdrop : sidebarBackdrop;
 
@@ -1522,6 +1522,34 @@ function initPortalAuth() {
     adminSidebarLogout.addEventListener('click', () => {
       closeSidebar();
       performLogout();
+    });
+  }
+
+  // View as Client / Switch Back to Admin Console handlers
+  const viewAsClientBtn = document.getElementById('admin-view-as-client-btn');
+  if (viewAsClientBtn) {
+    viewAsClientBtn.addEventListener('click', () => {
+      if (currentSession) {
+        currentSession.viewAsClient = true;
+        closeSidebar();
+        setTimeout(() => {
+          openSidebar();
+        }, 300);
+      }
+    });
+  }
+
+  const sidebarAdminBtn = document.getElementById('sidebar-admin-btn');
+  if (sidebarAdminBtn) {
+    sidebarAdminBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (currentSession) {
+        currentSession.viewAsClient = false;
+        closeSidebar();
+        setTimeout(() => {
+          openSidebar();
+        }, 300);
+      }
     });
   }
 
@@ -4176,7 +4204,22 @@ function initPortalAuth() {
     closeSidebar(); // Reset state and hide sidebar and windows
   }
 
-  function loginSuccess(sessionData) {
+  async function loginSuccess(sessionData) {
+    // Check if this email is associated with a claimed administrative role
+    try {
+      const claimedRoles = await fetchClaimedRoles();
+      const matchedRoleKey = Object.keys(claimedRoles).find(k => (claimedRoles[k].email || '').toLowerCase().trim() === (sessionData.email || '').toLowerCase().trim());
+      if (matchedRoleKey) {
+        // Automatically promote this session to admin role and bind to their dedicated admin UUID
+        sessionData.role = 'admin';
+        sessionData.uid = ADMIN_ROLE_UUIDS[matchedRoleKey];
+        const details = ADMIN_ROLE_DETAILS[sessionData.uid];
+        sessionData.username = details.username;
+      }
+    } catch (e) {
+      console.warn("Failed to check claimed roles for login promotion:", e.message);
+    }
+
     // Intercept corporate/admin role by UUID to assign role: 'admin' and their real name
     if (ADMIN_ROLE_DETAILS[sessionData.uid]) {
       const details = ADMIN_ROLE_DETAILS[sessionData.uid];
