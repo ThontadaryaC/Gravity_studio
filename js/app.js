@@ -3806,48 +3806,68 @@ function initPortalAuth() {
     'support': 'b0000000-0000-0000-0000-000000000008'
   };
 
+  function getRoleKeyByEmail(email) {
+    if (!email) return 'none';
+    const cleanEmail = email.toLowerCase().trim();
+    if (cleanEmail === 'founder@gravitystudios.com' || cleanEmail === 'ajay@gravitystudios.com') {
+      return 'founder';
+    }
+    if (cleanEmail === 'ceo@gravitystudios.com' || cleanEmail === 'shashank@gravitystudios.com') {
+      return 'ceo';
+    }
+    const prefix = cleanEmail.split('@')[0];
+    if (prefix === 'ai' || prefix === 'thontadaraya' || prefix === 'thontadarya') return 'ai';
+    if (prefix === 'dev' || prefix === 'web' || prefix === 'pruthvi') return 'dev';
+    if (prefix === 'design' || prefix === 'shreyas') return 'design';
+    if (prefix === 'video' || prefix === 'munish') return 'video';
+    if (prefix === 'marketing' || prefix === 'subhash') return 'marketing';
+    if (prefix === 'support' || prefix === 'pavan') return 'support';
+    return 'none';
+  }
+
   async function fetchClaimedRoles() {
-    let claimed = {};
-    const roleUuids = Object.values(ADMIN_ROLE_UUIDS);
+    const claimed = {};
     
-    // 1. Fetch from serverless function first (handles global RLS bypass)
+    // 1. Fetch from serverless function first (if running and service role key is configured)
     try {
       const res = await fetch('/api/get-claimed-roles');
       if (res.ok) {
         const result = await res.json();
         if (result && result.claimed) {
-          claimed = result.claimed;
+          Object.assign(claimed, result.claimed);
         }
       }
     } catch (apiErr) {
       console.warn("Could not fetch claimed roles from serverless API, falling back to direct database query:", apiErr.message);
     }
 
-    // 2. Direct Supabase Query fallback (if serverless endpoint is offline or fails)
+    // 2. Direct Supabase Query (always active, public select allowed on profiles)
     if (Object.keys(claimed).length === 0 && supabaseClient) {
       try {
         const { data, error } = await supabaseClient
           .from('profiles')
-          .select('*')
-          .in('id', roleUuids);
+          .select('id, email, username');
         
         if (!error && data) {
           data.forEach(profile => {
-            const roleKey = Object.keys(ADMIN_ROLE_UUIDS).find(k => ADMIN_ROLE_UUIDS[k] === profile.id);
-            if (roleKey) {
-              claimed[roleKey] = {
-                email: (profile.email || '').toLowerCase().trim(),
-                username: profile.username
-              };
+            const email = (profile.email || '').toLowerCase().trim();
+            if (email) {
+              const roleKey = getRoleKeyByEmail(email);
+              if (roleKey && roleKey !== 'none') {
+                claimed[roleKey] = {
+                  email: email,
+                  username: profile.username
+                };
+              }
             }
           });
         }
       } catch (dbErr) {
-        console.warn("Fallback direct query failed:", dbErr.message);
+        console.warn("Direct query failed to fetch claimed roles:", dbErr.message);
       }
     }
     
-    // 2. Fetch from Local Storage Locks (fallback/offline mode)
+    // 3. Fetch from Local Storage Locks (fallback/offline mode)
     const localLocks = JSON.parse(localStorage.getItem('gravity-admin-locks')) || {};
     Object.keys(localLocks).forEach(roleKey => {
       if (!claimed[roleKey]) {
@@ -4018,7 +4038,7 @@ function initPortalAuth() {
             const { data, error } = await supabaseClient
               .from('profiles')
               .select('*')
-              .eq('id', roleUuid)
+              .eq('email', email)
               .maybeSingle();
 
             if (!error && data) {
@@ -4098,47 +4118,86 @@ function initPortalAuth() {
 
         const expectedUsername = `admin_role:${selectedRole}|pwd:${password}`;
 
-        // Call the serverless backend to claim the role securely (RLS bypass)
+        // Attempt client-side signup/signin to satisfy the foreign key profiles_id_fkey constraint
         let claimSuccess = false;
-        try {
-          const claimRes = await fetch('/api/claim-admin-role', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ role: selectedRole, email, password })
-          });
-          if (claimRes.ok) {
-            claimSuccess = true;
-          } else {
-            const errData = await claimRes.json();
-            showError(adminLoginError, `REGISTRATION FAILED: ${errData.error?.message || 'Server error'}`);
-            if (submitBtn) {
-              submitBtn.innerText = originalText;
-              submitBtn.disabled = false;
-            }
-            return;
-          }
-        } catch (apiErr) {
-          console.warn("Claim API failed, falling back to direct client-side write:", apiErr.message);
-          // Fallback to client-side write (offline mode/development fallback)
-          if (supabaseClient) {
-            try {
-              await supabaseClient
+        let finalUid = roleUuid;
+
+        if (supabaseClient) {
+          try {
+            // 1. Sign up the user in Supabase Auth first
+            const { data: authData, error: authError } = await supabaseClient.auth.signUp({
+              email: email,
+              password: password
+            });
+
+            if (!authError && authData && authData.user) {
+              finalUid = authData.user.id;
+              
+              // Now upsert the profile with their real UID
+              const { error: profileError } = await supabaseClient
                 .from('profiles')
                 .upsert({
-                  id: roleUuid,
+                  id: finalUid,
                   email: email,
                   username: expectedUsername
                 });
-              claimSuccess = true;
-            } catch (dbUpsertErr) {
-              console.warn("Failed to write admin binding to database directly:", dbUpsertErr.message);
+              
+              if (!profileError) {
+                claimSuccess = true;
+              } else {
+                showError(adminLoginError, `REGISTRATION FAILED: ${profileError.message}`);
+              }
+            } else {
+              // 2. If signUp fails (e.g. user already exists), try logging in to verify and link
+              const { data: signInData, error: signInError } = await supabaseClient.auth.signInWithPassword({
+                email: email,
+                password: password
+              });
+
+              if (!signInError && signInData && signInData.user) {
+                finalUid = signInData.user.id;
+                
+                // Now upsert/update the profile
+                const { error: profileError } = await supabaseClient
+                  .from('profiles')
+                  .upsert({
+                    id: finalUid,
+                    email: email,
+                    username: expectedUsername
+                  });
+                
+                if (!profileError) {
+                  claimSuccess = true;
+                } else {
+                  showError(adminLoginError, `REGISTRATION FAILED: ${profileError.message}`);
+                }
+              } else {
+                // Check if we can fallback to the Vercel API
+                try {
+                  const claimRes = await fetch('/api/claim-admin-role', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ role: selectedRole, email, password })
+                  });
+                  if (claimRes.ok) {
+                    claimSuccess = true;
+                  } else {
+                    const errMsg = authError?.message || signInError?.message || "Auth registration failed";
+                    showError(adminLoginError, `REGISTRATION FAILED: ${errMsg}`);
+                  }
+                } catch (e) {
+                  const errMsg = authError?.message || signInError?.message || "Auth registration failed";
+                  showError(adminLoginError, `REGISTRATION FAILED: ${errMsg}`);
+                }
+              }
             }
-          } else {
-            // Offline/mock success fallback
-            claimSuccess = true;
+          } catch (signUpErr) {
+            console.warn("Client-side auth signUp failed:", signUpErr.message);
+            showError(adminLoginError, `REGISTRATION FAILED: ${signUpErr.message}`);
           }
+        } else {
+          // Offline/mock mode
+          claimSuccess = true;
         }
 
         if (claimSuccess) {
@@ -4152,6 +4211,10 @@ function initPortalAuth() {
             submitBtn.disabled = false;
           }
         } else {
+          if (submitBtn) {
+            submitBtn.innerText = originalText;
+            submitBtn.disabled = false;
+          }
           return;
         }
 
