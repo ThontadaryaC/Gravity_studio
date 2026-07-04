@@ -171,9 +171,22 @@ module.exports = async (req, res) => {
         if (errMsg.includes("already exists") || errMsg.includes("already registered") || errText.includes("already exists") || errText.includes("already registered")) {
           return res.status(400).json({ error: { message: "A user with this email address already exists in Supabase. Please use a different or completely fresh email address." } });
         }
+
+        // Check if the user already exists in auth.users under the correct ID
+        const checkUserRes = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${roleUuid}`, {
+          method: "GET",
+          headers: {
+            "Authorization": `Bearer ${serviceRoleKey}`,
+            "apikey": serviceRoleKey
+          }
+        });
+        if (!checkUserRes.ok) {
+          return res.status(400).json({ error: { message: `Supabase auth user creation failed: ${errMsg || errText}` } });
+        }
       }
     } catch (authErr) {
       console.warn("Failed to create auth user:", authErr.message);
+      return res.status(500).json({ error: { message: `Auth creation system error: ${authErr.message}` } });
     }
 
     // 2. Insert/Upsert the profile in the profiles table (now the foreign key check will succeed!)
