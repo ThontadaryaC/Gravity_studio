@@ -142,11 +142,14 @@
         </ul>
       </nav>
 
-      <!-- Header controls (Theme toggle & Portal settings) -->
       <div class="accessibility-controls">
         <button class="control-btn" data-action="theme-toggle" data-tooltip="Switch Theme" aria-pressed="false" aria-label="Toggle Dark/Light Theme">
           <i data-lucide="sun" class="icon-sun"></i>
           <i data-lucide="moon" class="icon-moon"></i>
+        </button>
+        <button class="control-btn mobile-menu-toggle" id="mobile-menu-btn" data-tooltip="Open Menu" aria-label="Toggle Navigation Menu">
+          <i data-lucide="menu" class="menu-open-icon"></i>
+          <i data-lucide="x" class="menu-close-icon" style="display: none;"></i>
         </button>
         <button class="control-btn" id="portal-login-btn" data-action="login-portal" data-tooltip="Portal Sign-In" aria-label="Open Login Portal">
           <i data-lucide="user" class="portal-user-icon"></i>

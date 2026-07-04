@@ -170,6 +170,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initEmailObfuscation();
 
   initThemeToggle();
+  initMobileMenu();
   initPortalAuth();
   initIntroLoader();
   initNavbarScroll();
@@ -208,6 +209,49 @@ function initThemeToggle() {
       themeBtn.setAttribute('aria-pressed', isDark ? 'true' : 'false');
     });
   }
+}
+
+/* ==========================================================================
+   0.1. MOBILE MENU TOGGLE
+   ========================================================================== */
+function initMobileMenu() {
+  const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+  const navLinks = document.querySelector('.nav-links');
+  if (!mobileMenuBtn || !navLinks) return;
+
+  const openIcon = mobileMenuBtn.querySelector('.menu-open-icon');
+  const closeIcon = mobileMenuBtn.querySelector('.menu-close-icon');
+
+  mobileMenuBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const isOpen = navLinks.classList.toggle('mobile-open');
+    if (openIcon && closeIcon) {
+      openIcon.style.display = isOpen ? 'none' : 'block';
+      closeIcon.style.display = isOpen ? 'block' : 'none';
+    }
+  });
+
+  // Close menu when clicking on any link
+  navLinks.querySelectorAll('a').forEach(link => {
+    link.addEventListener('click', () => {
+      navLinks.classList.remove('mobile-open');
+      if (openIcon && closeIcon) {
+        openIcon.style.display = 'block';
+        closeIcon.style.display = 'none';
+      }
+    });
+  });
+
+  // Close menu when clicking outside
+  document.addEventListener('click', (e) => {
+    if (!navLinks.contains(e.target) && !mobileMenuBtn.contains(e.target)) {
+      navLinks.classList.remove('mobile-open');
+      if (openIcon && closeIcon) {
+        openIcon.style.display = 'block';
+        closeIcon.style.display = 'none';
+      }
+    }
+  });
 }
 
 /* ==========================================================================
