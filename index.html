@@ -1058,10 +1058,7 @@
             <p>> HOST: GRAVITY-CORP-SECURE-VAULT-2026</p>
           </div>
 
-          <div class="terminal-status-box" id="admin-diagnostics-box" style="margin-bottom: 0.75rem; border-color: #555; color: #888; font-size: 0.75rem; min-height: 45px;">
-            <p>> DIAGNOSTICS: INITIALIZING...</p>
-          </div>
-          
+
           <div class="portal-input-group terminal-style" style="margin-bottom: 0.75rem;">
             <label for="admin-role-select">> ASSIGNED POSITION</label>
             <select id="admin-role-select" required style="width:100%; background:rgba(0,0,0,0.5); border:1px solid #ff3366; color:#ff3366; padding:0.5rem; border-radius:4px; font-family:monospace; font-size:0.85rem; outline:none;">
@@ -1472,12 +1469,12 @@
   </div>
 
   <!-- 2. Send Notification Window -->
-  <div class="dashboard-window-container" id="window-admin-notifications" style="display: none; width: 450px;">
+  <div class="dashboard-window-container" id="window-admin-notifications" style="display: none; width: 500px;">
     <div class="window-header">
-      <span class="window-title"><i data-lucide="send"></i> Send Notification</span>
+      <span class="window-title"><i data-lucide="bell"></i> Notifications & Activity Feed</span>
       <button class="window-close-btn" data-close="admin-notifications">&times;</button>
     </div>
-    <div class="window-body" style="padding: 1.25rem;">
+    <div class="window-body" style="padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem; max-height: 520px; overflow-y: auto;">
       <form id="admin-window-notification-form" style="display: flex; flex-direction: column; gap: 0.75rem;">
         <div class="portal-input-group">
           <label for="admin-window-notif-target">> Target Audience</label>
@@ -1502,6 +1499,13 @@
         </div>
         <button type="submit" class="admin-action-btn" style="background: var(--neon-cyan); color: #000; font-weight: bold; width: 100%; padding: 0.5rem; border: none; border-radius: 6px; cursor: pointer;">Send Notification</button>
       </form>
+      
+      <div style="border-top: 1px solid var(--glass-border); padding-top: 1rem; margin-top: 0.5rem;">
+        <h5 style="margin: 0 0 0.75rem 0; color: var(--neon-cyan); font-family: monospace;" id="admin-activity-feed-title">> ACTIVITY FEED</h5>
+        <div id="admin-notifications-feed" class="terminal-logs-view" style="max-height: 200px; overflow-y: auto; font-family: monospace; font-size: 0.8rem; display: flex; flex-direction: column; gap: 0.5rem; padding-right: 0.25rem;">
+          <p class="text-muted">> Initializing activity logs...</p>
+        </div>
+      </div>
     </div>
   </div>
 

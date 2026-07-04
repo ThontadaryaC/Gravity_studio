@@ -3327,6 +3327,7 @@ function initPortalAuth() {
           userSelectContainer.style.display = 'none';
         }
       }
+      loadAdminActivityFeed();
     }
     if (windowId === 'admin-progress') {
       const dept = getDepartmentForEmail(currentSession?.email);
@@ -3806,25 +3807,6 @@ function initPortalAuth() {
     'support': 'b0000000-0000-0000-0000-000000000008'
   };
 
-  function getRoleKeyByEmail(email) {
-    if (!email) return 'none';
-    const cleanEmail = email.toLowerCase().trim();
-    if (cleanEmail === 'founder@gravitystudios.com' || cleanEmail === 'ajay@gravitystudios.com') {
-      return 'founder';
-    }
-    if (cleanEmail === 'ceo@gravitystudios.com' || cleanEmail === 'shashank@gravitystudios.com') {
-      return 'ceo';
-    }
-    const prefix = cleanEmail.split('@')[0];
-    if (prefix === 'ai' || prefix === 'thontadaraya' || prefix === 'thontadarya') return 'ai';
-    if (prefix === 'dev' || prefix === 'web' || prefix === 'pruthvi') return 'dev';
-    if (prefix === 'design' || prefix === 'shreyas') return 'design';
-    if (prefix === 'video' || prefix === 'munish') return 'video';
-    if (prefix === 'marketing' || prefix === 'subhash') return 'marketing';
-    if (prefix === 'support' || prefix === 'pavan') return 'support';
-    return 'none';
-  }
-
   async function fetchClaimedRoles() {
     const claimed = {};
     
@@ -3852,8 +3834,8 @@ function initPortalAuth() {
           data.forEach(profile => {
             const email = (profile.email || '').toLowerCase().trim();
             if (email) {
-              const roleKey = getRoleKeyByEmail(email);
-              if (roleKey && roleKey !== 'none') {
+              const roleKey = Object.keys(ADMIN_ROLE_UUIDS).find(k => ADMIN_ROLE_UUIDS[k] === profile.id);
+              if (roleKey) {
                 claimed[roleKey] = {
                   email: email,
                   username: profile.username
@@ -3887,87 +3869,6 @@ function initPortalAuth() {
     
     const claimed = await fetchClaimedRoles();
     const currentValue = selectElem.value;
-    
-    // Update diagnostics box
-    const diagBox = document.getElementById('admin-diagnostics-box');
-    if (diagBox) {
-      let diagHtml = '<p style="color: #ff3366; font-weight: bold; margin-bottom: 5px;">> DIAGNOSTICS ACTIVE:</p>';
-      
-      // Check server key configuration status
-      let keyStatusHtml = '<span style="color: #ff3366;">CHECKING...</span>';
-      let foundEnvKeys = 'None';
-      try {
-        const checkRes = await fetch('/api/get-claimed-roles');
-        if (checkRes.ok) {
-          const checkData = await checkRes.json();
-          if (checkData.keyConfigured) {
-            keyStatusHtml = '<span style="color: #00ff66; font-weight: bold;">CONNECTED (OK)</span>';
-          } else {
-            keyStatusHtml = '<span style="color: #ff3333; font-weight: bold;">MISSING (ERROR)</span>';
-          }
-          if (checkData.foundKeys && checkData.foundKeys.length > 0) {
-            foundEnvKeys = checkData.foundKeys.join(', ');
-          }
-        } else {
-          keyStatusHtml = '<span style="color: #ff9900; font-weight: bold;">UNREACHABLE</span>';
-        }
-      } catch (err) {
-        keyStatusHtml = `<span style="color: #ff3333; font-weight: bold;">API ERROR (${err.message})</span>`;
-      }
-      diagHtml += `<p style="color: #eee; margin-left: 10px; margin-bottom: 5px;"> - Server Key Status: ${keyStatusHtml}</p>`;
-      diagHtml += `<p style="color: #888; margin-left: 10px; margin-bottom: 5px;"> - Detected Env Keys: [ ${foundEnvKeys} ]</p>`;
-
-      const localLocks = JSON.parse(localStorage.getItem('gravity-admin-locks')) || {};
-      diagHtml += `<p style="color: #aaa; margin-left: 10px; margin-bottom: 5px;"> - Local Locks: ${Object.keys(localLocks).join(', ') || 'None'}</p>`;
-      
-      const dbClaimedKeys = [];
-      if (supabaseClient) {
-        try {
-          const roleUuids = Object.values(ADMIN_ROLE_UUIDS);
-          const { data } = await supabaseClient.from('profiles').select('id').in('id', roleUuids);
-          if (data) {
-            data.forEach(p => {
-              const rKey = Object.keys(ADMIN_ROLE_UUIDS).find(k => ADMIN_ROLE_UUIDS[k] === p.id);
-              if (rKey) dbClaimedKeys.push(rKey);
-            });
-          }
-        } catch (e) {
-          console.warn("Diagnostics failed to fetch database claims:", e.message);
-        }
-      }
-      diagHtml += `<p style="color: #aaa; margin-left: 10px; margin-bottom: 5px;"> - Database Claims: ${dbClaimedKeys.join(', ') || 'None'}</p>`;
-      
-      if (dbClaimedKeys.includes('founder')) {
-        diagHtml += `<button id="diag-delete-founder-btn" style="background: #ff3366; color: white; border: none; padding: 4px 8px; margin-top: 8px; cursor: pointer; border-radius: 4px; font-size: 11px; font-family: monospace; display: block;">[ DELETE FOUNDER FROM DATABASE ]</button>`;
-      }
-      
-      diagBox.innerHTML = diagHtml;
-
-      const delBtn = document.getElementById('diag-delete-founder-btn');
-      if (delBtn) {
-        delBtn.addEventListener('click', async (e) => {
-          e.preventDefault();
-          delBtn.disabled = true;
-          delBtn.innerText = "DELETING...";
-          try {
-            const res = await fetch('/api/delete-profile?email=founder@gravitystudios.com', { method: 'POST' });
-            const data = await res.json();
-            if (res.ok) {
-              alert(data.message || "Founder deleted successfully!");
-              window.location.reload();
-            } else {
-              alert("Error: " + (data.error?.message || "Failed to delete"));
-              delBtn.disabled = false;
-              delBtn.innerText = "[ DELETE FOUNDER FROM DATABASE ]";
-            }
-          } catch (err) {
-            alert("Error: " + err.message);
-            delBtn.disabled = false;
-            delBtn.innerText = "[ DELETE FOUNDER FROM DATABASE ]";
-          }
-        });
-      }
-    }
     
     const ALL_ROLE_OPTIONS = [
       { value: 'founder', text: 'Founder & Creative Director' },
@@ -4004,10 +3905,17 @@ function initPortalAuth() {
       }
       selectElem.removeAttribute('required');
     } else {
+      const emailInput = document.getElementById('admin-email');
+      const emailVal = emailInput ? emailInput.value.trim().toLowerCase() : '';
+      const isBound = Object.keys(claimed).some(roleKey => claimed[roleKey].email === emailVal);
       if (inputGroup) {
-        inputGroup.style.display = 'block';
+        inputGroup.style.display = isBound ? 'none' : 'block';
       }
-      selectElem.setAttribute('required', 'required');
+      if (isBound) {
+        selectElem.removeAttribute('required');
+      } else {
+        selectElem.setAttribute('required', 'required');
+      }
     }
   }
 
@@ -4675,19 +4583,6 @@ function getDepartmentForEmail(email) {
     if (uid === 'b0000000-0000-0000-0000-000000000007') return 'marketing';
     if (uid === 'b0000000-0000-0000-0000-000000000008') return 'support';
   }
-
-  if (!email) return 'none';
-  const cleanEmail = email.toLowerCase().trim();
-  if (cleanEmail === 'founder@gravitystudios.com' || cleanEmail === 'ceo@gravitystudios.com' || cleanEmail === 'admin@gravitystudios.com' || cleanEmail === 'ajay@gravitystudios.com' || cleanEmail === 'shashank@gravitystudios.com') {
-    return 'all';
-  }
-  const prefix = cleanEmail.split('@')[0];
-  if (prefix === 'ai' || prefix === 'thontadaraya' || prefix === 'thontadarya') return 'ai';
-  if (prefix === 'dev' || prefix === 'web' || prefix === 'pruthvi') return 'dev';
-  if (prefix === 'design' || prefix === 'shreyas') return 'design';
-  if (prefix === 'video' || prefix === 'munish') return 'video';
-  if (prefix === 'marketing' || prefix === 'subhash') return 'marketing';
-  if (prefix === 'support' || prefix === 'pavan') return 'support';
   return 'none';
 }
 
@@ -4862,11 +4757,10 @@ async function populateNotificationUserSelect() {
     }
   });
 
-  // Filter only for Google logins (excluding master admin accounts)
+  // Filter only for Google logins (excluding all administrative accounts)
   const googleLogins = users.filter(u => {
-    const isMasterAdmin = u.id === 'f0000000-0000-0000-0000-000000000001' || 
-                          u.id === 'c0000000-0000-0000-0000-000000000002';
-    return !isMasterAdmin;
+    const isAnyAdmin = Object.values(ADMIN_ROLE_UUIDS).includes(u.id);
+    return !isAnyAdmin;
   });
 
   googleLogins.forEach(u => {
@@ -4875,6 +4769,131 @@ async function populateNotificationUserSelect() {
     opt.innerText = `${u.username} (${u.email}) [Google]`;
     selectElem.appendChild(opt);
   });
+}
+
+async function loadAdminActivityFeed() {
+  const titleElem = document.getElementById('admin-activity-feed-title');
+  const feedElem = document.getElementById('admin-notifications-feed');
+  if (!feedElem) return;
+
+  const dept = getDepartmentForEmail(currentSession?.email);
+  const isSuper = (dept === 'all');
+
+  if (isSuper) {
+    if (titleElem) titleElem.innerText = '> GLOBAL GOOGLE LOGINS';
+    feedElem.innerHTML = '<p class="text-muted">> Loading global google logins...</p>';
+
+    let users = [];
+    if (supabaseClient) {
+      try {
+        const { data, error } = await supabaseClient
+          .from('profiles')
+          .select('id, username, email, avatar_url');
+        if (!error && data) {
+          users = data;
+        }
+      } catch (e) {
+        console.warn("Error fetching profiles for feed:", e.message);
+      }
+    }
+    
+    // Merge with local users fallback
+    const localUsers = JSON.parse(localStorage.getItem('gravity-registered-users')) || [];
+    localUsers.forEach(lu => {
+      const mockId = 'local_' + lu.username.toLowerCase().replace(/\s+/g, '_');
+      if (!users.some(u => u.email === lu.email)) {
+        users.push({
+          id: mockId,
+          username: lu.username,
+          email: lu.email,
+          avatar_url: lu.avatarUrl || lu.avatar_url
+        });
+      }
+    });
+
+    // Filter to only Google logins (not admins)
+    const googleLogins = users.filter(u => {
+      const isAnyAdmin = Object.values(ADMIN_ROLE_UUIDS).includes(u.id);
+      return !isAnyAdmin;
+    });
+
+    feedElem.innerHTML = '';
+    if (googleLogins.length === 0) {
+      feedElem.innerHTML = '<p class="text-muted">> No google logins recorded yet.</p>';
+    } else {
+      googleLogins.forEach(u => {
+        const div = document.createElement('div');
+        div.style.borderBottom = '1px solid rgba(255, 255, 255, 0.05)';
+        div.style.paddingBottom = '0.35rem';
+        div.style.display = 'flex';
+        div.style.alignItems = 'center';
+        div.style.gap = '0.5rem';
+        
+        let avatarStyle = 'width: 20px; height: 20px; border-radius: 50%; background: var(--neon-purple); display: flex; align-items: center; justify-content: center; font-size: 0.65rem; color: #fff; flex-shrink: 0;';
+        let avatarHtml = `<div style="${avatarStyle}">${(u.username || 'U').charAt(0).toUpperCase()}</div>`;
+        if (u.avatar_url || u.avatarUrl) {
+          const actualUrl = u.avatar_url || u.avatarUrl;
+          avatarHtml = `<div style="${avatarStyle} background-image: url(${actualUrl}); background-size: cover; background-position: center;"></div>`;
+        }
+
+        div.innerHTML = `
+          <span style="color: var(--neon-green); font-weight: bold; font-size: 0.7rem;">[GOOGLE]</span>
+          ${avatarHtml}
+          <span style="color: #fff; font-weight: bold;">${u.username}</span>
+          <span style="color: var(--text-muted); font-size: 0.75rem;">(${u.email})</span>
+        `;
+        feedElem.appendChild(div);
+      });
+    }
+  } else {
+    if (titleElem) titleElem.innerText = '> YOUR SERVICE REQUESTS';
+    feedElem.innerHTML = '<p class="text-muted">> Loading service requests...</p>';
+
+    let purchases = [];
+    if (supabaseClient) {
+      try {
+        const { data, error } = await supabaseClient
+          .from('purchases')
+          .select('*, profiles(username, email)')
+          .order('created_at', { ascending: false });
+        if (!error && data) {
+          purchases = data;
+        }
+      } catch (e) {
+        console.warn("Error fetching purchases for feed:", e.message);
+      }
+    } else {
+      purchases = JSON.parse(localStorage.getItem('gravity-user-purchases')) || [];
+    }
+
+    // Filter purchases by department
+    const deptPurchases = purchases.filter(p => serviceMatchesDepartment(p.service_id || p.serviceId, dept));
+
+    feedElem.innerHTML = '';
+    if (deptPurchases.length === 0) {
+      feedElem.innerHTML = '<p class="text-muted">> No active service requests for your department.</p>';
+    } else {
+      deptPurchases.forEach(p => {
+        const div = document.createElement('div');
+        div.style.borderBottom = '1px solid rgba(255, 255, 255, 0.05)';
+        div.style.paddingBottom = '0.4rem';
+        
+        const clientName = p.profiles ? p.profiles.username : (p.username || 'Client');
+        const clientEmail = p.profiles ? p.profiles.email : (p.email || '');
+
+        div.innerHTML = `
+          <div style="color: #fff; font-weight: bold; font-size: 0.8rem;">${p.service_name || p.serviceName}</div>
+          <div style="color: var(--text-muted); font-size: 0.75rem; margin-top: 0.1rem;">
+            Client: ${clientName} <span style="opacity: 0.6;">(${clientEmail})</span>
+          </div>
+          <div style="color: var(--neon-cyan); font-size: 0.7rem; font-weight: bold; margin-top: 0.15rem;">
+            > STATUS: ${p.status ? p.status.toUpperCase() : 'PENDING'}
+          </div>
+        `;
+        feedElem.appendChild(div);
+      });
+    }
+  }
 }
 
 async function loadAdminOverviewStats(dept) {

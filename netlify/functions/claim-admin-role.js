@@ -64,6 +64,42 @@ exports.handler = async function (event, context) {
       };
     }
 
+    // Fetch all claimed admin roles first to check if the role is already claimed or if the email is already associated with any other admin role
+    const uuidsStr = Object.values(ADMIN_ROLE_UUIDS).map(id => `"${id}"`).join(",");
+    const dbRes = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=in.(${uuidsStr})&select=id,email`, {
+      method: "GET",
+      headers: {
+        "Authorization": `Bearer ${serviceRoleKey}`,
+        "apikey": serviceRoleKey
+      }
+    });
+
+    if (!dbRes.ok) {
+      throw new Error("Database fetch failed: " + await dbRes.text());
+    }
+
+    const data = await dbRes.json();
+    
+    // Check if the role is already claimed
+    const isRoleClaimed = data.some(p => p.id === roleUuid);
+    if (isRoleClaimed) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: { message: "This administrative position is already claimed." } })
+      };
+    }
+
+    // Check if email is already claimed by any other admin role
+    const isEmailClaimed = data.some(p => (p.email || '').toLowerCase().trim() === email.toLowerCase().trim());
+    if (isEmailClaimed) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: { message: "This email is already associated with another administrative role." } })
+      };
+    }
+
     // 1. Create the user in auth.users using the admin API first (if not already exists)
     // This resolves the foreign key constraint on the profiles table
     try {
