@@ -81,6 +81,43 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: { message: "This email is already associated with another administrative role." } });
     }
 
+    // Check if the email already exists in GoTrue auth under a different user ID, and if so, delete it first
+    try {
+      const listRes = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${serviceRoleKey}`,
+          "apikey": serviceRoleKey
+        }
+      });
+      if (listRes.ok) {
+        const resData = await listRes.json();
+        const users = resData.users || resData || [];
+        const existingUser = users.find(u => (u.email || '').toLowerCase().trim() === email.toLowerCase().trim());
+        if (existingUser && existingUser.id !== roleUuid) {
+          console.log(`Found existing user with email ${email} and ID ${existingUser.id}. Deleting it first to claim admin role...`);
+          // Delete profile first to satisfy foreign keys
+          await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${existingUser.id}`, {
+            method: "DELETE",
+            headers: {
+              "Authorization": `Bearer ${serviceRoleKey}`,
+              "apikey": serviceRoleKey
+            }
+          });
+          // Delete user from auth
+          await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${existingUser.id}`, {
+            method: "DELETE",
+            headers: {
+              "Authorization": `Bearer ${serviceRoleKey}`,
+              "apikey": serviceRoleKey
+            }
+          });
+        }
+      }
+    } catch (listErr) {
+      console.warn("Failed to check or clean up existing user by email:", listErr.message);
+    }
+
     // 1. Create the user in auth.users using the admin API first (if not already exists)
     // This resolves the foreign key constraint on the profiles table
     try {
