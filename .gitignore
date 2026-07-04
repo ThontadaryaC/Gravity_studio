@@ -1,0 +1,12 @@
+# Environment variables
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Node modules
+node_modules/
+
+# Local logs
+*.log
