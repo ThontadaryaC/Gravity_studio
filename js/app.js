@@ -3807,11 +3807,24 @@ function initPortalAuth() {
   };
 
   async function fetchClaimedRoles() {
-    const claimed = {};
+    let claimed = {};
     const roleUuids = Object.values(ADMIN_ROLE_UUIDS);
     
-    // 1. Fetch from Supabase if client is active
-    if (supabaseClient) {
+    // 1. Fetch from serverless function first (handles global RLS bypass)
+    try {
+      const res = await fetch('/api/get-claimed-roles');
+      if (res.ok) {
+        const result = await res.json();
+        if (result && result.claimed) {
+          claimed = result.claimed;
+        }
+      }
+    } catch (apiErr) {
+      console.warn("Could not fetch claimed roles from serverless API, falling back to direct database query:", apiErr.message);
+    }
+
+    // 2. Direct Supabase Query fallback (if serverless endpoint is offline or fails)
+    if (Object.keys(claimed).length === 0 && supabaseClient) {
       try {
         const { data, error } = await supabaseClient
           .from('profiles')
@@ -3830,7 +3843,7 @@ function initPortalAuth() {
           });
         }
       } catch (dbErr) {
-        console.warn("Could not query role bindings from database:", dbErr.message);
+        console.warn("Fallback direct query failed:", dbErr.message);
       }
     }
     
