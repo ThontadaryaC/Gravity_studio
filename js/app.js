@@ -3389,7 +3389,12 @@ function initPortalAuth() {
       switchTab('user-signin-form');
     } else if (targetInterface === 'admin-login') {
       adminLoginInterface.style.display = 'block';
-      updateAdminRoleSelectDropdown();
+      updateAdminRoleSelectDropdown().then(() => {
+        const adminEmailInput = document.getElementById('admin-email');
+        if (adminEmailInput) {
+          adminEmailInput.dispatchEvent(new Event('input'));
+        }
+      });
     } else if (targetInterface === 'admin-dashboard') {
       adminDashboardInterface.style.display = 'block';
       renderAdminDashboard();
@@ -3843,14 +3848,14 @@ function initPortalAuth() {
     const claimed = await fetchClaimedRoles();
     
     const ALL_ROLE_OPTIONS = [
-      { value: 'founder', text: 'FOUNDER' },
-      { value: 'ceo', text: 'CEO' },
-      { value: 'ai', text: 'AI & AUTOMATION HEAD' },
-      { value: 'dev', text: 'WEB & APP DEV HEAD' },
-      { value: 'design', text: '3D DESIGN HEAD' },
-      { value: 'video', text: 'VIDEO PRODUCTION HEAD' },
-      { value: 'marketing', text: 'SEO & DIGITAL MARKETING HEAD' },
-      { value: 'support', text: 'HOSTING & SUPPORT HEAD' }
+      { value: 'founder', text: 'Founder & Creative Director' },
+      { value: 'ceo', text: 'Co-Founder & CEO' },
+      { value: 'ai', text: 'CTO (Technology Head)' },
+      { value: 'video', text: 'CMO (Marketing Head)' },
+      { value: 'support', text: 'CHRO (HR Head)' },
+      { value: 'dev', text: 'CIO (IT Head)' },
+      { value: 'design', text: 'COO & Site Engineer' },
+      { value: 'marketing', text: 'Sales & Pricing Lead' }
     ];
     
     selectElem.innerHTML = '';
@@ -3882,6 +3887,34 @@ function initPortalAuth() {
 
   // Populate dropdown on script load
   updateAdminRoleSelectDropdown();
+
+  // Dynamic Role Selection visibility based on typed email
+  const adminEmailInput = document.getElementById('admin-email');
+  if (adminEmailInput) {
+    adminEmailInput.addEventListener('input', async () => {
+      const emailVal = adminEmailInput.value.trim().toLowerCase();
+      const claimed = await fetchClaimedRoles();
+      
+      let isBound = false;
+      Object.keys(claimed).forEach(roleKey => {
+        if (claimed[roleKey].email === emailVal) {
+          isBound = true;
+        }
+      });
+      
+      const selectElem = document.getElementById('admin-role-select');
+      const inputGroup = selectElem ? selectElem.closest('.portal-input-group') : null;
+      
+      if (isBound) {
+        if (inputGroup) {
+          inputGroup.style.display = 'none';
+        }
+        if (selectElem) selectElem.removeAttribute('required');
+      } else {
+        await updateAdminRoleSelectDropdown();
+      }
+    });
+  }
 
   adminLoginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -4058,6 +4091,9 @@ function initPortalAuth() {
       const details = ADMIN_ROLE_DETAILS[sessionData.uid];
       sessionData.role = 'admin';
       sessionData.username = details.username;
+      alert(`Welcome, ${details.title}!`);
+    } else {
+      alert(`Welcome back, ${sessionData.username}!`);
     }
 
     if (!sessionData.country) {
