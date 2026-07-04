@@ -3934,6 +3934,35 @@ function initPortalAuth() {
     });
   }
 
+  // Delete administrative profile from database handler
+  const deleteDbProfileBtn = document.getElementById('admin-delete-db-profile');
+  if (deleteDbProfileBtn) {
+    deleteDbProfileBtn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const email = prompt("Enter the email address of the admin profile to delete from Supabase:");
+      if (!email) return;
+      
+      const originalText = deleteDbProfileBtn.innerText;
+      deleteDbProfileBtn.innerText = "DELETING...";
+      try {
+        const res = await fetch(`/api/delete-profile?email=${encodeURIComponent(email.trim())}`, {
+          method: 'POST'
+        });
+        const data = await res.json();
+        if (res.ok) {
+          alert(data.message || `Successfully deleted claim for ${email}!`);
+          window.location.reload();
+        } else {
+          alert("Error: " + (data.error?.message || "Failed to delete"));
+          deleteDbProfileBtn.innerText = originalText;
+        }
+      } catch (err) {
+        alert("Error: " + err.message);
+        deleteDbProfileBtn.innerText = originalText;
+      }
+    });
+  }
+
   // Dynamic Role Selection visibility based on typed email
   const adminEmailInput = document.getElementById('admin-email');
   if (adminEmailInput) {
