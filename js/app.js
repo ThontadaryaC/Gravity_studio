@@ -182,6 +182,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initRevenueChart();
   initTimelineReveal();
   initDepartmentFilter();
+  initFAQAccordion();
 });
 
 /* ==========================================================================
@@ -1124,6 +1125,41 @@ function initDepartmentFilter() {
       }
     });
   }
+}
+
+function initFAQAccordion() {
+  const faqItems = document.querySelectorAll('.faq-item');
+  faqItems.forEach(item => {
+    const trigger = item.querySelector('.faq-trigger');
+    const content = item.querySelector('.faq-content');
+    
+    if (trigger && content) {
+      trigger.addEventListener('click', () => {
+        const isActive = item.classList.contains('active');
+        
+        // Close all other FAQ items for a cleaner accordion feel
+        faqItems.forEach(otherItem => {
+          if (otherItem !== item && otherItem.classList.contains('active')) {
+            otherItem.classList.remove('active');
+            const otherTrigger = otherItem.querySelector('.faq-trigger');
+            const otherContent = otherItem.querySelector('.faq-content');
+            if (otherTrigger) otherTrigger.setAttribute('aria-expanded', 'false');
+            if (otherContent) otherContent.style.maxHeight = '0px';
+          }
+        });
+        
+        if (isActive) {
+          item.classList.remove('active');
+          trigger.setAttribute('aria-expanded', 'false');
+          content.style.maxHeight = '0px';
+        } else {
+          item.classList.add('active');
+          trigger.setAttribute('aria-expanded', 'true');
+          content.style.maxHeight = content.scrollHeight + 'px';
+        }
+      });
+    }
+  });
 }
 
 /* ==========================================================================

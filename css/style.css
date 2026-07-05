@@ -4337,4 +4337,112 @@ body.dark-theme .window-header {
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* --- SECTION: FAQ ACCORDION --- */
+#faq {
+  padding: 8rem 10% 8rem 10%;
+  background: var(--bg-deep);
+  border-top: 1px solid var(--glass-border);
+  position: relative;
+  overflow: hidden;
+}
+
+.faq-container {
+  max-width: 900px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.faq-item {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.faq-item:hover {
+  border-color: var(--neon-cyan);
+  box-shadow: 0 0 15px var(--neon-cyan-dim);
+}
+
+.faq-trigger {
+  width: 100%;
+  padding: 1.5rem 2rem;
+  background: transparent;
+  border: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  text-align: left;
+  cursor: pointer;
+  outline: none;
+  font-family: var(--font-header);
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--text-pure);
+  letter-spacing: 0.05rem;
+  transition: color var(--transition-fast);
+}
+
+.faq-trigger:hover, .faq-item.active .faq-trigger {
+  color: var(--neon-cyan);
+}
+
+.faq-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border);
+  color: var(--text-muted);
+  transition: transform var(--transition-medium), background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+}
+
+.faq-item.active .faq-icon {
+  transform: rotate(180deg);
+  background: var(--neon-cyan-dim);
+  border-color: var(--neon-cyan);
+  color: var(--neon-cyan);
+  box-shadow: 0 0 8px var(--neon-cyan-glow);
+}
+
+.faq-content {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height var(--transition-medium) ease-out;
+}
+
+.faq-content-inner {
+  padding: 0 2rem 1.5rem 2rem;
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--text-main);
+}
+
+.faq-content-inner p {
+  margin: 0;
+}
+
+/* Mobile responsive for FAQ */
+@media (max-width: 768px) {
+  #faq {
+    padding: 6rem 5% 5rem 5%;
+  }
+  .faq-trigger {
+    padding: 1.25rem 1.5rem;
+    font-size: 1.05rem;
+  }
+  .faq-content-inner {
+    padding: 0 1.5rem 1.25rem 1.5rem;
+    font-size: 0.95rem;
+  }
+}
+
+
 
