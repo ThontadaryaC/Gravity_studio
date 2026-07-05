@@ -4872,16 +4872,47 @@ async function populateNotificationUserSelect() {
 
   let users = [];
   if (supabaseClient) {
-    const { data, error } = await supabaseClient
-      .from('profiles')
-      .select('id, username, email, avatar_url');
-    if (!error && data) {
-      users = data.map(u => ({
-        id: u.id,
-        username: u.username,
-        email: u.email,
-        avatar_url: u.avatar_url
-      }));
+    try {
+      const session = (await supabaseClient.auth.getSession()).data.session;
+      const token = session?.access_token;
+      const res = await fetch('/api/get-all-users', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        users = data.users || [];
+      } else {
+        console.warn("Failed to get users via API, fallback to profiles");
+        const { data, error } = await supabaseClient
+          .from('profiles')
+          .select('id, username, email, avatar_url');
+        if (!error && data) {
+          users = data.map(u => ({
+            id: u.id,
+            username: u.username,
+            email: u.email,
+            avatar_url: u.avatar_url
+          }));
+        }
+      }
+    } catch(e) {
+      console.warn("Error calling get-all-users API:", e.message);
+      try {
+        const { data, error } = await supabaseClient
+          .from('profiles')
+          .select('id, username, email, avatar_url');
+        if (!error && data) {
+          users = data.map(u => ({
+            id: u.id,
+            username: u.username,
+            email: u.email,
+            avatar_url: u.avatar_url
+          }));
+        }
+      } catch(dbErr) {}
     }
   }
   
@@ -4938,14 +4969,32 @@ async function loadAdminActivityFeed() {
     let users = [];
     if (supabaseClient) {
       try {
-        const { data, error } = await supabaseClient
-          .from('profiles')
-          .select('id, username, email, avatar_url');
-        if (!error && data) {
-          users = data;
+        const session = (await supabaseClient.auth.getSession()).data.session;
+        const token = session?.access_token;
+        const res = await fetch('/api/get-all-users', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          users = data.users || [];
+        } else {
+          console.warn("Failed to get users via API, fallback to profiles");
+          const { data, error } = await supabaseClient
+            .from('profiles')
+            .select('id, username, email, avatar_url');
+          if (!error && data) users = data;
         }
       } catch (e) {
-        console.warn("Error fetching profiles for feed:", e.message);
+        console.warn("Error calling get-all-users API for feed:", e.message);
+        try {
+          const { data, error } = await supabaseClient
+            .from('profiles')
+            .select('id, username, email, avatar_url');
+          if (!error && data) users = data;
+        } catch(dbErr) {}
       }
     }
     
