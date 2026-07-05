@@ -54,11 +54,24 @@ module.exports = async (req, res) => {
 
     const requester = await userResponse.json();
 
-    // Verify Admin Authorization (corporate domain or custom metadata)
+    const ADMIN_ROLE_UUIDS = [
+      'f0000000-0000-0000-0000-000000000001', // founder
+      'c0000000-0000-0000-0000-000000000002', // ceo
+      'a0000000-0000-0000-0000-000000000003', // ai
+      'd0000000-0000-0000-0000-000000000004', // dev
+      'e0000000-0000-0000-0000-000000000005', // design
+      'b0000000-0000-0000-0000-000000000006', // video
+      'b0000000-0000-0000-0000-000000000007', // marketing
+      'b0000000-0000-0000-0000-000000000008'  // support
+    ];
+
+    // Verify Admin Authorization (corporate domain, custom metadata, admin role UUID or founder email)
     const email = requester.email || "";
     const isAdmin = email.endsWith("@gravitystudios.com") || 
                     email === "admin@gravitystudios.com" || 
-                    email === "thontadaryacapt8073@gmail.com";
+                    email === "thontadaryacapt8073@gmail.com" ||
+                    email === "antigravitystudios1@gmail.com" ||
+                    ADMIN_ROLE_UUIDS.includes(requester.id);
 
     if (!isAdmin) {
       return res.status(403).json({ error: { message: "Access Denied: Administrator privileges required." } });
