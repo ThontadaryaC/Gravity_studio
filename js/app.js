@@ -5732,8 +5732,7 @@ async function publishTargetedNotification(title, desc, targetUserId) {
         title: finalTitle,
         desc_text: desc,
         time_label: "Just now",
-        is_read: false,
-        user_id: targetUserId
+        is_read: false
       }]);
     if (error) throw error;
   } else {
