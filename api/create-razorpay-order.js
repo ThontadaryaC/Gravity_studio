@@ -29,8 +29,8 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: { message: "Missing required parameters: amount, currency" } });
     }
 
-    const keyId = process.env.RAZORPAY_KEY_ID;
-    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    const keyId = (process.env.RAZORPAY_KEY_ID || "").trim();
+    const keySecret = (process.env.RAZORPAY_KEY_SECRET || "").trim();
 
     if (!keyId || !keySecret) {
       return res.status(500).json({ 

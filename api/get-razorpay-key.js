@@ -22,7 +22,7 @@ module.exports = async (req, res) => {
     return res.status(405).json({ error: { message: "Method Not Allowed" } });
   }
 
-  const keyId = process.env.RAZORPAY_KEY_ID || "";
+  const keyId = (process.env.RAZORPAY_KEY_ID || "").trim();
 
   return res.status(200).json({ keyId });
 };
