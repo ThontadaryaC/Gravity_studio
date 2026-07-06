@@ -3508,8 +3508,9 @@ body.dark-theme .window-header {
   }
 
   .dashboard-window-container {
-    width: 92%;
-    max-height: 75vh;
+    width: 95%;
+    max-height: 85vh;
+    z-index: 1060;
   }
 }
 
@@ -4318,11 +4319,12 @@ body.dark-theme .window-header {
   
   .dashboard-window-container {
     width: 95% !important;
-    margin: 10px auto;
-    right: 2.5% !important;
-    left: 2.5% !important;
+    left: 50% !important;
+    right: auto !important;
+    margin: 0 !important;
     height: auto !important;
     max-height: 85vh !important;
+    z-index: 1060 !important;
   }
 
   .window-header {
