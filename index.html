@@ -1611,9 +1611,14 @@
   </div>
 
   <div class="dashboard-window-container" id="window-notifications" style="display: none;">
-    <div class="window-header">
+    <div class="window-header" style="display: flex; justify-content: space-between; align-items: center;">
       <span class="window-title"><i data-lucide="bell"></i> System Notifications</span>
-      <button class="window-close-btn" data-close="notifications">&times;</button>
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <button id="clear-all-notifications-btn" title="Clear All Notifications" style="background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.75rem; display: flex; align-items: center; gap: 0.25rem; padding: 0.2rem 0.5rem; border-radius: 4px; transition: all 0.2s;">
+          <i data-lucide="trash-2" style="width: 12px; height: 12px; vertical-align: middle;"></i> Clear All
+        </button>
+        <button class="window-close-btn" data-close="notifications" style="margin: 0; line-height: 1;">&times;</button>
+      </div>
     </div>
     <div class="window-body">
       <div class="notif-list" id="notifications-list-container">

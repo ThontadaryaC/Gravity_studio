@@ -1682,6 +1682,36 @@ function initPortalAuth() {
     });
   });
 
+  // Bind clear all notifications button
+  const clearAllNotificationsBtn = document.getElementById('clear-all-notifications-btn');
+  if (clearAllNotificationsBtn) {
+    clearAllNotificationsBtn.addEventListener('click', async () => {
+      if (confirm("Are you sure you want to clear all notifications?")) {
+        if (supabaseClient) {
+          try {
+            // Delete user-specific and system-wide notifications
+            if (currentSession && currentSession.uid) {
+              await supabaseClient
+                .from('notifications')
+                .delete()
+                .or(`user_id.eq.${currentSession.uid},user_id.is.null`);
+            } else {
+              await supabaseClient
+                .from('notifications')
+                .delete()
+                .is('user_id', null);
+            }
+          } catch (err) {
+            console.warn("Failed to delete notifications from Supabase:", err);
+          }
+        }
+        // Save empty array to prevent default re-seeding on reload
+        localStorage.setItem('gravity-system-notifications', '[]');
+        await renderNotifications();
+      }
+    });
+  }
+
   // Profile Avatar Interactive Handlers
   const uploadAvatarBtn = document.getElementById('upload-avatar-btn');
   const removeAvatarBtn = document.getElementById('remove-avatar-btn');
@@ -1890,9 +1920,14 @@ function initPortalAuth() {
             <div class="notif-desc" style="font-size:0.85rem; color:var(--text-muted); margin:0.25rem 0;">${notif.desc}</div>
             <div class="notif-time" style="font-size:0.75rem; color:var(--neon-cyan);">${notif.time}</div>
           </div>
-          <button class="notif-share-btn" title="Share Notification" style="background:transparent; border:none; color:var(--text-muted); cursor:pointer; padding:0.25rem; border-radius:4px; display:flex; align-items:center; justify-content:center; transition: all 0.2s; margin-top: -2px;">
-            <i data-lucide="share-2" style="width:14px; height:14px;"></i>
-          </button>
+          <div style="display:flex; gap:0.25rem; align-items:center;">
+            <button class="notif-share-btn" title="Share Notification" style="background:transparent; border:none; color:var(--text-muted); cursor:pointer; padding:0.25rem; border-radius:4px; display:flex; align-items:center; justify-content:center; transition: all 0.2s; margin-top: -2px;">
+              <i data-lucide="share-2" style="width:14px; height:14px;"></i>
+            </button>
+            <button class="notif-delete-btn" title="Delete Notification" style="background:transparent; border:none; color:var(--text-muted); cursor:pointer; padding:0.25rem; border-radius:4px; display:flex; align-items:center; justify-content:center; transition: all 0.2s; margin-top: -2px;" onmouseover="this.style.color='#ff5555'" onmouseout="this.style.color='var(--text-muted)'">
+              <i data-lucide="trash-2" style="width:14px; height:14px;"></i>
+            </button>
+          </div>
         </div>
       `;
 
@@ -1934,8 +1969,39 @@ function initPortalAuth() {
         });
       }
 
+      // Delete button click handler
+      const deleteBtn = div.querySelector('.notif-delete-btn');
+      if (deleteBtn) {
+        deleteBtn.addEventListener('click', async (e) => {
+          e.stopPropagation(); // Avoid triggering mark-as-read click event
+          if (confirm("Are you sure you want to delete this notification?")) {
+            if (supabaseClient) {
+              try {
+                await supabaseClient
+                  .from('notifications')
+                  .delete()
+                  .eq('id', notif.id);
+              } catch (err) {
+                console.warn("Failed to delete notification from Supabase:", err);
+              }
+            }
+            
+            // Delete from local storage
+            let localNotifs = JSON.parse(localStorage.getItem('gravity-system-notifications')) || [];
+            localNotifs = localNotifs.filter(n => String(n.id) !== String(notif.id));
+            localStorage.setItem('gravity-system-notifications', JSON.stringify(localNotifs));
+            
+            await renderNotifications();
+          }
+        });
+      }
+
       container.appendChild(div);
     });
+
+    if (typeof lucide !== 'undefined') {
+      lucide.createIcons();
+    }
   }
 
   // Render Payments & Billing Tab
