@@ -404,6 +404,7 @@ function initNavbarScroll() {
   const header = document.querySelector('header');
   const sections = document.querySelectorAll('section');
   const navLinks = document.querySelectorAll('.nav-links a');
+  let lastScrollY = window.scrollY;
 
   window.addEventListener('scroll', () => {
     if (window.scrollY > 50) {
@@ -411,6 +412,23 @@ function initNavbarScroll() {
     } else {
       header.classList.remove('scrolled');
     }
+
+    // Hide header on scroll down, show on scroll up. Keep hidden if a sidebar is open.
+    const userSidebar = document.getElementById('user-sidebar');
+    const adminSidebar = document.getElementById('admin-sidebar');
+    const isSidebarOpen = (userSidebar && userSidebar.classList.contains('open')) ||
+                          (adminSidebar && adminSidebar.classList.contains('open'));
+
+    if (isSidebarOpen) {
+      header.classList.add('header-hidden');
+    } else {
+      if (window.scrollY > lastScrollY && window.scrollY > 150) {
+        header.classList.add('header-hidden');
+      } else if (window.scrollY < lastScrollY) {
+        header.classList.remove('header-hidden');
+      }
+    }
+    lastScrollY = window.scrollY;
 
     let current = '';
     sections.forEach(section => {
@@ -1487,6 +1505,10 @@ function initPortalAuth() {
 
   function openSidebar() {
     closePortal(); // Ensure modal is closed
+    const headerElement = document.querySelector('header');
+    if (headerElement) {
+      headerElement.classList.add('header-hidden');
+    }
     const isAdmin = currentSession && currentSession.role === 'admin' && !currentSession.viewAsClient;
     const targetSidebar = isAdmin ? adminSidebar : sidebar;
     const targetBackdrop = isAdmin ? adminSidebarBackdrop : sidebarBackdrop;
@@ -1569,6 +1591,13 @@ function initPortalAuth() {
     
     // Close all open floating windows as well
     closeAllWindows();
+
+    const headerElement = document.querySelector('header');
+    if (headerElement) {
+      if (window.scrollY <= 150) {
+        headerElement.classList.remove('header-hidden');
+      }
+    }
     
     setTimeout(() => {
       if (!sidebar.classList.contains('open')) {
