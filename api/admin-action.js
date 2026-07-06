@@ -83,6 +83,12 @@ module.exports = async (req, res) => {
       
       // Perform database updates via Supabase REST API
       if (action === "publish-notification") {
+        let finalTitle = payload.title;
+        if (user.id === 'f0000000-0000-0000-0000-000000000001') {
+          finalTitle = `[Founder] ${payload.title}`;
+        } else if (user.id === 'c0000000-0000-0000-0000-000000000002') {
+          finalTitle = `[CEO] ${payload.title}`;
+        }
         const dbRes = await fetch(`${SUPABASE_URL}/rest/v1/notifications`, {
           method: "POST",
           headers: {
@@ -92,7 +98,7 @@ module.exports = async (req, res) => {
             "Prefer": "return=representation"
           },
           body: JSON.stringify({
-            title: payload.title,
+            title: finalTitle,
             desc_text: payload.desc,
             time_label: "Just now",
             is_read: false

@@ -1867,12 +1867,16 @@ function initPortalAuth() {
     }
 
     notifs.forEach(notif => {
-      let isFounderNotif = notif.title.includes('[FOUNDER]');
+      let isFounderNotif = notif.title.includes('[FOUNDER]') || notif.title.includes('[Founder]');
+      let isCeoNotif = notif.title.includes('[CEO]');
       let displayTitle = notif.title;
       let badgeHtml = '';
       if (isFounderNotif) {
-        displayTitle = notif.title.replace(/\[FOUNDER\]/g, '').trim();
+        displayTitle = notif.title.replace(/\[FOUNDER\]/gi, '').trim();
         badgeHtml = `<span style="background:linear-gradient(135deg, var(--neon-pink), var(--neon-purple)); color:#fff; font-size:0.65rem; font-weight:900; padding:0.15rem 0.4rem; border-radius:4px; text-transform:uppercase; box-shadow:0 0 10px rgba(255, 51, 102, 0.4); border: 1px solid rgba(255,255,255,0.15);">FOUNDER</span>`;
+      } else if (isCeoNotif) {
+        displayTitle = notif.title.replace(/\[CEO\]/g, '').trim();
+        badgeHtml = `<span style="background:linear-gradient(135deg, #00bcff, var(--neon-cyan)); color:#fff; font-size:0.65rem; font-weight:900; padding:0.15rem 0.4rem; border-radius:4px; text-transform:uppercase; box-shadow:0 0 10px rgba(0, 188, 255, 0.4); border: 1px solid rgba(255,255,255,0.15);">CEO</span>`;
       }
 
       const div = document.createElement('div');
@@ -1946,8 +1950,29 @@ function initPortalAuth() {
       catalogGrid.innerHTML = '';
       const isIndian = currentSession && (currentSession.country === 'India' || (currentSession.phone && currentSession.phone.startsWith('+91')));
       const symbol = isIndian ? '₹' : '$';
-      
-      prices.forEach(s => {
+
+      const dept = getDepartmentForEmail(currentSession?.email);
+
+      const DEPARTMENT_DETAILS = {
+        'ai': { name: 'AI Research & Innovation', head: 'Thontadaraya (CTO)', color: 'var(--neon-cyan)', icon: 'brain' },
+        'dev': { name: 'Technology & IT', head: 'Pruthvi Raj (CIO)', color: '#00bcff', icon: 'cpu' },
+        'design': { name: 'Design, Branding & Operations', head: 'Shreyas (COO & Site Engineer)', color: 'var(--neon-purple)', icon: 'palette' },
+        'video': { name: 'Video, Animation & VFX', head: 'Munish (CMO)', color: 'var(--neon-pink)', icon: 'video' },
+        'marketing': { name: 'Digital Marketing & Sales', head: 'Subhash (Sales & Pricing Lead)', color: 'var(--neon-amber)', icon: 'megaphone' },
+        'support': { name: 'Tech Support, HR & Admin', head: 'Pavan Krishna (CHRO)', color: 'var(--neon-green)', icon: 'headphones' }
+      };
+
+      const getDepartmentForService = (serviceId) => {
+        const depts = ['ai', 'dev', 'design', 'video', 'marketing', 'support'];
+        for (const d of depts) {
+          if (serviceMatchesDepartment(serviceId, d)) {
+            return d;
+          }
+        }
+        return 'other';
+      };
+
+      const createServiceCard = (s) => {
         const totalMin = isIndian ? s.priceINR : s.priceUSD;
         const totalMax = isIndian ? (s.priceMaxINR || totalMin) : (s.priceMaxUSD || totalMin);
         const hasRange = totalMax > totalMin;
@@ -1962,6 +1987,7 @@ function initPortalAuth() {
         card.style.background = 'rgba(255,255,255,0.02)';
         card.style.border = '1px solid var(--glass-border)';
         card.style.borderRadius = '8px';
+        card.style.marginBottom = '0.5rem';
         
         let selectHtml = '';
         if (hasRange) {
@@ -1984,8 +2010,89 @@ function initPortalAuth() {
           </div>
           <button class="catalog-pay-btn" data-service-id="${s.id}" data-service-name="${s.name}" data-price="${totalMin}" data-advance="${totalMin / 2}" data-tier="Standard Tier" style="padding: 0.5rem 0.75rem; background: rgba(176, 38, 255, 0.15); border: 1px solid var(--neon-purple); border-radius: 6px; color: var(--neon-purple); font-weight: 600; font-family: inherit; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; white-space: nowrap; margin-left: 0.5rem;">Book for ${symbol}${(totalMin / 2).toLocaleString()}</button>
         `;
-        catalogGrid.appendChild(card);
-      });
+        return card;
+      };
+
+      if (dept !== 'none' && dept !== 'all') {
+        const deptInfo = DEPARTMENT_DETAILS[dept];
+        const deptServices = prices.filter(s => getDepartmentForService(s.id) === dept);
+
+        const groupDiv = document.createElement('div');
+        groupDiv.className = 'dept-catalog-group';
+        groupDiv.style.marginBottom = '1.5rem';
+        groupDiv.style.border = `1px dashed ${deptInfo.color}`;
+        groupDiv.style.borderRadius = '12px';
+        groupDiv.style.padding = '1rem';
+        groupDiv.style.background = 'rgba(0,0,0,0.15)';
+        
+        groupDiv.innerHTML = `
+          <h6 style="margin: 0 0 0.75rem 0; color: ${deptInfo.color}; font-family: monospace; font-size: 0.9rem; letter-spacing: 1px; display: flex; align-items: center; gap: 0.5rem;">
+            <i data-lucide="${deptInfo.icon}" style="width: 16px; height: 16px;"></i>
+            > SERVICES PROVIDED BY YOUR DEPARTMENT: ${deptInfo.name.toUpperCase()}
+          </h6>
+          <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.75rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.5rem; display: flex; justify-content: space-between;">
+            <span><strong>Head:</strong> ${deptInfo.head}</span>
+            <span><strong>Status:</strong> YOUR DEPARTMENT (AUTHORIZED CONTROL)</span>
+          </div>
+          <div class="dept-services-list" style="display: flex; flex-direction: column; gap: 0.75rem;">
+          </div>
+        `;
+        
+        const listDiv = groupDiv.querySelector('.dept-services-list');
+        if (deptServices.length === 0) {
+          listDiv.innerHTML = '<p class="text-muted" style="font-size:0.8rem; margin:0;">> No services configured for this department.</p>';
+        } else {
+          deptServices.forEach(s => {
+            listDiv.appendChild(createServiceCard(s));
+          });
+        }
+        catalogGrid.appendChild(groupDiv);
+      } else {
+        const deptsKeys = ['ai', 'dev', 'design', 'video', 'marketing', 'support'];
+        
+        deptsKeys.forEach(dk => {
+          const deptInfo = DEPARTMENT_DETAILS[dk];
+          const deptServices = prices.filter(s => getDepartmentForService(s.id) === dk);
+          
+          if (deptServices.length > 0) {
+            const groupDiv = document.createElement('div');
+            groupDiv.className = 'dept-catalog-group';
+            groupDiv.style.marginBottom = '1.5rem';
+            groupDiv.style.border = '1px dashed rgba(255,255,255,0.08)';
+            groupDiv.style.borderRadius = '12px';
+            groupDiv.style.padding = '1rem';
+            groupDiv.style.background = 'rgba(0,0,0,0.15)';
+            
+            let statusText = 'ACTIVE';
+            if (dept === 'all') {
+              statusText = 'SYSTEM OVERVIEW (FOUNDER/CEO VIEW)';
+            }
+            
+            groupDiv.innerHTML = `
+              <h6 style="margin: 0 0 0.75rem 0; color: ${deptInfo.color}; font-family: monospace; font-size: 0.9rem; letter-spacing: 1px; display: flex; align-items: center; gap: 0.5rem;">
+                <i data-lucide="${deptInfo.icon}" style="width: 16px; height: 16px;"></i>
+                > DEPARTMENT: ${deptInfo.name.toUpperCase()}
+              </h6>
+              <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.75rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.5rem; display: flex; justify-content: space-between;">
+                <span><strong>Serving Resource Head:</strong> ${deptInfo.head}</span>
+                <span><strong>Status:</strong> ${statusText}</span>
+              </div>
+              <div class="dept-services-list" style="display: flex; flex-direction: column; gap: 0.75rem;">
+              </div>
+            `;
+            
+            const listDiv = groupDiv.querySelector('.dept-services-list');
+            deptServices.forEach(s => {
+              listDiv.appendChild(createServiceCard(s));
+            });
+            catalogGrid.appendChild(groupDiv);
+          }
+        });
+      }
+
+      if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+      }
 
       // Bind tier selection changes
       catalogGrid.querySelectorAll('.tier-select').forEach(select => {
@@ -4818,10 +4925,10 @@ function serviceMatchesDepartment(serviceId, department) {
     ].includes(cleanId);
   }
   if (department === 'design') {
-    return ['logo_design', 'brand_identity', 'ui_ux_design', 'presentation_design', 'graphic_design'].includes(cleanId);
+    return ['logo_design', 'brand_identity', 'ui_ux_design', 'presentation_design', 'graphic_design', 'anime_design', 'thumbnail_creation', 'civil_construction'].includes(cleanId);
   }
   if (department === 'video') {
-    return ['ai_video', 'animation', 'explainer_video', 'motion_graphics', 'product_advertisement'].includes(cleanId);
+    return ['ai_video', 'animation', 'explainer_video', 'motion_graphics', 'product_advertisement', 'youtube_intro', 'vfx_package'].includes(cleanId);
   }
   if (department === 'marketing') {
     return ['seo', 'social_media', 'google_ads', 'meta_ads', 'email_marketing'].includes(cleanId);
@@ -4946,8 +5053,27 @@ async function populateNotificationUserSelect() {
   if (!selectElem) return;
   selectElem.innerHTML = '<option value="">-- Select User --</option>';
 
-  let users = [];
+  let usersMap = new Map();
+
   if (supabaseClient) {
+    try {
+      const { data: dbProfiles, error } = await supabaseClient
+        .from('profiles')
+        .select('id, username, email, avatar_url');
+      if (!error && dbProfiles) {
+        dbProfiles.forEach(p => {
+          usersMap.set(p.id, {
+            id: p.id,
+            username: p.username,
+            email: p.email,
+            avatar_url: p.avatar_url
+          });
+        });
+      }
+    } catch (e) {
+      console.warn("Direct profiles fetch error:", e);
+    }
+
     try {
       const session = (await supabaseClient.auth.getSession()).data.session;
       const token = session?.access_token;
@@ -4959,38 +5085,23 @@ async function populateNotificationUserSelect() {
       });
       if (res.ok) {
         const data = await res.json();
-        users = data.users || [];
-      } else {
-        console.warn("Failed to get users via API, fallback to profiles");
-        const { data, error } = await supabaseClient
-          .from('profiles')
-          .select('id, username, email, avatar_url');
-        if (!error && data) {
-          users = data.map(u => ({
+        const apiUsers = data.users || [];
+        apiUsers.forEach(u => {
+          const existing = usersMap.get(u.id) || {};
+          usersMap.set(u.id, {
             id: u.id,
-            username: u.username,
-            email: u.email,
-            avatar_url: u.avatar_url
-          }));
-        }
+            username: u.username || existing.username,
+            email: u.email || existing.email,
+            avatar_url: u.avatar_url || existing.avatar_url
+          });
+        });
       }
     } catch(e) {
-      console.warn("Error calling get-all-users API:", e.message);
-      try {
-        const { data, error } = await supabaseClient
-          .from('profiles')
-          .select('id, username, email, avatar_url');
-        if (!error && data) {
-          users = data.map(u => ({
-            id: u.id,
-            username: u.username,
-            email: u.email,
-            avatar_url: u.avatar_url
-          }));
-        }
-      } catch(dbErr) {}
+      console.warn("API users fetch error:", e);
     }
   }
+
+  let users = Array.from(usersMap.values());
   
   const localUsers = JSON.parse(localStorage.getItem('gravity-registered-users')) || [];
   localUsers.forEach(lu => {
@@ -5005,16 +5116,13 @@ async function populateNotificationUserSelect() {
     }
   });
 
-  // Filter based on who is logged in: Founder/CEO sees everyone, other admins see only Google logins (not admins)
   const dept = getDepartmentForEmail(currentSession?.email);
   const isSuper = (dept === 'all');
 
   const filteredUsers = users.filter(u => {
     if (isSuper) {
-      // Founder/CEO sees ALL accounts (including other admins) except themselves
       return u.id !== currentSession?.uid;
     } else {
-      // Other admins see only regular clients (not administrative accounts)
       const isAnyAdmin = Object.values(ADMIN_ROLE_UUIDS).includes(u.id);
       return !isAnyAdmin;
     }
@@ -5024,8 +5132,14 @@ async function populateNotificationUserSelect() {
     const opt = document.createElement('option');
     opt.value = u.id;
     const isAnyAdmin = Object.values(ADMIN_ROLE_UUIDS).includes(u.id);
-    const labelSuffix = isAnyAdmin ? 'Admin' : 'Google';
-    opt.innerText = `${u.username} (${u.email}) [${labelSuffix}]`;
+    let displayName = u.username;
+    let labelSuffix = isAnyAdmin ? 'Admin' : 'Google';
+
+    if (isAnyAdmin && ADMIN_ROLE_DETAILS[u.id]) {
+      displayName = `${ADMIN_ROLE_DETAILS[u.id].username} (${ADMIN_ROLE_DETAILS[u.id].title})`;
+    }
+
+    opt.innerText = `${displayName} (${u.email}) [${labelSuffix}]`;
     selectElem.appendChild(opt);
   });
 }
@@ -5042,8 +5156,27 @@ async function loadAdminActivityFeed() {
     if (titleElem) titleElem.innerText = '> SYSTEM ACCOUNTS';
     feedElem.innerHTML = '<p class="text-muted">> Loading accounts...</p>';
 
-    let users = [];
+    let usersMap = new Map();
+
     if (supabaseClient) {
+      try {
+        const { data: dbProfiles, error } = await supabaseClient
+          .from('profiles')
+          .select('id, username, email, avatar_url');
+        if (!error && dbProfiles) {
+          dbProfiles.forEach(p => {
+            usersMap.set(p.id, {
+              id: p.id,
+              username: p.username,
+              email: p.email,
+              avatar_url: p.avatar_url
+            });
+          });
+        }
+      } catch (e) {
+        console.warn("Direct profiles fetch error for feed:", e);
+      }
+
       try {
         const session = (await supabaseClient.auth.getSession()).data.session;
         const token = session?.access_token;
@@ -5055,24 +5188,23 @@ async function loadAdminActivityFeed() {
         });
         if (res.ok) {
           const data = await res.json();
-          users = data.users || [];
-        } else {
-          console.warn("Failed to get users via API, fallback to profiles");
-          const { data, error } = await supabaseClient
-            .from('profiles')
-            .select('id, username, email, avatar_url');
-          if (!error && data) users = data;
+          const apiUsers = data.users || [];
+          apiUsers.forEach(u => {
+            const existing = usersMap.get(u.id) || {};
+            usersMap.set(u.id, {
+              id: u.id,
+              username: u.username || existing.username,
+              email: u.email || existing.email,
+              avatar_url: u.avatar_url || existing.avatar_url
+            });
+          });
         }
-      } catch (e) {
-        console.warn("Error calling get-all-users API for feed:", e.message);
-        try {
-          const { data, error } = await supabaseClient
-            .from('profiles')
-            .select('id, username, email, avatar_url');
-          if (!error && data) users = data;
-        } catch(dbErr) {}
+      } catch(e) {
+        console.warn("API users fetch error for feed:", e);
       }
     }
+
+    let users = Array.from(usersMap.values());
     
     // Merge with local users fallback
     const localUsers = JSON.parse(localStorage.getItem('gravity-registered-users')) || [];
@@ -5088,7 +5220,6 @@ async function loadAdminActivityFeed() {
       }
     });
 
-    // Founder/CEO sees ALL accounts (including other admins) except themselves
     const allAccounts = users.filter(u => u.id !== currentSession?.uid);
 
     feedElem.innerHTML = '';
@@ -5103,26 +5234,30 @@ async function loadAdminActivityFeed() {
         div.style.alignItems = 'center';
         div.style.gap = '0.5rem';
         
+        const isAnyAdmin = Object.values(ADMIN_ROLE_UUIDS).includes(u.id);
+        let displayName = u.username;
+        let badgeHtml = '';
+        if (isAnyAdmin) {
+          const roleKey = Object.keys(ADMIN_ROLE_UUIDS).find(k => ADMIN_ROLE_UUIDS[k] === u.id);
+          badgeHtml = `<span style="color: var(--neon-pink); font-weight: bold; font-size: 0.7rem;">[ADMIN: ${roleKey.toUpperCase()}]</span>`;
+          if (ADMIN_ROLE_DETAILS[u.id]) {
+            displayName = ADMIN_ROLE_DETAILS[u.id].username;
+          }
+        } else {
+          badgeHtml = `<span style="color: var(--neon-green); font-weight: bold; font-size: 0.7rem;">[CLIENT]</span>`;
+        }
+
         let avatarStyle = 'width: 20px; height: 20px; border-radius: 50%; background: var(--neon-purple); display: flex; align-items: center; justify-content: center; font-size: 0.65rem; color: #fff; flex-shrink: 0;';
-        let avatarHtml = `<div style="${avatarStyle}">${(u.username || 'U').charAt(0).toUpperCase()}</div>`;
+        let avatarHtml = `<div style="${avatarStyle}">${displayName.charAt(0).toUpperCase()}</div>`;
         if (u.avatar_url || u.avatarUrl) {
           const actualUrl = u.avatar_url || u.avatarUrl;
           avatarHtml = `<div style="${avatarStyle} background-image: url(${actualUrl}); background-size: cover; background-position: center;"></div>`;
         }
 
-        const isAnyAdmin = Object.values(ADMIN_ROLE_UUIDS).includes(u.id);
-        let badgeHtml = '';
-        if (isAnyAdmin) {
-          const roleKey = Object.keys(ADMIN_ROLE_UUIDS).find(k => ADMIN_ROLE_UUIDS[k] === u.id);
-          badgeHtml = `<span style="color: var(--neon-pink); font-weight: bold; font-size: 0.7rem;">[ADMIN: ${roleKey.toUpperCase()}]</span>`;
-        } else {
-          badgeHtml = `<span style="color: var(--neon-green); font-weight: bold; font-size: 0.7rem;">[CLIENT]</span>`;
-        }
-
         div.innerHTML = `
           ${badgeHtml}
           ${avatarHtml}
-          <span style="color: #fff; font-weight: bold;">${u.username}</span>
+          <span style="color: #fff; font-weight: bold;">${displayName}</span>
           <span style="color: var(--text-muted); font-size: 0.75rem;">(${u.email})</span>
         `;
         feedElem.appendChild(div);
@@ -5582,8 +5717,12 @@ async function loadAdminPricingManager() {
 
 async function publishTargetedNotification(title, desc, targetUserId) {
   let finalTitle = title;
-  if (currentSession && currentSession.uid === ADMIN_ROLE_UUIDS.founder) {
-    finalTitle = `[FOUNDER] ${title}`;
+  if (currentSession) {
+    if (currentSession.uid === ADMIN_ROLE_UUIDS.founder) {
+      finalTitle = `[Founder] ${title}`;
+    } else if (currentSession.uid === ADMIN_ROLE_UUIDS.ceo) {
+      finalTitle = `[CEO] ${title}`;
+    }
   }
 
   if (supabaseClient) {
