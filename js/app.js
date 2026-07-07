@@ -1687,26 +1687,37 @@ function initPortalAuth() {
   if (clearAllNotificationsBtn) {
     clearAllNotificationsBtn.addEventListener('click', async () => {
       if (confirm("Are you sure you want to clear all notifications?")) {
-        if (supabaseClient) {
-          try {
-            // Delete user-specific and system-wide notifications
-            if (currentSession && currentSession.uid) {
-              await supabaseClient
-                .from('notifications')
-                .delete()
-                .or(`user_id.eq.${currentSession.uid},user_id.is.null`);
-            } else {
-              await supabaseClient
-                .from('notifications')
-                .delete()
-                .is('user_id', null);
-            }
-          } catch (err) {
-            console.warn("Failed to delete notifications from Supabase:", err);
-          }
-        }
-        // Save empty array to prevent default re-seeding on reload
+        // Clear local storage first
         localStorage.setItem('gravity-system-notifications', '[]');
+        
+        // Add all current IDs to local blacklist to keep UI responsive
+        if (window.currentNotificationIds) {
+          let deletedIds = JSON.parse(localStorage.getItem('gravity-deleted-notifications')) || [];
+          deletedIds = [...new Set([...deletedIds.map(String), ...window.currentNotificationIds.map(String)])];
+          localStorage.setItem('gravity-deleted-notifications', JSON.stringify(deletedIds));
+        }
+        
+        // Clear from Supabase database via secure serverless endpoint
+        try {
+          const payload = { clearAll: true };
+          if (currentSession && currentSession.uid) {
+            payload.userId = currentSession.uid;
+          }
+          const response = await fetch('/api/delete-notification', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+          });
+          if (!response.ok) {
+            const errData = await response.json();
+            console.warn("Failed to clear notifications from database:", errData.error?.message);
+          }
+        } catch (err) {
+          console.warn("Failed to contact notification clear API:", err);
+        }
+        
         await renderNotifications();
       }
     });
@@ -1875,6 +1886,14 @@ function initPortalAuth() {
       }
     }
 
+    // Filter out blacklisted (deleted) notifications
+    let deletedIds = JSON.parse(localStorage.getItem('gravity-deleted-notifications')) || [];
+    deletedIds = deletedIds.map(String);
+    notifs = notifs.filter(n => !deletedIds.includes(String(n.id)));
+
+    // Save current active IDs globally so they can be cleared
+    window.currentNotificationIds = notifs.map(n => n.id);
+
     container.innerHTML = '';
 
     if (notifs.length === 0) {
@@ -1975,21 +1994,34 @@ function initPortalAuth() {
         deleteBtn.addEventListener('click', async (e) => {
           e.stopPropagation(); // Avoid triggering mark-as-read click event
           if (confirm("Are you sure you want to delete this notification?")) {
-            if (supabaseClient) {
-              try {
-                await supabaseClient
-                  .from('notifications')
-                  .delete()
-                  .eq('id', notif.id);
-              } catch (err) {
-                console.warn("Failed to delete notification from Supabase:", err);
-              }
-            }
-            
-            // Delete from local storage
+            // Delete from local storage first to keep UI responsive
             let localNotifs = JSON.parse(localStorage.getItem('gravity-system-notifications')) || [];
             localNotifs = localNotifs.filter(n => String(n.id) !== String(notif.id));
             localStorage.setItem('gravity-system-notifications', JSON.stringify(localNotifs));
+            
+            // Add to blacklist to keep UI responsive and prevent resurrection
+            let deletedIds = JSON.parse(localStorage.getItem('gravity-deleted-notifications')) || [];
+            if (!deletedIds.map(String).includes(String(notif.id))) {
+              deletedIds.push(String(notif.id));
+              localStorage.setItem('gravity-deleted-notifications', JSON.stringify(deletedIds));
+            }
+            
+            // Delete from Supabase database via secure serverless endpoint
+            try {
+              const response = await fetch('/api/delete-notification', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ id: notif.id })
+              });
+              if (!response.ok) {
+                const errData = await response.json();
+                console.warn("Failed to delete notification from database:", errData.error?.message);
+              }
+            } catch (err) {
+              console.warn("Failed to contact notification delete API:", err);
+            }
             
             await renderNotifications();
           }
