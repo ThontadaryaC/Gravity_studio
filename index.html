@@ -227,24 +227,28 @@
 
   <!-- 10-SECOND INTRO LOADER OVERLAY -->
   <div id="intro-loader" role="dialog" aria-modal="true" aria-label="Gravity Studios Loading Screen">
-    <video class="intro-video-container" id="intro-video" muted playsinline></video>
+    <video class="intro-video-container" id="intro-video" autoplay preload="auto" muted playsinline></video>
     <script>
       (function() {
         var isDark = localStorage.getItem('gravity-theme') === 'dark';
+        var isMobile = window.innerWidth < 768 || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
         var videoEl = document.getElementById('intro-video');
-        var supabaseSrc = isDark 
-          ? 'https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/Intro_dark_theme.mp4' 
-          : 'https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/intro.mp4';
-        var localSrc = isDark 
-          ? 'assets/video/gallery/Intro_dark_theme.mp4' 
-          : 'assets/video/gallery/intro.mp4';
         
-        videoEl.src = supabaseSrc;
+        var primarySrc, fallbackSrc;
+        if (isDark) {
+          primarySrc = isMobile ? 'assets/video/gallery/Intro_dark_theme_mobile.mp4' : 'assets/video/gallery/Intro_dark_theme.mp4';
+          fallbackSrc = 'https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/Intro_dark_theme.mp4';
+        } else {
+          primarySrc = isMobile ? 'assets/video/gallery/intro_mobile.mp4' : 'assets/video/gallery/intro.mp4';
+          fallbackSrc = 'https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/intro.mp4';
+        }
         
-        // If Supabase video fails to load, fallback to local assets
+        videoEl.src = primarySrc;
+        
+        // If local video fails to load, fallback to Supabase URL
         videoEl.addEventListener('error', function() {
-          if (videoEl.src !== localSrc) {
-            videoEl.src = localSrc;
+          if (videoEl.src !== fallbackSrc) {
+            videoEl.src = fallbackSrc;
             videoEl.load();
             videoEl.play().catch(function() {});
           }

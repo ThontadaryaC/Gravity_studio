@@ -277,7 +277,11 @@ function initIntroLoader() {
 
   if (introVideo) {
     introVideo.addEventListener('error', () => {
-      startFallbackAnimation();
+      const currentSrc = introVideo.src || '';
+      // Only start fallback animation if we have already tried the remote fallback source
+      if (currentSrc.indexOf('supabase.co') !== -1) {
+        startFallbackAnimation();
+      }
     });
     introVideo.play().catch(() => {
       startFallbackAnimation();
