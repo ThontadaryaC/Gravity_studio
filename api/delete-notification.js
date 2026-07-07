@@ -34,20 +34,7 @@ module.exports = async (req, res) => {
     const { id, clearAll, userId } = body || {};
 
     if (clearAll) {
-      // Clear system notifications (user_id is null)
-      const delGeneralRes = await fetch(`${SUPABASE_URL}/rest/v1/notifications?user_id=is.null`, {
-        method: "DELETE",
-        headers: {
-          "Authorization": `Bearer ${serviceRoleKey}`,
-          "apikey": serviceRoleKey
-        }
-      });
-
-      if (!delGeneralRes.ok) {
-        console.warn("Failed to clear general notifications:", await delGeneralRes.text());
-      }
-
-      // If user ID is provided, also clear user-specific notifications
+      // If user ID is provided, clear user-specific notifications only (never system/general notifications)
       if (userId) {
         const delUserRes = await fetch(`${SUPABASE_URL}/rest/v1/notifications?user_id=eq.${encodeURIComponent(userId)}`, {
           method: "DELETE",
@@ -63,8 +50,8 @@ module.exports = async (req, res) => {
 
       return res.status(200).json({ success: true, message: "Notifications cleared successfully" });
     } else if (id) {
-      // Delete specific notification (works for both UUIDs and numeric IDs)
-      let delUrl = `${SUPABASE_URL}/rest/v1/notifications?id=eq.${encodeURIComponent(id)}`;
+      // Delete specific notification (only if it is a private notification, i.e., user_id is not null)
+      let delUrl = `${SUPABASE_URL}/rest/v1/notifications?id=eq.${encodeURIComponent(id)}&user_id=not.is.null`;
       
       const delRes = await fetch(delUrl, {
         method: "DELETE",

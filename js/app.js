@@ -1687,9 +1687,6 @@ function initPortalAuth() {
   if (clearAllNotificationsBtn) {
     clearAllNotificationsBtn.addEventListener('click', async () => {
       if (confirm("Are you sure you want to clear all notifications?")) {
-        // Clear local storage first
-        localStorage.setItem('gravity-system-notifications', '[]');
-        
         // Add all current IDs to local blacklist to keep UI responsive
         if (window.currentNotificationIds) {
           let deletedIds = JSON.parse(localStorage.getItem('gravity-deleted-notifications')) || [];
@@ -1850,10 +1847,6 @@ function initPortalAuth() {
     { id: 1, title: 'Welcome to Gravity Studio Workspace', desc: 'Book creative technology services, pay advances securely via Razorpay, track rendering milestones in real-time, and manage invoices directly in your portal.', time: '1h ago', read: false }
   ];
 
-  if (!localStorage.getItem('gravity-system-notifications')) {
-    localStorage.setItem('gravity-system-notifications', JSON.stringify(defaultNotifications));
-  }
-
   // Render Notifications
   async function renderNotifications() {
     const container = document.getElementById('notifications-list-container');
@@ -1867,23 +1860,45 @@ function initPortalAuth() {
         .order('created_at', { ascending: false });
       
       if (!error && data) {
-        const filtered = data.filter(n => !n.user_id || n.user_id === currentSession.uid);
-        notifs = filtered.map(n => ({
-          id: n.id,
-          title: n.title,
-          desc: n.desc_text,
-          time: n.time_label,
-          read: n.is_read,
-          userId: n.user_id
-        }));
-      } else {
-        notifs = JSON.parse(localStorage.getItem('gravity-system-notifications')) || [];
-        notifs = notifs.filter(n => !n.userId || n.userId === currentSession.uid);
-      }
-    } else {
-      notifs = JSON.parse(localStorage.getItem('gravity-system-notifications')) || [];
-      if (currentSession) {
-        notifs = notifs.filter(n => !n.userId || n.userId === currentSession.uid);
+        if (data.length === 0) {
+          try {
+            await supabaseClient
+              .from('notifications')
+              .insert([{
+                title: defaultNotifications[0].title,
+                desc_text: defaultNotifications[0].desc,
+                time_label: defaultNotifications[0].time,
+                is_read: defaultNotifications[0].read
+              }]);
+            const refetched = await supabaseClient
+              .from('notifications')
+              .select('*')
+              .order('created_at', { ascending: false });
+            if (!refetched.error && refetched.data) {
+              const filtered = refetched.data.filter(n => !n.user_id || n.user_id === currentSession.uid);
+              notifs = filtered.map(n => ({
+                id: n.id,
+                title: n.title,
+                desc: n.desc_text,
+                time: n.time_label,
+                read: n.is_read,
+                userId: n.user_id
+              }));
+            }
+          } catch (e) {
+            console.warn("Failed to seed default welcome notification in Supabase:", e);
+          }
+        } else {
+          const filtered = data.filter(n => !n.user_id || n.user_id === currentSession.uid);
+          notifs = filtered.map(n => ({
+            id: n.id,
+            title: n.title,
+            desc: n.desc_text,
+            time: n.time_label,
+            read: n.is_read,
+            userId: n.user_id
+          }));
+        }
       }
     }
 
@@ -1969,8 +1984,6 @@ function initPortalAuth() {
               .from('notifications')
               .update({ is_read: true })
               .eq('id', notif.id);
-          } else {
-            localStorage.setItem('gravity-system-notifications', JSON.stringify(notifs));
           }
           await renderNotifications();
         }
@@ -2004,11 +2017,6 @@ function initPortalAuth() {
         deleteBtn.addEventListener('click', async (e) => {
           e.stopPropagation(); // Avoid triggering mark-as-read click event
           if (confirm("Are you sure you want to delete this notification?")) {
-            // Delete from local storage first to keep UI responsive
-            let localNotifs = JSON.parse(localStorage.getItem('gravity-system-notifications')) || [];
-            localNotifs = localNotifs.filter(n => String(n.id) !== String(notif.id));
-            localStorage.setItem('gravity-system-notifications', JSON.stringify(localNotifs));
-            
             // Add to blacklist to keep UI responsive and prevent resurrection
             let deletedIds = JSON.parse(localStorage.getItem('gravity-deleted-notifications')) || [];
             if (!deletedIds.map(String).includes(String(notif.id))) {
@@ -2016,21 +2024,23 @@ function initPortalAuth() {
               localStorage.setItem('gravity-deleted-notifications', JSON.stringify(deletedIds));
             }
             
-            // Delete from Supabase database via secure serverless endpoint
-            try {
-              const response = await fetch('/api/delete-notification', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ id: notif.id })
-              });
-              if (!response.ok) {
-                const errData = await response.json();
-                console.warn("Failed to delete notification from database:", errData.error?.message);
+            // Delete from Supabase database via secure serverless endpoint only if it is a private notification
+            if (notif.userId) {
+              try {
+                const response = await fetch('/api/delete-notification', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify({ id: notif.id })
+                });
+                if (!response.ok) {
+                  const errData = await response.json();
+                  console.warn("Failed to delete notification from database:", errData.error?.message);
+                }
+              } catch (err) {
+                console.warn("Failed to contact notification delete API:", err);
               }
-            } catch (err) {
-              console.warn("Failed to contact notification delete API:", err);
             }
             
             await renderNotifications();
@@ -2820,17 +2830,6 @@ function initPortalAuth() {
 
   // Add system notifications dynamically
   async function addSystemNotification(title, desc, userId = null) {
-    const notifs = JSON.parse(localStorage.getItem('gravity-system-notifications')) || [];
-    notifs.unshift({
-      id: Date.now(),
-      title: title,
-      desc: desc,
-      time: "Just now",
-      read: false,
-      userId: userId
-    });
-    localStorage.setItem('gravity-system-notifications', JSON.stringify(notifs));
-
     if (supabaseClient) {
       try {
         const sessionRes = await supabaseClient.auth.getSession();
@@ -5894,17 +5893,6 @@ async function publishTargetedNotification(title, desc, targetUserId) {
         user_id: targetUserId
       }]);
     if (error) throw error;
-  } else {
-    const notifs = JSON.parse(localStorage.getItem('gravity-system-notifications')) || [];
-    notifs.unshift({
-      id: Date.now(),
-      title: finalTitle,
-      desc: desc,
-      time: "Just now",
-      read: false,
-      userId: targetUserId
-    });
-    localStorage.setItem('gravity-system-notifications', JSON.stringify(notifs));
   }
   
   if (typeof renderNotifications === 'function') {
