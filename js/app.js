@@ -1873,7 +1873,8 @@ function initPortalAuth() {
           title: n.title,
           desc: n.desc_text,
           time: n.time_label,
-          read: n.is_read
+          read: n.is_read,
+          userId: n.user_id
         }));
       } else {
         notifs = JSON.parse(localStorage.getItem('gravity-system-notifications')) || [];
@@ -1915,7 +1916,11 @@ function initPortalAuth() {
       }
     }
 
-    notifs.forEach(notif => {
+    // Bifurcate private and public notifications
+    const privateNotifs = notifs.filter(n => !!n.userId);
+    const publicNotifs = notifs.filter(n => !n.userId);
+
+    function createNotifElement(notif) {
       let isFounderNotif = notif.title.includes('[FOUNDER]') || notif.title.includes('[Founder]');
       let isCeoNotif = notif.title.includes('[CEO]');
       let displayTitle = notif.title;
@@ -1928,13 +1933,18 @@ function initPortalAuth() {
         badgeHtml = `<span style="background:linear-gradient(135deg, #00bcff, var(--neon-cyan)); color:#fff; font-size:0.65rem; font-weight:900; padding:0.15rem 0.4rem; border-radius:4px; text-transform:uppercase; box-shadow:0 0 10px rgba(0, 188, 255, 0.4); border: 1px solid rgba(255,255,255,0.15);">CEO</span>`;
       }
 
+      let privateBadgeHtml = '';
+      if (notif.userId) {
+        privateBadgeHtml = `<span style="background:linear-gradient(135deg, var(--neon-purple), #9026ff); color:#fff; font-size:0.65rem; font-weight:900; padding:0.15rem 0.4rem; border-radius:4px; text-transform:uppercase; box-shadow:0 0 10px rgba(144, 38, 255, 0.4); border: 1px solid rgba(255,255,255,0.15);">PRIVATE</span>`;
+      }
+
       const div = document.createElement('div');
       div.className = `notif-item ${notif.read ? '' : 'unread'}`;
       div.innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:0.5rem;">
           <div style="flex:1;">
-            <div class="notif-title" style="font-weight:700; color:var(--text-pure); display:flex; align-items:center; gap:0.4rem;">
-              ${displayTitle} ${badgeHtml}
+            <div class="notif-title" style="font-weight:700; color:var(--text-pure); display:flex; align-items:center; gap:0.4rem; flex-wrap:wrap;">
+              ${displayTitle} ${badgeHtml} ${privateBadgeHtml}
             </div>
             <div class="notif-desc" style="font-size:0.85rem; color:var(--text-muted); margin:0.25rem 0;">${notif.desc}</div>
             <div class="notif-time" style="font-size:0.75rem; color:var(--neon-cyan);">${notif.time}</div>
@@ -2028,8 +2038,46 @@ function initPortalAuth() {
         });
       }
 
-      container.appendChild(div);
-    });
+      return div;
+    }
+
+    if (privateNotifs.length > 0) {
+      const privateHeader = document.createElement('h6');
+      privateHeader.style.margin = '0.5rem 0 0.5rem 0';
+      privateHeader.style.color = 'var(--neon-purple)';
+      privateHeader.style.fontSize = '0.8rem';
+      privateHeader.style.fontWeight = 'bold';
+      privateHeader.style.textTransform = 'uppercase';
+      privateHeader.style.letterSpacing = '1px';
+      privateHeader.style.borderBottom = '1px solid rgba(176, 38, 255, 0.2)';
+      privateHeader.style.paddingBottom = '0.25rem';
+      privateHeader.innerText = 'Personal Notifications';
+      container.appendChild(privateHeader);
+
+      privateNotifs.forEach(notif => {
+        const div = createNotifElement(notif);
+        container.appendChild(div);
+      });
+    }
+
+    if (publicNotifs.length > 0) {
+      const publicHeader = document.createElement('h6');
+      publicHeader.style.margin = privateNotifs.length > 0 ? '1.5rem 0 0.5rem 0' : '0.5rem 0 0.5rem 0';
+      publicHeader.style.color = 'var(--neon-cyan)';
+      publicHeader.style.fontSize = '0.8rem';
+      publicHeader.style.fontWeight = 'bold';
+      publicHeader.style.textTransform = 'uppercase';
+      publicHeader.style.letterSpacing = '1px';
+      publicHeader.style.borderBottom = '1px solid rgba(0, 240, 255, 0.2)';
+      publicHeader.style.paddingBottom = '0.25rem';
+      publicHeader.innerText = 'Announcements & Updates';
+      container.appendChild(publicHeader);
+
+      publicNotifs.forEach(notif => {
+        const div = createNotifElement(notif);
+        container.appendChild(div);
+      });
+    }
 
     if (typeof lucide !== 'undefined') {
       lucide.createIcons();
@@ -2669,7 +2717,8 @@ function initPortalAuth() {
           // Add notification
           await addSystemNotification(
             "Project Review Pending",
-            `Your project '${purchases[index].serviceName}' has been successfully compiled and is ready for final review. Pay the remaining 50% to complete delivery.`
+            `Your project '${purchases[index].serviceName}' has been successfully compiled and is ready for final review. Pay the remaining 50% to complete delivery.`,
+            currentSession ? currentSession.uid : null
           );
 
           alert("DEVELOPER SIMULATOR: Project status updated to COMPLETED by the creative team!");
@@ -2770,14 +2819,15 @@ function initPortalAuth() {
   }
 
   // Add system notifications dynamically
-  async function addSystemNotification(title, desc) {
+  async function addSystemNotification(title, desc, userId = null) {
     const notifs = JSON.parse(localStorage.getItem('gravity-system-notifications')) || [];
     notifs.unshift({
       id: Date.now(),
       title: title,
       desc: desc,
       time: "Just now",
-      read: false
+      read: false,
+      userId: userId
     });
     localStorage.setItem('gravity-system-notifications', JSON.stringify(notifs));
 
@@ -2794,7 +2844,7 @@ function initPortalAuth() {
             },
             body: JSON.stringify({
               action: 'publish-notification',
-              payload: { title, desc }
+              payload: { title, desc, userId }
             })
           });
           if (!response.ok) {
@@ -2809,7 +2859,8 @@ function initPortalAuth() {
               title: title,
               desc_text: desc,
               time_label: "Just now",
-              is_read: false
+              is_read: false,
+              user_id: userId
             }]);
         }
       } catch (err) {
@@ -2820,7 +2871,8 @@ function initPortalAuth() {
             title: title,
             desc_text: desc,
             time_label: "Just now",
-            is_read: false
+            is_read: false,
+            user_id: userId
           }]);
       }
     }
@@ -2938,7 +2990,8 @@ function initPortalAuth() {
       
       await addSystemNotification(
         "Booking Confirmed via Razorpay",
-        `Successfully received 50% advance booking payment of ${symbol}${activePayment.payAmount.toLocaleString()} for '${activePayment.serviceName}'. Work starts immediately.`
+        `Successfully received 50% advance booking payment of ${symbol}${activePayment.payAmount.toLocaleString()} for '${activePayment.serviceName}'. Work starts immediately.`,
+        currentSession ? currentSession.uid : null
       );
     } else if (activePayment.type === 'final') {
       // Update existing purchase
@@ -2961,7 +3014,8 @@ function initPortalAuth() {
         
         await addSystemNotification(
           "Project Successfully Delivered",
-          `Received final 50% payment of ${symbol}${activePayment.payAmount.toLocaleString()} for '${activePayment.serviceName}'. Source files are released for download.`
+          `Received final 50% payment of ${symbol}${activePayment.payAmount.toLocaleString()} for '${activePayment.serviceName}'. Source files are released for download.`,
+          currentSession ? currentSession.uid : null
         );
       }
     }
@@ -3270,7 +3324,8 @@ function initPortalAuth() {
 
         await addSystemNotification(
           "Refund Claim Filed",
-          `Dispute case filed for '${item.serviceName}'. Evidence file '${selectedFile.name}' uploaded. Under administrative review.`
+          `Dispute case filed for '${item.serviceName}'. Evidence file '${selectedFile.name}' uploaded. Under administrative review.`,
+          currentSession ? currentSession.uid : null
         );
 
         alert("Dispute Filed Successfully!\nYour refund request and uploaded proof are submitted to the administration mainframe.");
@@ -3466,6 +3521,7 @@ function initPortalAuth() {
     let serviceName = null;
     let amount = 0;
     let username = 'User';
+    let targetUserId = null;
 
     if (supabaseClient) {
       const { data: dbClaim, error } = await supabaseClient
@@ -3480,6 +3536,7 @@ function initPortalAuth() {
         serviceName = dbClaim.purchases ? dbClaim.purchases.service_name : 'Service';
         amount = dbClaim.purchases ? parseFloat(dbClaim.purchases.paid_amount) : 0;
         username = dbClaim.purchases && dbClaim.purchases.profiles ? dbClaim.purchases.profiles.username : 'User';
+        targetUserId = dbClaim.purchases ? dbClaim.purchases.user_id : null;
       }
     }
 
@@ -3595,14 +3652,16 @@ function initPortalAuth() {
 
         await addSystemNotification(
           "Refund Approved by Admin",
-          `Dispute case for '${serviceName}' approved. Refund of $${amount.toFixed(2)} returned. Original booking advance fully reversed.`
+          `Dispute case for '${serviceName}' approved. Refund of $${amount.toFixed(2)} returned. Original booking advance fully reversed.`,
+          targetUserId
         );
         alert(`[ADMIN MAINFRAME] Refund dispute case ${claimId} approved! Capital has been returned to the user.`);
 
       } else if (action === 'deny') {
         await addSystemNotification(
           "Dispute Claim Rejected",
-          `Dispute claim for '${serviceName}' has been reviewed and rejected by system administrators. Awaiting final payment to complete release.`
+          `Dispute claim for '${serviceName}' has been reviewed and rejected by system administrators. Awaiting final payment to complete release.`,
+          targetUserId
         );
         alert(`[ADMIN MAINFRAME] Dispute claim case ${claimId} has been reviewed and denied. Milestone timeline resumed.`);
       }
@@ -4882,7 +4941,8 @@ function initPortalAuth() {
 
       addSystemNotification(
         "Project Delivery Postponed",
-        `Delivery of '${p.serviceName}' has been postponed by 24 hours because the final payment was not received 12 hours prior to the deadline.`
+        `Delivery of '${p.serviceName}' has been postponed by 24 hours because the final payment was not received 12 hours prior to the deadline.`,
+        p.user_id || p.userId || (currentSession ? currentSession.uid : null)
       );
     }
   }
@@ -5830,7 +5890,8 @@ async function publishTargetedNotification(title, desc, targetUserId) {
         title: finalTitle,
         desc_text: desc,
         time_label: "Just now",
-        is_read: false
+        is_read: false,
+        user_id: targetUserId
       }]);
     if (error) throw error;
   } else {

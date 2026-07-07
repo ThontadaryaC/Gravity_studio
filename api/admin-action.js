@@ -101,7 +101,8 @@ module.exports = async (req, res) => {
             title: finalTitle,
             desc_text: payload.desc,
             time_label: "Just now",
-            is_read: false
+            is_read: false,
+            user_id: payload.userId || null
           })
         });
         if (!dbRes.ok) throw new Error(`Database error: ${await dbRes.text()}`);
