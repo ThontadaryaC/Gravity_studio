@@ -135,22 +135,73 @@ module.exports = async (req, res) => {
         if (!purRes.ok) throw new Error(`Purchase update error: ${await purRes.text()}`);
       }
       else if (action === "update-pricing") {
-        const pricingRes = await fetch(`${SUPABASE_URL}/rest/v1/service_catalog`, {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${serviceRoleKey}`,
-            "apikey": serviceRoleKey,
-            "Content-Type": "application/json",
-            "Prefer": "resolution=merge-duplicates"
-          },
-          body: JSON.stringify(payload.updatedPrices.map(u => ({
-            id: u.id,
-            name: u.name,
-            price_inr: u.priceINR,
-            price_usd: u.priceUSD
-          })))
-        });
-        if (!pricingRes.ok) throw new Error(`Pricing update error: ${await pricingRes.text()}`);
+        try {
+          const pricingRes = await fetch(`${SUPABASE_URL}/rest/v1/service_catalog`, {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${serviceRoleKey}`,
+              "apikey": serviceRoleKey,
+              "Content-Type": "application/json",
+              "Prefer": "resolution=merge-duplicates"
+            },
+            body: JSON.stringify(payload.updatedPrices.map(u => ({
+              id: u.id,
+              name: u.name,
+              price_inr: u.priceINR,
+              price_usd: u.priceUSD
+            })))
+          });
+          if (!pricingRes.ok) {
+            console.warn(`Direct service_catalog table update failed: ${await pricingRes.text()}`);
+          }
+        } catch (tableErr) {
+          console.warn("Direct service_catalog table update error:", tableErr.message);
+        }
+
+        // Server-side fallback to notifications table
+        try {
+          const checkRes = await fetch(`${SUPABASE_URL}/rest/v1/notifications?title=eq.%5BSYSTEM_PRICING_CATALOG%5D&select=id`, {
+            method: "GET",
+            headers: {
+              "Authorization": `Bearer ${serviceRoleKey}`,
+              "apikey": serviceRoleKey
+            }
+          });
+          if (checkRes.ok) {
+            const existing = await checkRes.json();
+            if (existing && existing.length > 0) {
+              await fetch(`${SUPABASE_URL}/rest/v1/notifications?id=eq.${existing[0].id}`, {
+                method: "PATCH",
+                headers: {
+                  "Authorization": `Bearer ${serviceRoleKey}`,
+                  "apikey": serviceRoleKey,
+                  "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                  desc_text: JSON.stringify(payload.updatedPrices)
+                })
+              });
+            } else {
+              await fetch(`${SUPABASE_URL}/rest/v1/notifications`, {
+                method: "POST",
+                headers: {
+                  "Authorization": `Bearer ${serviceRoleKey}`,
+                  "apikey": serviceRoleKey,
+                  "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                  title: '[SYSTEM_PRICING_CATALOG]',
+                  desc_text: JSON.stringify(payload.updatedPrices),
+                  time_label: 'System Update',
+                  is_read: false,
+                  user_id: null
+                })
+              });
+            }
+          }
+        } catch (notifErr) {
+          console.warn("Server-side fallback pricing notification error:", notifErr.message);
+        }
       }
     }
 

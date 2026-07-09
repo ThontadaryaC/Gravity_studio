@@ -127,6 +127,119 @@ function getServicePrices() {
   return DEFAULT_SERVICE_PRICES;
 }
 
+async function syncPricingFromSupabase() {
+  if (typeof supabaseClient === 'undefined' || !supabaseClient) return;
+  try {
+    // 1. Try fetching from service_catalog first
+    const { data: dbData, error: dbError } = await supabaseClient
+      .from('service_catalog')
+      .select('*');
+      
+    if (!dbError && dbData && dbData.length > 0) {
+      const stored = localStorage.getItem('gravity_service_prices');
+      let currentPrices = DEFAULT_SERVICE_PRICES;
+      if (stored) {
+        try { currentPrices = JSON.parse(stored); } catch (e) {}
+      }
+      const updated = currentPrices.map(s => {
+        const dbRow = dbData.find(d => d.id === s.id);
+        if (dbRow) {
+          return {
+            ...s,
+            priceINR: dbRow.price_inr !== undefined && dbRow.price_inr !== null ? parseFloat(dbRow.price_inr) : s.priceINR,
+            priceUSD: dbRow.price_usd !== undefined && dbRow.price_usd !== null ? parseFloat(dbRow.price_usd) : s.priceUSD
+          };
+        }
+        return s;
+      });
+      localStorage.setItem('gravity_service_prices', JSON.stringify(updated));
+      return;
+    }
+
+    // 2. Fallback to fetching from notifications
+    const { data: notifData, error: notifError } = await supabaseClient
+      .from('notifications')
+      .select('*')
+      .eq('title', '[SYSTEM_PRICING_CATALOG]')
+      .limit(1);
+      
+    if (!notifError && notifData && notifData.length > 0) {
+      const dbPrices = JSON.parse(notifData[0].desc_text);
+      if (Array.isArray(dbPrices)) {
+        localStorage.setItem('gravity_service_prices', JSON.stringify(dbPrices));
+      }
+    }
+  } catch (err) {
+    console.warn("Failed to sync service catalog from Supabase:", err);
+  }
+}
+
+async function savePricingToSupabase(updatedPrices) {
+  if (typeof supabaseClient === 'undefined' || !supabaseClient) return;
+  
+  // 1. Try to sync with serverless function /api/admin-action
+  try {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (session) {
+      await fetch('/api/admin-action', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          action: 'update-pricing',
+          payload: { updatedPrices }
+        })
+      });
+    }
+  } catch (err) {
+    console.warn("Secure pricing update API failed, trying direct upsert:", err);
+  }
+
+  // 2. Direct client-side upsert to service_catalog (in case it exists)
+  try {
+    await supabaseClient
+      .from('service_catalog')
+      .upsert(updatedPrices.map(u => ({
+        id: u.id,
+        name: u.name,
+        price_inr: u.priceINR,
+        price_usd: u.priceUSD
+      })));
+  } catch (err) {
+    console.warn("Direct service_catalog upsert warning:", err);
+  }
+
+  // 3. Fallback sync to notifications table
+  try {
+    const { data: existing } = await supabaseClient
+      .from('notifications')
+      .select('id')
+      .eq('title', '[SYSTEM_PRICING_CATALOG]')
+      .limit(1);
+      
+    if (existing && existing.length > 0) {
+      await supabaseClient
+        .from('notifications')
+        .update({ desc_text: JSON.stringify(updatedPrices) })
+        .eq('id', existing[0].id);
+    } else {
+      await supabaseClient
+        .from('notifications')
+        .insert([{
+          title: '[SYSTEM_PRICING_CATALOG]',
+          desc_text: JSON.stringify(updatedPrices),
+          time_label: 'System Update',
+          is_read: false,
+          user_id: null
+        }]);
+    }
+  } catch (err) {
+    console.warn("Pricing notification sync fallback failed:", err);
+  }
+}
+
 function detectUserCountry(session) {
   if (!session) return 'Other';
   const email = (session.email || '').toLowerCase();
@@ -183,6 +296,13 @@ document.addEventListener('DOMContentLoaded', () => {
   initTimelineReveal();
   initDepartmentFilter();
   initFAQAccordion();
+
+  // Sync service catalog from Supabase on load
+  syncPricingFromSupabase().then(() => {
+    if (typeof renderPayments === 'function') {
+      renderPayments();
+    }
+  });
 });
 
 /* ==========================================================================
@@ -1879,7 +1999,7 @@ function initPortalAuth() {
               .select('*')
               .order('created_at', { ascending: false });
             if (!refetched.error && refetched.data) {
-              const filtered = refetched.data.filter(n => !n.user_id || n.user_id === currentSession.uid);
+              const filtered = refetched.data.filter(n => (!n.user_id || n.user_id === currentSession.uid) && n.title !== '[SYSTEM_PRICING_CATALOG]');
               notifs = filtered.map(n => ({
                 id: n.id,
                 title: n.title,
@@ -1893,7 +2013,7 @@ function initPortalAuth() {
             console.warn("Failed to seed default welcome notification in Supabase:", e);
           }
         } else {
-          const filtered = data.filter(n => !n.user_id || n.user_id === currentSession.uid);
+          const filtered = data.filter(n => (!n.user_id || n.user_id === currentSession.uid) && n.title !== '[SYSTEM_PRICING_CATALOG]');
           notifs = filtered.map(n => ({
             id: n.id,
             title: n.title,
@@ -2134,9 +2254,30 @@ function initPortalAuth() {
 
       const createServiceCard = (s) => {
         const totalMin = isIndian ? s.priceINR : s.priceUSD;
-        const totalMax = isIndian ? (s.priceMaxINR || totalMin) : (s.priceMaxUSD || totalMin);
+        const totalMax = isIndian ? Math.max(s.priceMaxINR || 0, totalMin) : Math.max(s.priceMaxUSD || 0, totalMin);
         const hasRange = totalMax > totalMin;
-        const range = isIndian ? (s.rangeINR || `${symbol}${totalMin.toLocaleString()}`) : (s.rangeUSD || `${symbol}${totalMin.toLocaleString()}`);
+        
+        let range = "";
+        const isMonthly = s.id.includes('seo') || s.id.includes('social_media') || s.id.includes('google_ads') || s.id.includes('meta_ads') || s.id.includes('email_marketing') || s.id.includes('website_maintenance') || s.id.includes('cto_service');
+        const isHourly = s.id.includes('consulting');
+        
+        if (isMonthly) {
+          range = `${symbol}${totalMin.toLocaleString()}/month`;
+        } else if (isHourly) {
+          range = `${symbol}${totalMin.toLocaleString()}/hour`;
+        } else if (s.id === 'custom_ai_solution') {
+          range = isIndian ? `₹${totalMin.toLocaleString()}+` : `Starting at $${totalMin.toLocaleString()}`;
+        } else if (s.id === 'enterprise_ai') {
+          range = isIndian ? `₹${totalMin.toLocaleString()}+ (Custom Quote)` : `Starting at $${totalMin.toLocaleString()} (Custom Quote)`;
+        } else if (s.id === 'graphic_design') {
+          range = isIndian ? `₹${totalMin.toLocaleString()}+` : `$${totalMin.toLocaleString()}+`;
+        } else if (s.id === 'domain_hosting' || s.id === 'security_audit') {
+          range = `${symbol}${totalMin.toLocaleString()}`;
+        } else {
+          range = hasRange 
+            ? `${symbol}${totalMin.toLocaleString()}–${symbol}${totalMax.toLocaleString()}` 
+            : `${symbol}${totalMin.toLocaleString()}`;
+        }
         
         const card = document.createElement('div');
         card.className = 'catalog-card';
@@ -4987,7 +5128,7 @@ function initPortalAuth() {
 
   const pricingForm = document.getElementById('admin-pricing-form');
   if (pricingForm) {
-    pricingForm.addEventListener('submit', (e) => {
+    pricingForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       
       const prices = getServicePrices();
@@ -5003,46 +5144,8 @@ function initPortalAuth() {
       
       localStorage.setItem('gravity_service_prices', JSON.stringify(updatedPrices));
       
-      // Sync with Supabase if active
       if (supabaseClient) {
-        try {
-          supabaseClient.auth.getSession().then(async ({ data: { session } }) => {
-            if (session) {
-              const response = await fetch('/api/admin-action', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${session.access_token}`
-                },
-                body: JSON.stringify({
-                  action: 'update-pricing',
-                  payload: { updatedPrices }
-                })
-              });
-              if (!response.ok) {
-                const err = await response.json();
-                throw new Error(err.error?.message || `HTTP ${response.status}`);
-              }
-            } else {
-              throw new Error("No active admin session found.");
-            }
-          }).catch(err => {
-            console.warn("Secure pricing update failed, falling back to direct client-side DB upsert:", err);
-            supabaseClient
-              .from('service_catalog')
-              .upsert(updatedPrices.map(u => ({
-                id: u.id,
-                name: u.name,
-                price_inr: u.priceINR,
-                price_usd: u.priceUSD
-              })))
-              .then(({ error }) => {
-                if (error) console.warn("Supabase pricing sync warning:", error.message);
-              });
-          });
-        } catch(err) {
-          console.warn("Supabase pricing upsert error:", err);
-        }
+        await savePricingToSupabase(updatedPrices);
       }
       
       alert("Service pricing updated successfully inside the system database!");
@@ -5840,31 +5943,7 @@ async function loadAdminPricingManager() {
       localStorage.setItem('gravity_service_prices', JSON.stringify(updatedPrices));
 
       if (supabaseClient) {
-        try {
-          const { data: { session } } = await supabaseClient.auth.getSession();
-          if (session) {
-            await fetch('/api/admin-action', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${session.access_token}`
-              },
-              body: JSON.stringify({
-                action: 'update-pricing',
-                payload: { updatedPrices }
-              })
-            });
-          } else {
-            await supabaseClient.from('service_catalog').upsert(updatedPrices.map(u => ({
-              id: u.id,
-              name: u.name,
-              price_inr: u.priceINR,
-              price_usd: u.priceUSD
-            })));
-          }
-        } catch(err) {
-          console.warn("Supabase pricing sync warning:", err);
-        }
+        await savePricingToSupabase(updatedPrices);
       }
 
       alert("Pricing catalog updated successfully!");
