@@ -35,7 +35,7 @@ const CONFIG = {
     },
     {
       keywords: ["founder", "ceo", "cto", "leadership", "executive", "ajay", "shashank", "thontadaraya", "munish"],
-      reply: "Gravity Studios is led by a visionary executive team:\n\n1. **Ajay Raj B.K**: Founder & Creative Director (Vision, Strategy, Creative Direction, and Brand Development).\n2. **Shashank Raj B.K**: Co-Founder & CEO (Business Operations, Company Management, Partnerships, and Client Relations).\n3. **Thontadaraya**: CTO & Technology Head (Software Development, AI Systems, and Technical Architecture).\n4. **Munish**: Director of VFX & Animation (VFX/Animation Production Pipelines)."
+      reply: "Gravity Studios is led by a visionary executive team:\n\n1. **Ajay Raj B.K**: Founder & Creative Director (VFX Production, AI Automation, and overall Creative Direction).\n2. **Shashank Raj B.K**: Co-Founder & CEO (Business Operations, Company Management, Partnerships, and Client Relations).\n3. **Thontadaraya**: CTO & Technology Head (Software Development, AI Systems, and Technical Architecture).\n4. **Munish**: CMO & Marketing Head (Growth, Brand Strategy, and Advertising Campaigns)."
     },
     {
       keywords: ["services", "departments", "what do you do", "creative", "tech"],

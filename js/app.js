@@ -2476,14 +2476,14 @@ function initPortalAuth() {
 
       const dept = getDepartmentForEmail(currentSession?.email);
 
-      const DEPARTMENT_DETAILS = {
-        'ai': { name: 'AI Research & Innovation', head: 'Thontadaraya (CTO)', color: 'var(--neon-cyan)', icon: 'brain' },
-        'dev': { name: 'Technology & IT', head: 'Pruthvi Raj (CIO)', color: '#00bcff', icon: 'cpu' },
-        'design': { name: 'Design, Branding & Operations', head: 'Shreyas (COO & Site Engineer)', color: 'var(--neon-purple)', icon: 'palette' },
-        'video': { name: 'Video, Animation & VFX', head: 'Munish (CMO)', color: 'var(--neon-pink)', icon: 'video' },
-        'marketing': { name: 'Digital Marketing & Sales', head: 'Subhash (Sales & Pricing Lead)', color: 'var(--neon-amber)', icon: 'megaphone' },
-        'support': { name: 'Tech Support, HR & Admin', head: 'Pavan Krishna (CHRO)', color: 'var(--neon-green)', icon: 'headphones' }
-      };
+        const DEPARTMENT_DETAILS = {
+          'ai': { name: 'AI Research & Innovation', head: 'Thontadaraya (CTO)', color: 'var(--neon-cyan)', icon: 'brain' },
+          'dev': { name: 'Technology & IT', head: 'Pruthvi Raj (CIO)', color: '#00bcff', icon: 'cpu' },
+          'design': { name: 'Design, Branding & Operations', head: 'Shreyas (COO & Site Engineer)', color: 'var(--neon-purple)', icon: 'palette' },
+          'video': { name: 'Video, Animation & VFX', head: 'Ajay Raj B.K (Founder & Creative Director)', color: 'var(--neon-pink)', icon: 'video' },
+          'marketing': { name: 'Digital Marketing & Sales', head: 'Subhash (Sales & Pricing Lead)', color: 'var(--neon-amber)', icon: 'megaphone' },
+          'support': { name: 'Tech Support, HR & Admin', head: 'Pavan Krishna (CHRO)', color: 'var(--neon-green)', icon: 'headphones' }
+        };
 
       const getDepartmentForService = (serviceId) => {
         const depts = ['ai', 'dev', 'design', 'video', 'marketing', 'support'];
@@ -5116,9 +5116,7 @@ function initPortalAuth() {
     }
     
     let headName = "Thontadaraya (CTO & Tech Head)";
-    if (purchase.serviceId === 'youtube_intro' || purchase.serviceId === 'vfx_package') {
-      headName = "Munish (Director of VFX & Animation)";
-    } else if (purchase.serviceId === 'anime_design') {
+    if (purchase.serviceId === 'youtube_intro' || purchase.serviceId === 'vfx_package' || purchase.serviceId === 'anime_design') {
       headName = "Ajay Raj B.K (Founder & Creative Director)";
     }
     
@@ -5224,9 +5222,7 @@ function initPortalAuth() {
     const isFinal = remaining <= 0;
     
     let headName = "Thontadaraya (CTO & Tech Head)";
-    if (purchase.serviceId === 'youtube_intro' || purchase.serviceId === 'vfx_package') {
-      headName = "Munish (Director of VFX & Animation)";
-    } else if (purchase.serviceId === 'anime_design') {
+    if (purchase.serviceId === 'youtube_intro' || purchase.serviceId === 'vfx_package' || purchase.serviceId === 'anime_design') {
       headName = "Ajay Raj B.K (Founder & Creative Director)";
     }
     
