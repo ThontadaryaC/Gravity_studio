@@ -539,119 +539,27 @@
         <h2 class="section-title" id="gallery-title">Media Arena</h2>
       </div>
 
-      <div class="gallery-grid">
-        <!-- Card 1: Civil Construction Services (Purple) -->
-        <div class="gallery-card" data-category="posters" data-index="0" role="button" aria-label="View Civil Construction Services Poster">
-          <div class="gallery-media-wrapper">
-            <img src="https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/Civil_construction_services.jpeg" alt="Civil Construction Services" onerror="this.style.display='none';">
-            <div class="gallery-placeholder">
-              <div class="gallery-placeholder-icon"><i data-lucide="image"></i></div>
-              <h4 class="gallery-placeholder-title">Civil Construction Services</h4>
-              <span class="gallery-placeholder-tag">Poster</span>
-            </div>
-          </div>
-          <div class="gallery-hover-overlay">
-            <div class="gallery-hover-btn"><i data-lucide="maximize-2"></i></div>
-            <div class="gallery-info">
-              <h3 class="gallery-title">Civil Construction Services</h3>
-              <p class="gallery-desc">Civil site management and execution details.</p>
+      <div class="book-showcase-wrapper">
+        <div class="book-container">
+          <div class="book-spine"></div>
+          <div class="book" id="portfolio-book">
+            <!-- Dynamic 3D pages are rendered by app.js -->
+            <div class="book-loading-state">
+              <div class="spinner"></div>
+              <p>Synchronizing Media Assets...</p>
             </div>
           </div>
         </div>
-
-        <!-- Card 2: Logo Designs (Cyan) -->
-        <div class="gallery-card" data-category="posters" data-index="1" role="button" aria-label="View Logo Designs Poster">
-          <div class="gallery-media-wrapper">
-            <img src="https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/Logo_designs.jpeg" alt="Logo Designs" onerror="this.style.display='none';">
-            <div class="gallery-placeholder">
-              <div class="gallery-placeholder-icon"><i data-lucide="image"></i></div>
-              <h4 class="gallery-placeholder-title">Logo Designs</h4>
-              <span class="gallery-placeholder-tag">Poster</span>
-            </div>
+        <div class="book-controls">
+          <button class="book-btn prev-btn" id="book-prev" aria-label="Previous Page" disabled>
+            <i data-lucide="chevron-left"></i> <span>Prev</span>
+          </button>
+          <div class="book-page-indicator">
+            Page <span id="book-current-page">1</span> / <span id="book-total-pages">5</span>
           </div>
-          <div class="gallery-hover-overlay">
-            <div class="gallery-hover-btn"><i data-lucide="maximize-2"></i></div>
-            <div class="gallery-info">
-              <h3 class="gallery-title">Logo Designs</h3>
-              <p class="gallery-desc">High-end corporate branding vector assets.</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- Card 3: YouTube Thumbnail Creations (Pink) -->
-        <div class="gallery-card" data-category="posters" data-index="2" role="button" aria-label="View YouTube Thumbnail Creations Poster">
-          <div class="gallery-media-wrapper">
-            <img src="https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/Youtube_thumbnail_creations.jpeg" alt="YouTube Thumbnail Creations" onerror="this.style.display='none';">
-            <div class="gallery-placeholder">
-              <div class="gallery-placeholder-icon"><i data-lucide="image"></i></div>
-              <h4 class="gallery-placeholder-title">YouTube Thumbnail Creations</h4>
-              <span class="gallery-placeholder-tag">Poster</span>
-            </div>
-          </div>
-          <div class="gallery-hover-overlay">
-            <div class="gallery-hover-btn"><i data-lucide="maximize-2"></i></div>
-            <div class="gallery-info">
-              <h3 class="gallery-title">YouTube Thumbnail Creations</h3>
-              <p class="gallery-desc">Click-through visual cover designs.</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- Card 4: Our Services (Green) -->
-        <div class="gallery-card" data-category="posters" data-index="3" role="button" aria-label="View Our Services Poster">
-          <div class="gallery-media-wrapper">
-            <img src="https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/our_services.jpeg" alt="Our Services" onerror="this.style.display='none';">
-            <div class="gallery-placeholder">
-              <div class="gallery-placeholder-icon"><i data-lucide="image"></i></div>
-              <h4 class="gallery-placeholder-title">Our Services</h4>
-              <span class="gallery-placeholder-tag">Poster</span>
-            </div>
-          </div>
-          <div class="gallery-hover-overlay">
-            <div class="gallery-hover-btn"><i data-lucide="maximize-2"></i></div>
-            <div class="gallery-info">
-              <h3 class="gallery-title">Our Services</h3>
-              <p class="gallery-desc">Overview of our ecosystem and offerings.</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- Card 5: Price Quotations (Gold) -->
-        <div class="gallery-card" data-category="posters" data-index="4" role="button" aria-label="View Price Quotations Poster">
-          <div class="gallery-media-wrapper">
-            <img src="https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/price_quations.jpeg" alt="Price Quotations" onerror="this.style.display='none';">
-            <div class="gallery-placeholder">
-              <div class="gallery-placeholder-icon"><i data-lucide="image"></i></div>
-              <h4 class="gallery-placeholder-title">Price Quotations</h4>
-              <span class="gallery-placeholder-tag">Poster</span>
-            </div>
-          </div>
-          <div class="gallery-hover-overlay">
-            <div class="gallery-hover-btn"><i data-lucide="maximize-2"></i></div>
-            <div class="gallery-info">
-              <h3 class="gallery-title">Price Quotations</h3>
-              <p class="gallery-desc">Competitive valuations and packages.</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- Card 6: Team & Department Structure (Cyan) -->
-        <div class="gallery-card" data-category="posters" data-index="5" role="button" aria-label="View Team & Department Structure Poster">
-          <div class="gallery-media-wrapper">
-            <img src="https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/team_memebers_with_department.jpeg" alt="Team & Department Structure" onerror="this.style.display='none';">
-            <div class="gallery-placeholder">
-              <div class="gallery-placeholder-icon"><i data-lucide="image"></i></div>
-              <h4 class="gallery-placeholder-title">Team & Department Structure</h4>
-              <span class="gallery-placeholder-tag">Poster</span>
-            </div>
-          </div>
-          <div class="gallery-hover-overlay">
-            <div class="gallery-hover-btn"><i data-lucide="maximize-2"></i></div>
-            <div class="gallery-info">
-              <h3 class="gallery-title">Team & Department Structure</h3>
-              <p class="gallery-desc">Complete visualization grid of our active teams.</p>
-            </div>
-          </div>
+          <button class="book-btn next-btn" id="book-next" aria-label="Next Page">
+            <span>Next</span> <i data-lucide="chevron-right"></i>
+          </button>
         </div>
       </div>
     </section>

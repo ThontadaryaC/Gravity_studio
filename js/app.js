@@ -704,57 +704,355 @@ let galleryAssets = [
   {
     type: 'image',
     category: 'posters',
-    title: 'Civil Construction Services',
-    desc: 'Professional civil site management and structural execution.',
-    src: 'https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/Civil_construction_services.jpeg',
+    title: 'Main Poster',
+    desc: 'Gravity Studios main launch and creative ecosystem showcase.',
+    src: 'https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/MainPoster.jpeg',
+    fallbackColor: '#00f0ff'
+  },
+  {
+    type: 'image',
+    category: 'posters',
+    title: 'Smarter Solutions',
+    desc: 'Empowering modern enterprise architecture and strategic operations.',
+    src: 'https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/Smarter%20solutions_stronger%20Business.jpeg',
     fallbackColor: '#b026ff'
   },
   {
     type: 'image',
     category: 'posters',
-    title: 'Logo Designs',
-    desc: 'High-end vector corporate branding and visual assets design.',
-    src: 'https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/Logo_designs.jpeg',
-    fallbackColor: '#00f0ff'
-  },
-  {
-    type: 'image',
-    category: 'posters',
-    title: 'YouTube Thumbnail Creations',
-    desc: 'Creative graphic layouts and high-click-through cover arts.',
-    src: 'https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/Youtube_thumbnail_creations.jpeg',
+    title: 'AI Brand Vibe',
+    desc: 'Revolutionizing brand pipelines with futuristic neural aesthetics.',
+    src: 'https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/AIBrandvibe.jpeg',
     fallbackColor: '#ff0055'
   },
   {
     type: 'image',
     category: 'posters',
-    title: 'Our Services',
-    desc: 'Full overview of our creative and technical ecosystem offerings.',
-    src: 'https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/our_services.jpeg',
+    title: 'Real Estate Showcases',
+    desc: 'High-fidelity architectural rendering and interactive spatial designs.',
+    src: 'https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/realestate.jpeg',
     fallbackColor: '#39ff14'
   },
   {
     type: 'image',
     category: 'posters',
-    title: 'Price Quotations',
-    desc: 'Competitive project valuations, packages, and custom quotes.',
-    src: 'https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/price_quations.jpeg',
+    title: 'Limitless Innovation',
+    desc: 'Next-gen animation, CGI capabilities, and cinematic VFX development.',
+    src: 'https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/limitless.jpeg',
     fallbackColor: '#ffaa00'
-  },
-  {
-    type: 'image',
-    category: 'posters',
-    title: 'Team & Department Structure',
-    desc: 'Organization grid highlighting active divisions and reporting lines.',
-    src: 'https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/team_memebers_with_department.jpeg',
-    fallbackColor: '#00f0ff'
   }
 ];
 
 let currentLightboxIdx = 0;
+let currentBookPage = 0;
+const totalBookPages = 5; // 5 pages (leaves)
+
+function renderFlipbook() {
+  const book = document.getElementById('portfolio-book');
+  if (!book) return;
+
+  let leavesHTML = '';
+
+  // Leaf 0: Cover (Image 0: MainPoster.jpeg) -> Back (Info 1: Smarter Solutions)
+  leavesHTML += `
+    <div class="book-page" data-page="0">
+      <div class="page-face front cover-face">
+        <div class="cover-pattern"></div>
+        <img src="${galleryAssets[0].src}" alt="${galleryAssets[0].title}" class="cover-image" onerror="this.style.display='none';">
+        <div class="gallery-placeholder" style="background: radial-gradient(circle, ${galleryAssets[0].fallbackColor}33 0%, #0a0814 100%)">
+          <div class="gallery-placeholder-icon" style="color:${galleryAssets[0].fallbackColor}; border-color:${galleryAssets[0].fallbackColor}; background:${galleryAssets[0].fallbackColor}15">
+            <i data-lucide="book-open"></i>
+          </div>
+          <h4 class="gallery-placeholder-title">${galleryAssets[0].title}</h4>
+        </div>
+        <div class="cover-info">
+          <span class="cover-badge">PORTFOLIO SHOWCASE</span>
+          <h2 class="cover-title">GRAVITY ECOSYSTEM</h2>
+          <p class="cover-tagline">Click to Open Showcase</p>
+          <button class="cover-zoom-btn lightbox-trigger" data-index="0" title="View Fullscreen" aria-label="Open Fullscreen View">
+            <i data-lucide="maximize-2"></i>
+          </button>
+        </div>
+      </div>
+      <div class="page-face back info-face">
+        <div class="page-header-strip">
+          <span class="strip-section">GRAVITY ECOSYSTEM DETAILS</span>
+        </div>
+        <div class="book-page-text">
+          <span class="page-number">01</span>
+          <h3 class="page-title">${galleryAssets[1].title}</h3>
+          <div class="page-divider"></div>
+          <p class="page-desc">${galleryAssets[1].desc}</p>
+          <div class="page-details">
+            <div class="detail-row"><span>PILLAR</span><strong>TECHNOLOGY & PLATFORMS</strong></div>
+            <div class="detail-row"><span>STATUS</span><strong>ACTIVE PIPELINES</strong></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Leaf 1: Front (Image 1: Smarter Solutions) -> Back (Info 2: AI Brand Vibe)
+  leavesHTML += `
+    <div class="book-page" data-page="1">
+      <div class="page-face front image-face">
+        <img src="${galleryAssets[1].src}" alt="${galleryAssets[1].title}" onerror="this.style.display='none';">
+        <div class="gallery-placeholder" style="background: radial-gradient(circle, ${galleryAssets[1].fallbackColor}33 0%, #0a0814 100%)">
+          <h4 class="gallery-placeholder-title">${galleryAssets[1].title}</h4>
+        </div>
+        <div class="page-img-overlay">
+          <button class="page-zoom-btn lightbox-trigger" data-index="1" title="View Fullscreen" aria-label="Open Fullscreen View">
+            <i data-lucide="maximize-2"></i>
+          </button>
+        </div>
+      </div>
+      <div class="page-face back info-face">
+        <div class="page-header-strip">
+          <span class="strip-section">GRAVITY ECOSYSTEM DETAILS</span>
+        </div>
+        <div class="book-page-text">
+          <span class="page-number">02</span>
+          <h3 class="page-title">${galleryAssets[2].title}</h3>
+          <div class="page-divider"></div>
+          <p class="page-desc">${galleryAssets[2].desc}</p>
+          <div class="page-details">
+            <div class="detail-row"><span>PILLAR</span><strong>NEURAL BRANDING</strong></div>
+            <div class="detail-row"><span>STATUS</span><strong>AI GRAPHICS</strong></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Leaf 2: Front (Image 2: AI Brand Vibe) -> Back (Info 3: Real Estate Showcases)
+  leavesHTML += `
+    <div class="book-page" data-page="2">
+      <div class="page-face front image-face">
+        <img src="${galleryAssets[2].src}" alt="${galleryAssets[2].title}" onerror="this.style.display='none';">
+        <div class="gallery-placeholder" style="background: radial-gradient(circle, ${galleryAssets[2].fallbackColor}33 0%, #0a0814 100%)">
+          <h4 class="gallery-placeholder-title">${galleryAssets[2].title}</h4>
+        </div>
+        <div class="page-img-overlay">
+          <button class="page-zoom-btn lightbox-trigger" data-index="2" title="View Fullscreen" aria-label="Open Fullscreen View">
+            <i data-lucide="maximize-2"></i>
+          </button>
+        </div>
+      </div>
+      <div class="page-face back info-face">
+        <div class="page-header-strip">
+          <span class="strip-section">GRAVITY ECOSYSTEM DETAILS</span>
+        </div>
+        <div class="book-page-text">
+          <span class="page-number">03</span>
+          <h3 class="page-title">${galleryAssets[3].title}</h3>
+          <div class="page-divider"></div>
+          <p class="page-desc">${galleryAssets[3].desc}</p>
+          <div class="page-details">
+            <div class="detail-row"><span>PILLAR</span><strong>SPATIAL & REAL ESTATE</strong></div>
+            <div class="detail-row"><span>STATUS</span><strong>3D TWINS</strong></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Leaf 3: Front (Image 3: Real Estate Showcases) -> Back (Info 4: Limitless Innovation)
+  leavesHTML += `
+    <div class="book-page" data-page="3">
+      <div class="page-face front image-face">
+        <img src="${galleryAssets[3].src}" alt="${galleryAssets[3].title}" onerror="this.style.display='none';">
+        <div class="gallery-placeholder" style="background: radial-gradient(circle, ${galleryAssets[3].fallbackColor}33 0%, #0a0814 100%)">
+          <h4 class="gallery-placeholder-title">${galleryAssets[3].title}</h4>
+        </div>
+        <div class="page-img-overlay">
+          <button class="page-zoom-btn lightbox-trigger" data-index="3" title="View Fullscreen" aria-label="Open Fullscreen View">
+            <i data-lucide="maximize-2"></i>
+          </button>
+        </div>
+      </div>
+      <div class="page-face back info-face">
+        <div class="page-header-strip">
+          <span class="strip-section">GRAVITY ECOSYSTEM DETAILS</span>
+        </div>
+        <div class="book-page-text">
+          <span class="page-number">04</span>
+          <h3 class="page-title">${galleryAssets[4].title}</h3>
+          <div class="page-divider"></div>
+          <p class="page-desc">${galleryAssets[4].desc}</p>
+          <div class="page-details">
+            <div class="detail-row"><span>PILLAR</span><strong>CGI & VFX PRODUCTION</strong></div>
+            <div class="detail-row"><span>STATUS</span><strong>ACTIVE PIPELINES</strong></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Leaf 4: Front (Image 4: Limitless Innovation) -> Back (Back Cover)
+  leavesHTML += `
+    <div class="book-page" data-page="4">
+      <div class="page-face front image-face">
+        <img src="${galleryAssets[4].src}" alt="${galleryAssets[4].title}" onerror="this.style.display='none';">
+        <div class="gallery-placeholder" style="background: radial-gradient(circle, ${galleryAssets[4].fallbackColor}33 0%, #0a0814 100%)">
+          <h4 class="gallery-placeholder-title">${galleryAssets[4].title}</h4>
+        </div>
+        <div class="page-img-overlay">
+          <button class="page-zoom-btn lightbox-trigger" data-index="4" title="View Fullscreen" aria-label="Open Fullscreen View">
+            <i data-lucide="maximize-2"></i>
+          </button>
+        </div>
+      </div>
+      <div class="page-face back backcover-face">
+        <div class="backcover-texture"></div>
+        <div class="backcover-content">
+          <div class="logo-glow"></div>
+          <img src="/logo.png" alt="Gravity Studios Logo" class="backcover-logo" onerror="this.src='https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/logo.png';">
+          <h3>GRAVITY STUDIOS</h3>
+          <p class="backcover-tagline">Elevating Creativity through Technology</p>
+          <div class="backcover-divider"></div>
+          <p class="backcover-subtext">Thank you for exploring our brand showcase. Let's create something extraordinary.</p>
+          <button class="book-btn reset-btn" id="book-reset-btn" aria-label="Close and Restart Book">
+            <i data-lucide="rotate-ccw"></i> Read Again
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  book.innerHTML = leavesHTML;
+
+  if (typeof lucide !== 'undefined') {
+    lucide.createIcons();
+  }
+
+  setupFlipbookEvents();
+}
+
+function setupFlipbookEvents() {
+  const pages = document.querySelectorAll('.book-page');
+  const prevBtn = document.getElementById('book-prev');
+  const nextBtn = document.getElementById('book-next');
+  const pageIndicator = document.getElementById('book-current-page');
+  const totalIndicator = document.getElementById('book-total-pages');
+  const resetBtn = document.getElementById('book-reset-btn');
+
+  if (totalIndicator) {
+    totalIndicator.textContent = totalBookPages;
+  }
+
+  function updateBookState() {
+    pages.forEach((page, index) => {
+      if (index < currentBookPage) {
+        page.classList.add('flipped');
+        page.style.transform = 'rotateY(-180deg)';
+        page.style.zIndex = index;
+      } else {
+        page.classList.remove('flipped');
+        page.style.transform = 'rotateY(0deg)';
+        page.style.zIndex = totalBookPages - index;
+      }
+    });
+
+    if (prevBtn) prevBtn.disabled = currentBookPage === 0;
+    if (nextBtn) nextBtn.disabled = currentBookPage === totalBookPages;
+    if (pageIndicator) pageIndicator.textContent = currentBookPage + 1;
+  }
+
+  function nextPage() {
+    if (currentBookPage < totalBookPages) {
+      currentBookPage++;
+      updateBookState();
+    }
+  }
+
+  function prevPage() {
+    if (currentBookPage > 0) {
+      currentBookPage--;
+      updateBookState();
+    }
+  }
+
+  if (nextBtn) nextBtn.addEventListener('click', nextPage);
+  if (prevBtn) prevBtn.addEventListener('click', prevPage);
+  if (resetBtn) {
+    resetBtn.addEventListener('click', () => {
+      currentBookPage = 0;
+      updateBookState();
+    });
+  }
+
+  // Keyboard navigation for page flip
+  window.addEventListener('keydown', (e) => {
+    const modal = document.getElementById('lightbox-modal');
+    if (modal && modal.classList.contains('visible')) return;
+
+    if (e.key === 'ArrowRight') {
+      nextPage();
+    } else if (e.key === 'ArrowLeft') {
+      prevPage();
+    }
+  });
+
+  // Flip by clicking pages
+  pages.forEach((page, index) => {
+    const frontFace = page.querySelector('.page-face.front');
+    const backFace = page.querySelector('.page-face.back');
+
+    if (frontFace) {
+      frontFace.addEventListener('click', (e) => {
+        if (e.target.closest('.lightbox-trigger') || e.target.closest('button')) {
+          return;
+        }
+        if (index === currentBookPage) {
+          nextPage();
+        }
+      });
+    }
+
+    if (backFace) {
+      backFace.addEventListener('click', (e) => {
+        if (e.target.closest('button')) return;
+        if (index === currentBookPage - 1) {
+          prevPage();
+        }
+      });
+    }
+  });
+
+  // Touch Swipe for Flipbook
+  let touchStartX = 0;
+  let touchEndX = 0;
+  const bookContainer = document.querySelector('.book-container');
+  if (bookContainer) {
+    bookContainer.addEventListener('touchstart', (e) => {
+      touchStartX = e.changedTouches[0].screenX;
+    }, { passive: true });
+
+    bookContainer.addEventListener('touchend', (e) => {
+      touchEndX = e.changedTouches[0].screenX;
+      const swipeThreshold = 50;
+      if (touchStartX - touchEndX > swipeThreshold) {
+        nextPage();
+      } else if (touchEndX - touchStartX > swipeThreshold) {
+        prevPage();
+      }
+    }, { passive: true });
+  }
+
+  // Lightbox triggers
+  const triggers = document.querySelectorAll('.lightbox-trigger');
+  triggers.forEach(trigger => {
+    trigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const idx = parseInt(trigger.getAttribute('data-index'));
+      openLightbox(idx);
+    });
+  });
+
+  updateBookState();
+}
 
 async function initMediaGallery() {
-  const grid = document.querySelector('.gallery-grid');
   const modal = document.getElementById('lightbox-modal');
   const modalWrapper = document.querySelector('.lightbox-content-wrapper');
   const modalCaption = document.querySelector('.lightbox-caption');
@@ -762,10 +1060,9 @@ async function initMediaGallery() {
   const leftArrow = document.querySelector('.lightbox-arrow.left');
   const rightArrow = document.querySelector('.lightbox-arrow.right');
 
-  // Bind click events to the initial static cards immediately for zero-latency interaction
-  setupCardListeners();
+  // Render initial static flipbook
+  renderFlipbook();
 
-  // Fetch and sync with Supabase if the client is active
   if (supabaseClient) {
     try {
       const { data, error } = await supabaseClient
@@ -776,7 +1073,6 @@ async function initMediaGallery() {
       if (error) throw error;
 
       if (data && data.length > 0) {
-        // Map database records to the galleryAssets structure
         galleryAssets = data.map(item => ({
           type: item.type || 'image',
           category: item.category || 'posters',
@@ -786,64 +1082,11 @@ async function initMediaGallery() {
           fallbackColor: item.fallback_color || item.fallbackColor || '#00f0ff'
         }));
 
-        // Re-render the gallery grid dynamically
-        if (grid) {
-          grid.innerHTML = galleryAssets.map((item, index) => {
-            const iconName = item.type === 'video' ? 'video' : 'image';
-            const tagText = item.type === 'video' ? 'Video' : 'Poster';
-            return `
-              <div class="gallery-card" data-category="${item.category}" data-index="${index}" role="button" aria-label="View ${item.title} ${tagText}">
-                <div class="gallery-media-wrapper">
-                  <img src="${item.src}" alt="${item.title}" onerror="this.style.display='none';">
-                  <div class="gallery-placeholder" style="background: radial-gradient(circle, ${item.fallbackColor}33 0%, #0a0814 100%)">
-                    <div class="gallery-placeholder-icon" style="color:${item.fallbackColor}; border-color:${item.fallbackColor}; background:${item.fallbackColor}15">
-                      <i data-lucide="${iconName}"></i>
-                    </div>
-                    <h4 class="gallery-placeholder-title">${item.title}</h4>
-                    <span class="gallery-placeholder-tag">${tagText}</span>
-                  </div>
-                </div>
-                <div class="gallery-hover-overlay">
-                  <div class="gallery-hover-btn"><i data-lucide="maximize-2"></i></div>
-                  <div class="gallery-info">
-                    <h3 class="gallery-title">${item.title}</h3>
-                    <p class="gallery-desc">${item.desc}</p>
-                  </div>
-                </div>
-              </div>
-            `;
-          }).join('');
-
-          // Re-render Lucide icons for the newly injected DOM elements
-          if (typeof lucide !== 'undefined') {
-            lucide.createIcons();
-          }
-
-          // Bind click events to the new dynamically rendered cards
-          setupCardListeners();
-        }
+        renderFlipbook();
       }
     } catch (err) {
       console.warn('Failed to load gallery assets from Supabase. Using local fallbacks.', err);
     }
-  }
-
-  function setupCardListeners() {
-    const cards = document.querySelectorAll('.gallery-card');
-    cards.forEach(card => {
-      // Remove old listeners by cloning and replacing, or just add since grid is entirely rebuilt
-      // upon successful fetch, ensuring no duplicate listeners are active.
-      card.replaceWith(card.cloneNode(true));
-    });
-
-    // Re-select and attach fresh listeners to active DOM nodes
-    const activeCards = document.querySelectorAll('.gallery-card');
-    activeCards.forEach(card => {
-      card.addEventListener('click', () => {
-        const idx = parseInt(card.getAttribute('data-index'));
-        openLightbox(idx);
-      });
-    });
   }
 
   function openLightbox(idx) {

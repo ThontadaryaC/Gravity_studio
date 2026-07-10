@@ -35,27 +35,31 @@ const CONFIG = {
     },
     {
       keywords: ["founder", "ceo", "cto", "leadership", "executive", "ajay", "shashank", "thontadaraya", "munish"],
-      reply: "Gravity Studios is led by a visionary executive team:\n\n1. **Ajay Raj B.K**: Founder & Creative Director (Vision, Strategy, Creative Direction, and Brand Development).\n2. **Shashank Raj B.K**: Co-Founder & CEO (Business Operations, Company Management, Partnerships, and Client Relations).\n3. **Thontadaraya**: CTO & Technology Head (Software Development, AI Systems, and Technical Architecture).\n4. **Munish**: Director of VFX & Animation (VFX/Animation Production Pipelines).\n\nHere is our organization structure:\n\n![Team Structure](https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/team_memebers_with_department.jpeg)"
+      reply: "Gravity Studios is led by a visionary executive team:\n\n1. **Ajay Raj B.K**: Founder & Creative Director (Vision, Strategy, Creative Direction, and Brand Development).\n2. **Shashank Raj B.K**: Co-Founder & CEO (Business Operations, Company Management, Partnerships, and Client Relations).\n3. **Thontadaraya**: CTO & Technology Head (Software Development, AI Systems, and Technical Architecture).\n4. **Munish**: Director of VFX & Animation (VFX/Animation Production Pipelines)."
     },
     {
       keywords: ["services", "departments", "what do you do", "creative", "tech"],
-      reply: "Gravity Studios operates 18 diverse departments across three key pillars:\n\n* **Technology**: AI Research, Web/Mobile Development, Game Engine Integration, Cybersecurity.\n* **Creative**: VFX Production, 2D/3D Anime Studio, Music & Sound, Cinematography.\n* **Core/Ops**: Branding & Marketing, Financial planning, HR, Strategy.\n\nWe bridge advanced engineering with high-fidelity storytelling!\n\nHere is an overview of our main services:\n\n![Our Services](https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/our_services.jpeg)"
+      reply: "Gravity Studios operates 18 diverse departments across three key pillars:\n\n* **Technology**: AI Research, Web/Mobile Development, Game Engine Integration, Cybersecurity.\n* **Creative**: VFX Production, 2D/3D Anime Studio, Music & Sound, Cinematography.\n* **Core/Ops**: Branding & Marketing, Financial planning, HR, Strategy.\n\nWe bridge advanced engineering with high-fidelity storytelling!"
     },
     {
-      keywords: ["logo", "design", "branding"],
-      reply: "We create premium logo designs and high-end corporate vector branding assets:\n\n![Logo Designs](https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/Logo_designs.jpeg)"
+      keywords: ["main poster", "poster", "arena", "ecosystem", "gravity ecosystem"],
+      reply: "Gravity Studios is a futuristic startup ecosystem merging software engineering, artificial intelligence research, VFX production, and next-generation animation. Here is our Main Showcase Poster:\n\n![Main Showcase](https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/MainPoster.jpeg)"
     },
     {
-      keywords: ["youtube", "thumbnail", "thumbnail creation"],
-      reply: "We design click-through optimized YouTube thumbnail covers for content creators:\n\n![YouTube Thumbnails](https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/Youtube_thumbnail_creations.jpeg)"
+      keywords: ["smarter solutions", "stronger business", "business solutions", "enterprise", "b2b"],
+      reply: "We build custom enterprise platforms, automated business pipelines, and strategic technical architecture: Smarter Solutions, Stronger Business!\n\n![Smarter Solutions](https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/Smarter%20solutions_stronger%20Business.jpeg)"
     },
     {
-      keywords: ["civil", "construction", "site"],
-      reply: "We manage and execute civil engineering sites and construction designs:\n\n![Civil Construction](https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/Civil_construction_services.jpeg)"
+      keywords: ["aibrandvibe", "brand vibe", "branding", "neural design", "creative agency"],
+      reply: "We create advanced neural branding, next-gen identity assets, and adaptive digital aesthetics:\n\n![AI Brand Vibe](https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/AIBrandvibe.jpeg)"
     },
     {
-      keywords: ["price", "pricing", "cost", "quotation"],
-      reply: "We offer competitive pricing and flexible valuations for all tech and creative projects:\n\n![Price Quotations](https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/price_quations.jpeg)"
+      keywords: ["real estate", "architecture", "3d twin", "spatial"],
+      reply: "We design high-fidelity architectural renderings, digital twin simulations, and immersive spatial visualizations:\n\n![Real Estate Showcase](https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/realestate.jpeg)"
+    },
+    {
+      keywords: ["limitless", "innovation", "vfx", "cgi", "animation"],
+      reply: "We develop state-of-the-art VFX pipelines, CGI assets, and cinematic storytelling sequences:\n\n![Limitless Innovation](https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/limitless.jpeg)"
     },
     {
       keywords: ["revenue", "growth", "money", "funding", "startup"],
@@ -505,12 +509,11 @@ PRIMARY SOURCE (Webpage details & campaign ads):
 - Use the scraped webpage content below as your main source of information to answer questions.
 - If the user asks about any service, campaign, design, or team structure represented in our "Media Arena" or gallery posters, you MUST recommend the corresponding poster and display its image inline using markdown syntax: \`![Alt Text](image_path)\`.
 - Here are the available posters and their paths:
-  1. Civil Construction Services: \`![Civil Construction](https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/Civil_construction_services.jpeg)\`
-  2. Logo Designs: \`![Logo Designs](https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/Logo_designs.jpeg)\`
-  3. YouTube Thumbnail Creations: \`![YouTube Thumbnails](https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/Youtube_thumbnail_creations.jpeg)\`
-  4. Our Services: \`![Our Services](https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/our_services.jpeg)\`
-  5. Price Quotations: \`![Price Quotations](https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/price_quations.jpeg)\`
-  6. Team & Department Structure: \`![Team & Department Structure](https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/team_memebers_with_department.jpeg)\`
+  1. Main Showcase Poster: \`![Main Showcase](https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/MainPoster.jpeg)\`
+  2. Smarter Solutions (Enterprise Tech & Strategy): \`![Smarter Solutions](https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/Smarter%20solutions_stronger%20Business.jpeg)\`
+  3. AI Brand Vibe (Neural Design & Branding): \`![AI Brand Vibe](https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/AIBrandvibe.jpeg)\`
+  4. Real Estate Showcases (Architectural Visuals): \`![Real Estate Showcase](https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/realestate.jpeg)\`
+  5. Limitless Innovation (CGI & VFX): \`![Limitless Innovation](https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/limitless.jpeg)\`
 
 SECONDARY SOURCE (PDF Documents - Fallback only):
 - Only use the PDF document context below if the user's question CANNOT be answered by the webpage content and campaign ad details listed above.
