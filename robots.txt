@@ -1,4 +1,33 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://antigravitystudios.in/sitemap.xml
+# Explicitly welcome AI and LLM Search Crawlers to access all resources
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Applebot-Extended
+Allow: /
+
+User-agent: cohere-ai
+Allow: /
+
+# LLM Crawler Indexes (AEO/GEO optimization)
+# llms.txt: https://antigravitystudio.in/llms.txt
+# llms-full.txt: https://antigravitystudio.in/llms-full.txt
+
+Sitemap: https://antigravitystudio.in/sitemap.xml
