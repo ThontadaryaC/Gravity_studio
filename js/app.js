@@ -940,46 +940,61 @@ function setupFlipbookEvents() {
     totalIndicator.textContent = totalBookPages;
   }
 
-  function updateBookState() {
-    pages.forEach((page, index) => {
-      if (index < currentBookPage) {
-        page.classList.add('flipped');
-        page.style.transform = 'rotateY(-180deg)';
-        page.style.zIndex = index;
-      } else {
-        page.classList.remove('flipped');
-        page.style.transform = 'rotateY(0deg)';
-        page.style.zIndex = totalBookPages - index;
-      }
-    });
+function updateBookState() {
+  const pages = document.querySelectorAll('.book-page');
+  const prevBtn = document.getElementById('book-prev');
+  const nextBtn = document.getElementById('book-next');
+  const pageIndicator = document.getElementById('book-current-page');
+  const totalIndicator = document.getElementById('book-total-pages');
 
-    if (prevBtn) prevBtn.disabled = currentBookPage === 0;
-    if (nextBtn) nextBtn.disabled = currentBookPage === totalBookPages;
-    if (pageIndicator) pageIndicator.textContent = currentBookPage + 1;
+  if (totalIndicator) {
+    totalIndicator.textContent = totalBookPages;
   }
 
-  function nextPage() {
-    if (currentBookPage < totalBookPages) {
-      currentBookPage++;
-      updateBookState();
+  pages.forEach((page, index) => {
+    if (index < currentBookPage) {
+      page.classList.add('flipped');
+      page.style.transform = 'rotateY(-180deg)';
+      page.style.zIndex = index;
+    } else {
+      page.classList.remove('flipped');
+      page.style.transform = 'rotateY(0deg)';
+      page.style.zIndex = totalBookPages - index;
     }
-  }
+  });
 
-  function prevPage() {
-    if (currentBookPage > 0) {
-      currentBookPage--;
-      updateBookState();
-    }
+  if (prevBtn) prevBtn.disabled = currentBookPage === 0;
+  if (nextBtn) nextBtn.disabled = currentBookPage === totalBookPages;
+  if (pageIndicator) {
+    pageIndicator.textContent = currentBookPage === totalBookPages ? totalBookPages : currentBookPage + 1;
   }
+}
+
+function nextPage() {
+  if (currentBookPage < totalBookPages) {
+    currentBookPage++;
+    updateBookState();
+  }
+}
+
+function prevPage() {
+  if (currentBookPage > 0) {
+    currentBookPage--;
+    updateBookState();
+  }
+}
+
+let staticListenersAttached = false;
+
+function setupStaticFlipbookListeners() {
+  if (staticListenersAttached) return;
+
+  const prevBtn = document.getElementById('book-prev');
+  const nextBtn = document.getElementById('book-next');
+  const bookContainer = document.querySelector('.book-container');
 
   if (nextBtn) nextBtn.addEventListener('click', nextPage);
   if (prevBtn) prevBtn.addEventListener('click', prevPage);
-  if (resetBtn) {
-    resetBtn.addEventListener('click', () => {
-      currentBookPage = 0;
-      updateBookState();
-    });
-  }
 
   // Keyboard navigation for page flip
   window.addEventListener('keydown', (e) => {
@@ -992,6 +1007,39 @@ function setupFlipbookEvents() {
       prevPage();
     }
   });
+
+  // Touch Swipe for Flipbook
+  let touchStartX = 0;
+  let touchEndX = 0;
+  if (bookContainer) {
+    bookContainer.addEventListener('touchstart', (e) => {
+      touchStartX = e.changedTouches[0].screenX;
+    }, { passive: true });
+
+    bookContainer.addEventListener('touchend', (e) => {
+      touchEndX = e.changedTouches[0].screenX;
+      const swipeThreshold = 50;
+      if (touchStartX - touchEndX > swipeThreshold) {
+        nextPage();
+      } else if (touchEndX - touchStartX > swipeThreshold) {
+        prevPage();
+      }
+    }, { passive: true });
+  }
+
+  staticListenersAttached = true;
+}
+
+function setupFlipbookEvents() {
+  const pages = document.querySelectorAll('.book-page');
+  const resetBtn = document.getElementById('book-reset-btn');
+
+  if (resetBtn) {
+    resetBtn.addEventListener('click', () => {
+      currentBookPage = 0;
+      updateBookState();
+    });
+  }
 
   // Flip by clicking pages
   pages.forEach((page, index) => {
@@ -1019,26 +1067,6 @@ function setupFlipbookEvents() {
     }
   });
 
-  // Touch Swipe for Flipbook
-  let touchStartX = 0;
-  let touchEndX = 0;
-  const bookContainer = document.querySelector('.book-container');
-  if (bookContainer) {
-    bookContainer.addEventListener('touchstart', (e) => {
-      touchStartX = e.changedTouches[0].screenX;
-    }, { passive: true });
-
-    bookContainer.addEventListener('touchend', (e) => {
-      touchEndX = e.changedTouches[0].screenX;
-      const swipeThreshold = 50;
-      if (touchStartX - touchEndX > swipeThreshold) {
-        nextPage();
-      } else if (touchEndX - touchStartX > swipeThreshold) {
-        prevPage();
-      }
-    }, { passive: true });
-  }
-
   // Lightbox triggers
   const triggers = document.querySelectorAll('.lightbox-trigger');
   triggers.forEach(trigger => {
@@ -1059,6 +1087,9 @@ async function initMediaGallery() {
   const closeBtn = document.querySelector('.lightbox-close');
   const leftArrow = document.querySelector('.lightbox-arrow.left');
   const rightArrow = document.querySelector('.lightbox-arrow.right');
+
+  // Set up static listeners once
+  setupStaticFlipbookListeners();
 
   // Render initial static flipbook
   renderFlipbook();
