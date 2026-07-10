@@ -4,36 +4,36 @@
   "trailingSlash": false,
   "redirects": [
     {
-      "source": "/:path*",
+      "source": "/(.*)",
       "has": [
         {
           "type": "host",
           "value": "antigravitystudios.in"
         }
       ],
-      "destination": "https://antigravitystudio.in/:path*",
+      "destination": "https://antigravitystudio.in/$1",
       "permanent": true
     },
     {
-      "source": "/:path*",
+      "source": "/(.*)",
       "has": [
         {
           "type": "host",
           "value": "www.antigravitystudios.in"
         }
       ],
-      "destination": "https://antigravitystudio.in/:path*",
+      "destination": "https://antigravitystudio.in/$1",
       "permanent": true
     },
     {
-      "source": "/:path*",
+      "source": "/(.*)",
       "has": [
         {
           "type": "host",
           "value": "www.antigravitystudio.in"
         }
       ],
-      "destination": "https://antigravitystudio.in/:path*",
+      "destination": "https://antigravitystudio.in/$1",
       "permanent": true
     }
   ],
