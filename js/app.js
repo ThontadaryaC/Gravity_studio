@@ -928,17 +928,7 @@ function renderFlipbook() {
   setupFlipbookEvents();
 }
 
-function setupFlipbookEvents() {
-  const pages = document.querySelectorAll('.book-page');
-  const prevBtn = document.getElementById('book-prev');
-  const nextBtn = document.getElementById('book-next');
-  const pageIndicator = document.getElementById('book-current-page');
-  const totalIndicator = document.getElementById('book-total-pages');
-  const resetBtn = document.getElementById('book-reset-btn');
 
-  if (totalIndicator) {
-    totalIndicator.textContent = totalBookPages;
-  }
 
 function updateBookState() {
   const pages = document.querySelectorAll('.book-page');
