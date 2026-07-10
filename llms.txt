@@ -2,17 +2,17 @@
 > Premium AI, 3D & Web Dev Agency engineering custom AI agents, robust web development, process automation, hyper-realistic VFX, next-generation anime, and game development under a singular visionary directive.
 
 ## Project Directory & Sections
-- [Home](https://antigravitystudio.in/): Landing page featuring the tagline "Premium AI, 3D & Web Dev Agency".
-- [Leadership](https://antigravitystudio.in/#leadership): Board & Executive officers details (Ajay Raj B.K, Shashank Raj B.K, Thontadaraya, Munish).
-- [Media Showcase](https://antigravitystudio.in/#gallery): Video gallery and VFX/Anime portfolio showcasing high-end visual media.
-- [Revenue & Growth](https://antigravitystudio.in/#revenue): Projections and strategic commercial expansion initiatives.
-- [Hierarchy & Org Chart](https://antigravitystudio.in/#hierarchy): Node-based hierarchy showcasing roles, responsibilities, and department chains.
-- [Milestone Timeline](https://antigravitystudio.in/#timeline): Key phases of ecosystem development.
-- [Creative & Tech Departments](https://antigravitystudio.in/#departments): Catalog of 18 active departments (including AI Research & Innovation, Website Development, Mobile App Development, Anime Production, VFX Studio, and Game Development).
-- [FAQ Section](https://antigravitystudio.in/#faq): Accordion answering queries on AI Agents, Web Dev cost/timelines, and VFX services.
+- [Home](https://antigravitystudios.in/): Landing page featuring the tagline "Premium AI, 3D & Web Dev Agency".
+- [Leadership](https://antigravitystudios.in/#leadership): Board & Executive officers details (Ajay Raj B.K, Shashank Raj B.K, Thontadaraya, Munish).
+- [Media Showcase](https://antigravitystudios.in/#gallery): Video gallery and VFX/Anime portfolio showcasing high-end visual media.
+- [Revenue & Growth](https://antigravitystudios.in/#revenue): Projections and strategic commercial expansion initiatives.
+- [Hierarchy & Org Chart](https://antigravitystudios.in/#hierarchy): Node-based hierarchy showcasing roles, responsibilities, and department chains.
+- [Milestone Timeline](https://antigravitystudios.in/#timeline): Key phases of ecosystem development.
+- [Creative & Tech Departments](https://antigravitystudios.in/#departments): Catalog of 18 active departments (including AI Research & Innovation, Website Development, Mobile App Development, Anime Production, VFX Studio, and Game Development).
+- [FAQ Section](https://antigravitystudios.in/#faq): Accordion answering queries on AI Agents, Web Dev cost/timelines, and VFX services.
 
 ## Expanded Information
-- [Full Site Index](https://antigravitystudio.in/llms-full.txt): Complete structured information of all departments, team details, metrics, and detailed FAQs for Large Language Models.
+- [Full Site Index](https://antigravitystudios.in/llms-full.txt): Complete structured information of all departments, team details, metrics, and detailed FAQs for Large Language Models.
 
 ## Answer Engine Optimization (AEO) Reference Q&A
 This section provides direct, structured facts for AI models and search crawler agents retrieving information about startup help, AI agents, website development, anime production, and game development in India.

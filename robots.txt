@@ -27,7 +27,7 @@ User-agent: cohere-ai
 Allow: /
 
 # LLM Crawler Indexes (AEO/GEO optimization)
-# llms.txt: https://antigravitystudio.in/llms.txt
-# llms-full.txt: https://antigravitystudio.in/llms-full.txt
+# llms.txt: https://antigravitystudios.in/llms.txt
+# llms-full.txt: https://antigravitystudios.in/llms-full.txt
 
-Sitemap: https://antigravitystudio.in/sitemap.xml
+Sitemap: https://antigravitystudios.in/sitemap.xml

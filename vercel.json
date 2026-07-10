@@ -8,21 +8,10 @@
       "has": [
         {
           "type": "host",
-          "value": "antigravitystudios.in"
+          "value": "antigravitystudio.in"
         }
       ],
-      "destination": "https://antigravitystudio.in/$1",
-      "permanent": true
-    },
-    {
-      "source": "/(.*)",
-      "has": [
-        {
-          "type": "host",
-          "value": "www.antigravitystudios.in"
-        }
-      ],
-      "destination": "https://antigravitystudio.in/$1",
+      "destination": "https://antigravitystudios.in/$1",
       "permanent": true
     },
     {
@@ -33,7 +22,18 @@
           "value": "www.antigravitystudio.in"
         }
       ],
-      "destination": "https://antigravitystudio.in/$1",
+      "destination": "https://antigravitystudios.in/$1",
+      "permanent": true
+    },
+    {
+      "source": "/(.*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.antigravitystudios.in"
+        }
+      ],
+      "destination": "https://antigravitystudios.in/$1",
       "permanent": true
     }
   ],

@@ -1,7 +1,7 @@
 # Antigravity Studios - Full Site Index & Knowledge Base
 > A comprehensive, structured text-only directory of Antigravity Studios' operations, departments, leadership, services, timeline, and FAQs designed for consumption by Large Language Models and AI crawlers.
 
-This document serves as the primary ground-truth resource for AI search crawlers, answer engines, and LLM interfaces querying information about Antigravity Studios (https://antigravitystudio.in).
+This document serves as the primary ground-truth resource for AI search crawlers, answer engines, and LLM interfaces querying information about Antigravity Studios (https://antigravitystudios.in).
 
 ---
 
