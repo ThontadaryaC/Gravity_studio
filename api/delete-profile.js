@@ -4,11 +4,25 @@
 module.exports = async (req, res) => {
   // Enable CORS
   const headers = {
-    "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers": "Content-Type",
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Content-Type": "application/json"
   };
+
+  const allowedOrigins = [
+    "https://antigravitystudios.in",
+    "https://www.antigravitystudios.in",
+    "http://localhost:3000",
+    "http://localhost:8000",
+    "http://localhost:5173",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:8000"
+  ];
+
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin)) {
+    headers["Access-Control-Allow-Origin"] = origin;
+  }
 
   for (const [key, value] of Object.entries(headers)) {
     res.setHeader(key, value);
@@ -19,20 +33,66 @@ module.exports = async (req, res) => {
   }
 
   try {
+    const authHeader = req.headers.authorization || req.headers.Authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({ error: { message: "Unauthorized: Missing Authorization Header" } });
+    }
+
+    const token = authHeader.split(" ")[1];
     const SUPABASE_URL = process.env.SUPABASE_URL || "https://kivfatgytkjqoreltuyu.supabase.co";
+    const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || "sb_publishable_NGdByzMeaQrwJPw1YKGjnA_issJf05b";
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     if (!serviceRoleKey) {
       return res.status(500).json({ error: { message: "Supabase service role key is not configured on server" } });
     }
 
+    // Call Supabase Auth API to verify the JWT token
+    const userResponse = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      method: "GET",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "apikey": SUPABASE_ANON_KEY
+      }
+    });
+
+    if (!userResponse.ok) {
+      const errDetails = await userResponse.text();
+      console.warn("Supabase Auth verification failed:", errDetails);
+      return res.status(401).json({ error: { message: "Unauthorized: Invalid or expired session token" } });
+    }
+
+    const requester = await userResponse.json();
+
+    const ADMIN_ROLE_UUIDS = [
+      'f0000000-0000-0000-0000-000000000001', // founder
+      'c0000000-0000-0000-0000-000000000002', // ceo
+      'a0000000-0000-0000-0000-000000000003', // ai
+      'd0000000-0000-0000-0000-000000000004', // dev
+      'e0000000-0000-0000-0000-000000000005', // design
+      'b0000000-0000-0000-0000-000000000006', // video
+      'b0000000-0000-0000-0000-000000000007', // marketing
+      'b0000000-0000-0000-0000-000000000008'  // support
+    ];
+
+    const requesterEmail = requester.email || "";
+    const isAdmin = requesterEmail.endsWith("@gravitystudios.com") || 
+                    requesterEmail === "admin@gravitystudios.com" || 
+                    requesterEmail === "thontadaryacapt8073@gmail.com" ||
+                    requesterEmail === "antigravitystudios1@gmail.com" ||
+                    ADMIN_ROLE_UUIDS.includes(requester.id);
+
+    if (!isAdmin) {
+      return res.status(403).json({ error: { message: "Access Denied: Administrator privileges required." } });
+    }
+
     // Extract email from query or body
-    const email = req.query?.email || req.body?.email;
-    if (!email) {
+    const emailToDel = req.query?.email || req.body?.email;
+    if (!emailToDel) {
       return res.status(400).json({ error: { message: "Missing email parameter" } });
     }
 
-    const cleanEmail = email.toLowerCase().trim();
+    const cleanEmail = emailToDel.toLowerCase().trim();
 
     // 1. Find the profile record to get the User ID
     const findRes = await fetch(`${SUPABASE_URL}/rest/v1/profiles?email=eq.${encodeURIComponent(cleanEmail)}`, {

@@ -4,11 +4,25 @@
 module.exports = async (req, res) => {
   // Enable CORS
   const headers = {
-    "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers": "Content-Type, Authorization",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Content-Type": "application/json"
   };
+
+  const allowedOrigins = [
+    "https://antigravitystudios.in",
+    "https://www.antigravitystudios.in",
+    "http://localhost:3000",
+    "http://localhost:8000",
+    "http://localhost:5173",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:8000"
+  ];
+
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin)) {
+    headers["Access-Control-Allow-Origin"] = origin;
+  }
 
   for (const [key, value] of Object.entries(headers)) {
     res.setHeader(key, value);

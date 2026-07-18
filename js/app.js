@@ -2084,20 +2084,23 @@ function initPortalAuth() {
         
         // Clear from Supabase database via secure serverless endpoint
         try {
-          const payload = { clearAll: true };
-          if (currentSession && currentSession.uid) {
-            payload.userId = currentSession.uid;
-          }
-          const response = await fetch('/api/delete-notification', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(payload)
-          });
-          if (!response.ok) {
-            const errData = await response.json();
-            console.warn("Failed to clear notifications from database:", errData.error?.message);
+          if (supabaseClient) {
+            const sessionRes = await supabaseClient.auth.getSession();
+            const session = sessionRes.data?.session;
+            if (session) {
+              const response = await fetch('/api/delete-notification', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${session.access_token}`
+                },
+                body: JSON.stringify({ clearAll: true })
+              });
+              if (!response.ok) {
+                const errData = await response.json();
+                console.warn("Failed to clear notifications from database:", errData.error?.message);
+              }
+            }
           }
         } catch (err) {
           console.warn("Failed to contact notification clear API:", err);
@@ -2415,16 +2418,23 @@ function initPortalAuth() {
             // Delete from Supabase database via secure serverless endpoint only if it is a private notification
             if (notif.userId) {
               try {
-                const response = await fetch('/api/delete-notification', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json'
-                  },
-                  body: JSON.stringify({ id: notif.id })
-                });
-                if (!response.ok) {
-                  const errData = await response.json();
-                  console.warn("Failed to delete notification from database:", errData.error?.message);
+                if (supabaseClient) {
+                  const sessionRes = await supabaseClient.auth.getSession();
+                  const session = sessionRes.data?.session;
+                  if (session) {
+                    const response = await fetch('/api/delete-notification', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${session.access_token}`
+                      },
+                      body: JSON.stringify({ id: notif.id })
+                    });
+                    if (!response.ok) {
+                      const errData = await response.json();
+                      console.warn("Failed to delete notification from database:", errData.error?.message);
+                    }
+                  }
                 }
               } catch (err) {
                 console.warn("Failed to contact notification delete API:", err);
@@ -4781,6 +4791,19 @@ function initPortalAuth() {
   if (deleteDbProfileBtn) {
     deleteDbProfileBtn.addEventListener('click', async (e) => {
       e.preventDefault();
+      
+      if (!supabaseClient) {
+        alert("Supabase client is not initialized.");
+        return;
+      }
+      
+      const sessionRes = await supabaseClient.auth.getSession();
+      const session = sessionRes.data?.session;
+      if (!session) {
+        alert("You must be logged in as an administrator to perform this action.");
+        return;
+      }
+
       const email = prompt("Enter the email address of the admin profile to delete from Supabase:");
       if (!email) return;
       
@@ -4788,7 +4811,11 @@ function initPortalAuth() {
       deleteDbProfileBtn.innerText = "DELETING...";
       try {
         const res = await fetch(`/api/delete-profile?email=${encodeURIComponent(email.trim())}`, {
-          method: 'POST'
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
+          }
         });
         const data = await res.json();
         if (res.ok) {
