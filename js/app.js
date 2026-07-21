@@ -130,33 +130,7 @@ function getServicePrices() {
 async function syncPricingFromSupabase() {
   if (typeof supabaseClient === 'undefined' || !supabaseClient) return;
   try {
-    // 1. Try fetching from service_catalog first
-    const { data: dbData, error: dbError } = await supabaseClient
-      .from('service_catalog')
-      .select('*');
-      
-    if (!dbError && dbData && dbData.length > 0) {
-      const stored = localStorage.getItem('gravity_service_prices');
-      let currentPrices = DEFAULT_SERVICE_PRICES;
-      if (stored) {
-        try { currentPrices = JSON.parse(stored); } catch (e) {}
-      }
-      const updated = currentPrices.map(s => {
-        const dbRow = dbData.find(d => d.id === s.id);
-        if (dbRow) {
-          return {
-            ...s,
-            priceINR: dbRow.price_inr !== undefined && dbRow.price_inr !== null ? parseFloat(dbRow.price_inr) : s.priceINR,
-            priceUSD: dbRow.price_usd !== undefined && dbRow.price_usd !== null ? parseFloat(dbRow.price_usd) : s.priceUSD
-          };
-        }
-        return s;
-      });
-      localStorage.setItem('gravity_service_prices', JSON.stringify(updated));
-      return;
-    }
-
-    // 2. Fallback to fetching from notifications
+    // Sync pricing catalog from notifications table
     const { data: notifData, error: notifError } = await supabaseClient
       .from('notifications')
       .select('*')
@@ -195,20 +169,6 @@ async function savePricingToSupabase(updatedPrices) {
     }
   } catch (err) {
     console.warn("Secure pricing update API failed, trying direct upsert:", err);
-  }
-
-  // 2. Direct client-side upsert to service_catalog (in case it exists)
-  try {
-    await supabaseClient
-      .from('service_catalog')
-      .upsert(updatedPrices.map(u => ({
-        id: u.id,
-        name: u.name,
-        price_inr: u.priceINR,
-        price_usd: u.priceUSD
-      })));
-  } catch (err) {
-    console.warn("Direct service_catalog upsert warning:", err);
   }
 
   // 3. Fallback sync to notifications table
