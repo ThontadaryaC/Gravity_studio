@@ -1801,10 +1801,7 @@ function initPortalAuth() {
       if (session) {
         if (!currentSession || currentSession.uid !== session.user.id) {
           const fetchProfile = async (uid) => {
-            let res = await supabaseClient.from('profiles').select('username, avatar_url').eq('id', uid).single();
-            if (res.error && res.error.message && res.error.message.includes('avatar_url')) {
-              res = await supabaseClient.from('profiles').select('username').eq('id', uid).single();
-            }
+            const res = await supabaseClient.from('profiles').select('username').eq('id', uid).single();
             return res.data;
           };
           fetchProfile(session.user.id).then((profile) => {
@@ -1813,7 +1810,7 @@ function initPortalAuth() {
               username: profile ? profile.username : session.user.email.split('@')[0],
               email: session.user.email,
               uid: session.user.id,
-              avatarUrl: profile ? (profile.avatar_url || '') : '',
+              avatarUrl: '',
               phone: (currentSession && currentSession.uid === session.user.id) ? (currentSession.phone || '') : '',
               country: (currentSession && currentSession.uid === session.user.id) ? (currentSession.country || '') : ''
             };
@@ -5647,17 +5644,9 @@ async function populateNotificationUserSelect() {
 
   if (supabaseClient) {
     try {
-      let { data: dbProfiles, error } = await supabaseClient
+      const { data: dbProfiles, error } = await supabaseClient
         .from('profiles')
-        .select('id, username, email, avatar_url');
-      
-      if (error && error.message && error.message.includes('avatar_url')) {
-        const retry = await supabaseClient
-          .from('profiles')
-          .select('id, username, email');
-        dbProfiles = retry.data;
-        error = retry.error;
-      }
+        .select('id, username, email');
       
       if (!error && dbProfiles) {
         dbProfiles.forEach(p => {
@@ -5665,7 +5654,7 @@ async function populateNotificationUserSelect() {
             id: p.id,
             username: p.username,
             email: p.email,
-            avatar_url: p.avatar_url || ''
+            avatar_url: ''
           });
         });
       }
@@ -5759,17 +5748,9 @@ async function loadAdminActivityFeed() {
 
     if (supabaseClient) {
       try {
-        let { data: dbProfiles, error } = await supabaseClient
+        const { data: dbProfiles, error } = await supabaseClient
           .from('profiles')
-          .select('id, username, email, avatar_url');
-        
-        if (error && error.message && error.message.includes('avatar_url')) {
-          const retry = await supabaseClient
-            .from('profiles')
-            .select('id, username, email');
-          dbProfiles = retry.data;
-          error = retry.error;
-        }
+          .select('id, username, email');
 
         if (!error && dbProfiles) {
           dbProfiles.forEach(p => {
@@ -5777,7 +5758,7 @@ async function loadAdminActivityFeed() {
               id: p.id,
               username: p.username,
               email: p.email,
-              avatar_url: p.avatar_url || ''
+              avatar_url: ''
             });
           });
         }
