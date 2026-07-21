@@ -19,7 +19,10 @@ const CONFIG = {
   apiProxyUrl: window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" ? "" : "/api/chat", 
   
   // Directory where PDF files are stored (relative to index.html or remote bucket)
-  pdfDirectory: "https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/",
+  get pdfDirectory() {
+    const baseUrl = window.supabaseUrl || "https://kivfatgytkjqoreltuyu.supabase.co";
+    return `${baseUrl}/storage/v1/object/public/gallery-assets/`;
+  },
   
   // List of PDF filenames placed in the assets/pdfs/ directory to index automatically.
   // Add your files here! Example: ["services.pdf", "company-profile.pdf"]

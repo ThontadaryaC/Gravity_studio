@@ -39,12 +39,12 @@ module.exports = async (req, res) => {
     }
 
     const token = authHeader.split(" ")[1];
-    const SUPABASE_URL = process.env.SUPABASE_URL || "https://kivfatgytkjqoreltuyu.supabase.co";
-    const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || "sb_publishable_NGdByzMeaQrwJPw1YKGjnA_issJf05b";
+    const SUPABASE_URL = process.env.SUPABASE_URL;
+    const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    if (!serviceRoleKey) {
-      return res.status(500).json({ error: { message: "Supabase service role key is not configured on server" } });
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !serviceRoleKey) {
+      return res.status(500).json({ error: { message: "Server configuration error: missing Supabase credentials" } });
     }
 
     // Call Supabase Auth API to verify the JWT token

@@ -43,8 +43,12 @@ module.exports = async (req, res) => {
     }
 
     const token = authHeader.split(" ")[1];
-    const SUPABASE_URL = process.env.SUPABASE_URL || "https://kivfatgytkjqoreltuyu.supabase.co";
-    const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || "sb_publishable_NGdByzMeaQrwJPw1YKGjnA_issJf05b";
+    const SUPABASE_URL = process.env.SUPABASE_URL;
+    const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+      return res.status(500).json({ error: { message: "Server configuration error: missing Supabase credentials" } });
+    }
 
     // Call Supabase Auth API to verify the JWT token
     const userResponse = await fetch(`${SUPABASE_URL}/auth/v1/user`, {

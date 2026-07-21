@@ -1,9 +1,25 @@
 // Gravity Studios - UI Interaction & Animation Controller (Vibrant & Family-Friendly)
 
-// Initialize Supabase Client (Syncs with cloud database)
-const supabaseUrl = 'https://kivfatgytkjqoreltuyu.supabase.co';
-const supabaseKey = 'sb_publishable_NGdByzMeaQrwJPw1YKGjnA_issJf05b';
-const supabaseClient = (typeof supabase !== 'undefined') ? supabase.createClient(supabaseUrl, supabaseKey) : null;
+// Initialize Supabase Client (Syncs with cloud database dynamically)
+let supabaseUrl = '';
+let supabaseKey = '';
+let supabaseClient = null;
+
+async function initSupabase() {
+  try {
+    const res = await fetch('/api/get-supabase-config');
+    if (!res.ok) throw new Error("Failed to load Supabase configurations.");
+    const data = await res.json();
+    supabaseUrl = data.supabaseUrl;
+    supabaseKey = data.supabaseKey;
+    window.supabaseUrl = supabaseUrl; // for access in chatbot.js
+    if (typeof supabase !== 'undefined') {
+      supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+    }
+  } catch (err) {
+    console.error("Failed to dynamically initialize Supabase client:", err);
+  }
+}
 
 // Force clear local admin locks and sessions on first load after this fix
 if (!localStorage.getItem('gravity-force-cleared-locks-v1')) {
@@ -212,7 +228,10 @@ function detectUserCountry(session) {
 }
 
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  // Load Supabase dynamically from environment variables
+  await initSupabase();
+
   // Safe retry for Lucide icons rendering to avoid race conditions
   function renderAllIcons() {
     if (typeof lucide !== 'undefined') {

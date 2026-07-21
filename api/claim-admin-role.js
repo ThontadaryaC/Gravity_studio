@@ -62,11 +62,11 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: { message: "Invalid administrative role" } });
     }
 
-    const SUPABASE_URL = process.env.SUPABASE_URL || "https://kivfatgytkjqoreltuyu.supabase.co";
+    const SUPABASE_URL = process.env.SUPABASE_URL;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    if (!serviceRoleKey) {
-      return res.status(500).json({ error: { message: "Supabase service role key is not configured on server" } });
+    if (!SUPABASE_URL || !serviceRoleKey) {
+      return res.status(500).json({ error: { message: "Supabase service role configuration is missing on server" } });
     }
 
     // Fetch all claimed admin roles first to check if the role is already claimed or if the email is already associated with any other admin role
