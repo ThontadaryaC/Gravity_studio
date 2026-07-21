@@ -1800,13 +1800,20 @@ function initPortalAuth() {
     supabaseClient.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         if (!currentSession || currentSession.uid !== session.user.id) {
-          supabaseClient.from('profiles').select('username, avatar_url').eq('id', session.user.id).single().then(({ data: profile }) => {
+          const fetchProfile = async (uid) => {
+            let res = await supabaseClient.from('profiles').select('username, avatar_url').eq('id', uid).single();
+            if (res.error && res.error.message && res.error.message.includes('avatar_url')) {
+              res = await supabaseClient.from('profiles').select('username').eq('id', uid).single();
+            }
+            return res.data;
+          };
+          fetchProfile(session.user.id).then((profile) => {
             let sessionObj = {
               role: 'user',
               username: profile ? profile.username : session.user.email.split('@')[0],
               email: session.user.email,
               uid: session.user.id,
-              avatarUrl: profile ? profile.avatar_url : '',
+              avatarUrl: profile ? (profile.avatar_url || '') : '',
               phone: (currentSession && currentSession.uid === session.user.id) ? (currentSession.phone || '') : '',
               country: (currentSession && currentSession.uid === session.user.id) ? (currentSession.country || '') : ''
             };
@@ -3793,25 +3800,42 @@ function initPortalAuth() {
     if (refundListContainer) {
       let refunds = [];
       if (supabaseClient) {
-        const { data, error } = await supabaseClient
-          .from('refunds')
-          .select('*, purchases(*, profiles(*))')
-          .order('created_at', { ascending: false });
-
-        if (!error && data) {
-          refunds = data.map(r => ({
-            id: r.id,
-            purchaseId: r.purchase_id,
-            user: r.purchases && r.purchases.profiles ? r.purchases.profiles.username : 'User',
-            serviceName: r.purchases ? r.purchases.service_name : 'Service',
-            explanation: r.explanation,
-            fileName: r.evidence_url ? (r.evidence_url.includes('/') ? r.evidence_url.split('/').pop() : r.evidence_url) : 'Evidence',
-            fileSize: "N/A",
-            amount: r.purchases ? parseFloat(r.purchases.paid_amount) : 0,
-            status: r.status,
-            evidenceUrl: r.evidence_url
-          }));
-        } else {
+        try {
+          const { data: refundsData, error: refError } = await supabaseClient
+            .from('refunds')
+            .select('*, purchases(*)')
+            .order('created_at', { ascending: false });
+          
+          const { data: profilesData } = await supabaseClient
+            .from('profiles')
+            .select('id, username, email');
+          
+          if (!refError && refundsData) {
+            const profilesMap = new Map(profilesData ? profilesData.map(p => [p.id, p]) : []);
+            refunds = refundsData.map(r => {
+              const purchaseWithProfile = r.purchases ? {
+                ...r.purchases,
+                profiles: profilesMap.get(r.purchases.user_id) || null
+              } : null;
+              
+              return {
+                id: r.id,
+                purchaseId: r.purchase_id,
+                user: purchaseWithProfile && purchaseWithProfile.profiles ? purchaseWithProfile.profiles.username : 'User',
+                serviceName: r.purchases ? r.purchases.service_name : 'Service',
+                explanation: r.explanation,
+                fileName: r.evidence_url ? (r.evidence_url.includes('/') ? r.evidence_url.split('/').pop() : r.evidence_url) : 'Evidence',
+                fileSize: "N/A",
+                amount: r.purchases ? parseFloat(r.purchases.paid_amount) : 0,
+                status: r.status,
+                evidenceUrl: r.evidence_url
+              };
+            });
+          } else {
+            refunds = JSON.parse(localStorage.getItem('gravity-refunds')) || [];
+          }
+        } catch (e) {
+          console.warn("Error rendering admin dashboard refunds:", e.message);
           refunds = JSON.parse(localStorage.getItem('gravity-refunds')) || [];
         }
       } else {
@@ -3942,19 +3966,34 @@ function initPortalAuth() {
     let targetUserId = null;
 
     if (supabaseClient) {
-      const { data: dbClaim, error } = await supabaseClient
-        .from('refunds')
-        .select('*, purchases(*, profiles(*))')
-        .eq('id', claimId)
-        .single();
-      
-      if (!error && dbClaim) {
-        claim = dbClaim;
-        purchaseId = dbClaim.purchase_id;
-        serviceName = dbClaim.purchases ? dbClaim.purchases.service_name : 'Service';
-        amount = dbClaim.purchases ? parseFloat(dbClaim.purchases.paid_amount) : 0;
-        username = dbClaim.purchases && dbClaim.purchases.profiles ? dbClaim.purchases.profiles.username : 'User';
-        targetUserId = dbClaim.purchases ? dbClaim.purchases.user_id : null;
+      try {
+        const { data: dbClaim, error } = await supabaseClient
+          .from('refunds')
+          .select('*, purchases(*)')
+          .eq('id', claimId)
+          .single();
+        
+        if (!error && dbClaim) {
+          let usernameVal = 'User';
+          if (dbClaim.purchases && dbClaim.purchases.user_id) {
+            const { data: prof } = await supabaseClient
+              .from('profiles')
+              .select('username')
+              .eq('id', dbClaim.purchases.user_id)
+              .single();
+            if (prof) {
+              usernameVal = prof.username;
+            }
+          }
+          claim = dbClaim;
+          purchaseId = dbClaim.purchase_id;
+          serviceName = dbClaim.purchases ? dbClaim.purchases.service_name : 'Service';
+          amount = dbClaim.purchases ? parseFloat(dbClaim.purchases.paid_amount) : 0;
+          username = usernameVal;
+          targetUserId = dbClaim.purchases ? dbClaim.purchases.user_id : null;
+        }
+      } catch (err) {
+        console.warn("Error fetching single refund claim details:", err);
       }
     }
 
@@ -5608,16 +5647,25 @@ async function populateNotificationUserSelect() {
 
   if (supabaseClient) {
     try {
-      const { data: dbProfiles, error } = await supabaseClient
+      let { data: dbProfiles, error } = await supabaseClient
         .from('profiles')
         .select('id, username, email, avatar_url');
+      
+      if (error && error.message && error.message.includes('avatar_url')) {
+        const retry = await supabaseClient
+          .from('profiles')
+          .select('id, username, email');
+        dbProfiles = retry.data;
+        error = retry.error;
+      }
+      
       if (!error && dbProfiles) {
         dbProfiles.forEach(p => {
           usersMap.set(p.id, {
             id: p.id,
             username: p.username,
             email: p.email,
-            avatar_url: p.avatar_url
+            avatar_url: p.avatar_url || ''
           });
         });
       }
@@ -5711,16 +5759,25 @@ async function loadAdminActivityFeed() {
 
     if (supabaseClient) {
       try {
-        const { data: dbProfiles, error } = await supabaseClient
+        let { data: dbProfiles, error } = await supabaseClient
           .from('profiles')
           .select('id, username, email, avatar_url');
+        
+        if (error && error.message && error.message.includes('avatar_url')) {
+          const retry = await supabaseClient
+            .from('profiles')
+            .select('id, username, email');
+          dbProfiles = retry.data;
+          error = retry.error;
+        }
+
         if (!error && dbProfiles) {
           dbProfiles.forEach(p => {
             usersMap.set(p.id, {
               id: p.id,
               username: p.username,
               email: p.email,
-              avatar_url: p.avatar_url
+              avatar_url: p.avatar_url || ''
             });
           });
         }
@@ -5821,12 +5878,21 @@ async function loadAdminActivityFeed() {
     let purchases = [];
     if (supabaseClient) {
       try {
-        const { data, error } = await supabaseClient
+        const { data: purchasesData, error: purError } = await supabaseClient
           .from('purchases')
-          .select('*, profiles(username, email)')
+          .select('*')
           .order('created_at', { ascending: false });
-        if (!error && data) {
-          purchases = data;
+        
+        const { data: profilesData } = await supabaseClient
+          .from('profiles')
+          .select('id, username, email');
+        
+        if (!purError && purchasesData) {
+          const profilesMap = new Map(profilesData ? profilesData.map(p => [p.id, p]) : []);
+          purchases = purchasesData.map(p => ({
+            ...p,
+            profiles: profilesMap.get(p.user_id) || null
+          }));
         }
       } catch (e) {
         console.warn("Error fetching purchases for feed:", e.message);
@@ -5918,13 +5984,25 @@ async function loadProgressClientDropdown(dept) {
 
   let purchases = [];
   if (supabaseClient) {
-    const { data, error } = await supabaseClient
-      .from('purchases')
-      .select('*, profiles(username, email)')
-      .order('created_at', { ascending: false });
-    
-    if (!error && data) {
-      purchases = data;
+    try {
+      const { data: purchasesData, error: purError } = await supabaseClient
+        .from('purchases')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      const { data: profilesData } = await supabaseClient
+        .from('profiles')
+        .select('id, username, email');
+      
+      if (!purError && purchasesData) {
+        const profilesMap = new Map(profilesData ? profilesData.map(p => [p.id, p]) : []);
+        purchases = purchasesData.map(p => ({
+          ...p,
+          profiles: profilesMap.get(p.user_id) || null
+        }));
+      }
+    } catch (e) {
+      console.warn("Error fetching purchases for client dropdown:", e.message);
     }
   } else {
     purchases = JSON.parse(localStorage.getItem('gravity-user-purchases')) || [];
@@ -6074,23 +6152,39 @@ async function loadAdminRefundsList() {
 
   let refunds = [];
   if (supabaseClient) {
-    const { data, error } = await supabaseClient
-      .from('refunds')
-      .select('*, purchases(*, profiles(*))')
-      .order('created_at', { ascending: false });
-
-    if (!error && data) {
-      refunds = data.map(r => ({
-        id: r.id,
-        purchaseId: r.purchase_id,
-        user: r.purchases && r.purchases.profiles ? r.purchases.profiles.username : 'User',
-        serviceName: r.purchases ? r.purchases.service_name : 'Service',
-        explanation: r.explanation,
-        fileName: r.evidence_url ? r.evidence_url.split('/').pop() : 'Evidence',
-        amount: r.purchases ? parseFloat(r.purchases.paid_amount) : 0,
-        status: r.status,
-        evidenceUrl: r.evidence_url
-      }));
+    try {
+      const { data: refundsData, error: refError } = await supabaseClient
+        .from('refunds')
+        .select('*, purchases(*)')
+        .order('created_at', { ascending: false });
+      
+      const { data: profilesData } = await supabaseClient
+        .from('profiles')
+        .select('id, username, email');
+      
+      if (!refError && refundsData) {
+        const profilesMap = new Map(profilesData ? profilesData.map(p => [p.id, p]) : []);
+        refunds = refundsData.map(r => {
+          const purchaseWithProfile = r.purchases ? {
+            ...r.purchases,
+            profiles: profilesMap.get(r.purchases.user_id) || null
+          } : null;
+          
+          return {
+            id: r.id,
+            purchaseId: r.purchase_id,
+            user: purchaseWithProfile && purchaseWithProfile.profiles ? purchaseWithProfile.profiles.username : 'User',
+            serviceName: r.purchases ? r.purchases.service_name : 'Service',
+            explanation: r.explanation,
+            fileName: r.evidence_url ? r.evidence_url.split('/').pop() : 'Evidence',
+            amount: r.purchases ? parseFloat(r.purchases.paid_amount) : 0,
+            status: r.status,
+            evidenceUrl: r.evidence_url
+          };
+        });
+      }
+    } catch (e) {
+      console.warn("Error fetching admin refunds list:", e.message);
     }
   } else {
     refunds = JSON.parse(localStorage.getItem('gravity-refunds')) || [];
