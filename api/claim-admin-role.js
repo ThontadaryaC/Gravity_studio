@@ -1,7 +1,16 @@
 // api/claim-admin-role.js
 // Securely claims an administrative role on the backend (RLS bypass)
 
-const { validateCSRF, sanitizeInput, checkRateLimit, auditLog } = require("./security-utils");
+const crypto = require("crypto");
+const { 
+  validateCSRF, 
+  sanitizeInput, 
+  checkRateLimit, 
+  auditLog, 
+  checkLockout, 
+  recordFailedAttempt, 
+  resetFailedAttempts 
+} = require("./security-utils");
 
 const ADMIN_ROLE_UUIDS = {
   'founder': 'f0000000-0000-0000-0000-000000000001',
@@ -56,14 +65,6 @@ module.exports = async (req, res) => {
 
   try {
     const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress || "global";
-    
-    // Rate Limit: Max 10 role-claiming requests per hour per IP
-    const rateLimitKey = `claim_admin_role:${ip}`;
-    const rateLimitOk = await checkRateLimit(rateLimitKey, 10, 3600);
-    if (!rateLimitOk) {
-      return res.status(429).json({ error: { message: "Too many claims attempts. Please try again later." } });
-    }
-
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
     const { role, email, password } = body || {};
 
@@ -73,12 +74,24 @@ module.exports = async (req, res) => {
 
     const cleanRole = sanitizeInput(role);
     const cleanEmail = sanitizeInput(email).toLowerCase().trim();
-    const cleanPassword = password; // Do not html-sanitize passwords as it might corrupt special characters
+    const cleanPassword = password;
 
-    const expectedUsername = `admin_role:${cleanRole}|pwd:${cleanPassword}`;
     const roleUuid = ADMIN_ROLE_UUIDS[cleanRole];
     if (!roleUuid) {
       return res.status(400).json({ error: { message: "Invalid administrative role" } });
+    }
+
+    // 1. Lockout Check (Max 5 attempts per 15 minutes per IP/email)
+    const lockoutIpKey = `lockout:claim_role:${ip}`;
+    const lockoutEmailKey = `lockout:claim_role:${cleanEmail}`;
+
+    const lockoutIpCheck = await checkLockout(lockoutIpKey, 5, 900);
+    if (!lockoutIpCheck.allowed) {
+      return res.status(423).json({ error: { message: `Too many failed attempts. Lockout active. Please retry in ${lockoutIpCheck.remainingSeconds} seconds.` } });
+    }
+    const lockoutEmailCheck = await checkLockout(lockoutEmailKey, 5, 900);
+    if (!lockoutEmailCheck.allowed) {
+      return res.status(423).json({ error: { message: `Too many failed attempts. Lockout active. Please retry in ${lockoutEmailCheck.remainingSeconds} seconds.` } });
     }
 
     const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -91,9 +104,10 @@ module.exports = async (req, res) => {
     // Write audit log of attempt
     await auditLog(null, cleanEmail, 'admin:claim_attempt', { role: cleanRole });
 
-    // Fetch all claimed admin roles first to check if the role is already claimed or if the email is already associated with any other admin role
-    const uuidsStr = Object.values(ADMIN_ROLE_UUIDS).map(id => `"${id}"`).join(",");
-    const dbRes = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=in.(${uuidsStr})&select=id,email`, {
+    // 2. Validate Secure Access Code (password) Hashed Check
+    const submittedHash = crypto.createHash("sha256").update(cleanPassword).digest("hex");
+
+    const codeRes = await fetch(`${SUPABASE_URL}/rest/v1/admin_codes?role=eq.${encodeURIComponent(cleanRole)}`, {
       method: "GET",
       headers: {
         "Authorization": `Bearer ${serviceRoleKey}`,
@@ -101,137 +115,89 @@ module.exports = async (req, res) => {
       }
     });
 
-    if (!dbRes.ok) {
-      throw new Error(`Database fetch failed: ${await dbRes.text()}`);
+    if (!codeRes.ok) {
+      throw new Error(`Failed to query database for access code: ${await codeRes.text()}`);
     }
 
-    const data = await dbRes.json();
-    
-    // Check if the role is already claimed
-    const isRoleClaimed = data.some(p => p.id === roleUuid);
-    if (isRoleClaimed) {
-      return res.status(400).json({ error: { message: "This administrative position is already claimed." } });
+    const codeData = await codeRes.json();
+    if (!codeData || codeData.length === 0 || codeData[0].code_hash !== submittedHash) {
+      // Record failed attempts
+      await recordFailedAttempt(lockoutIpKey, 900);
+      await recordFailedAttempt(lockoutEmailKey, 900);
+
+      await auditLog(null, cleanEmail, 'admin:claim_failed_access_code', { role: cleanRole });
+      return res.status(401).json({ error: { message: "ACCESS DENIED: Invalid Secure Access Code for this position." } });
     }
 
-    // Check if email is already claimed by any other admin role
-    const isEmailClaimed = data.some(p => (p.email || '').toLowerCase().trim() === cleanEmail);
-    if (isEmailClaimed) {
-      return res.status(400).json({ error: { message: "This email is already associated with another administrative role." } });
-    }
-
-    // Check if the email already exists under a different user ID, and if so, delete it first
-    try {
-      let existingId = null;
-
-      const profileCheckRes = await fetch(`${SUPABASE_URL}/rest/v1/profiles?email=eq.${encodeURIComponent(cleanEmail)}`, {
-        method: "GET",
-        headers: {
-          "Authorization": `Bearer ${serviceRoleKey}`,
-          "apikey": serviceRoleKey
-        }
-      });
-      if (profileCheckRes.ok) {
-        const profiles = await profileCheckRes.json();
-        if (profiles && profiles.length > 0) {
-          existingId = profiles[0].id;
-        }
+    // 3. Atomic checks: Check if already claimed or email bound
+    const profilesRes = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${roleUuid}`, {
+      method: "GET",
+      headers: {
+        "Authorization": `Bearer ${serviceRoleKey}`,
+        "apikey": serviceRoleKey
       }
+    });
 
-      if (!existingId) {
-        const listRes = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
-          method: "GET",
-          headers: {
-            "Authorization": `Bearer ${serviceRoleKey}`,
-            "apikey": serviceRoleKey
-          }
-        });
-        if (listRes.ok) {
-          const resData = await listRes.json();
-          const users = resData.users || resData || [];
-          const matchedUser = users.find(u => (u.email || '').toLowerCase().trim() === cleanEmail);
-          if (matchedUser) {
-            existingId = matchedUser.id;
-          }
-        }
+    if (profilesRes.ok) {
+      const profiles = await profilesRes.json();
+      if (profiles && profiles.length > 0) {
+        return res.status(400).json({ error: { message: "ACCESS DENIED: This position is already claimed." } });
       }
-
-      if (existingId && existingId !== roleUuid) {
-        console.log(`Deleting existing user ID ${existingId} for admin override.`);
-        await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${existingId}`, {
-          method: "DELETE",
-          headers: {
-            "Authorization": `Bearer ${serviceRoleKey}`,
-            "apikey": serviceRoleKey
-          }
-        });
-        await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${existingId}`, {
-          method: "DELETE",
-          headers: {
-            "Authorization": `Bearer ${serviceRoleKey}`,
-            "apikey": serviceRoleKey
-          }
-        });
-      }
-    } catch (cleanupErr) {
-      console.warn("Failed to clean up existing user by email:", cleanupErr.message);
     }
 
-    // 1. Create the user in auth.users using admin API
-    try {
-      const createUserRes = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${serviceRoleKey}`,
-          "apikey": serviceRoleKey,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          id: roleUuid,
-          email: cleanEmail,
-          password: cleanPassword,
-          email_confirm: true,
-          user_metadata: {
-            username: expectedUsername,
-            avatar_url: `https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/logo.png`
-          }
-        })
-      });
-
-      if (!createUserRes.ok) {
-        const errText = await createUserRes.text();
-        let errData = {};
-        try { errData = JSON.parse(errText); } catch(e) {}
-        const errMsg = errData.msg || errData.message || "";
-        
-        if (errMsg.includes("already exists") || errMsg.includes("already registered") || errText.includes("already exists") || errText.includes("already registered")) {
-          return res.status(400).json({ error: { message: "A user with this email address already exists in Supabase. Please use a different or completely fresh email address." } });
-        }
-
-        // Verify if it exists under the correct ID
-        const checkUserRes = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${roleUuid}`, {
-          method: "GET",
-          headers: {
-            "Authorization": `Bearer ${serviceRoleKey}`,
-            "apikey": serviceRoleKey
-          }
-        });
-        if (!checkUserRes.ok) {
-          return res.status(400).json({ error: { message: `Supabase auth user creation failed: ${errMsg || errText}` } });
-        }
+    const emailCheckRes = await fetch(`${SUPABASE_URL}/rest/v1/profiles?email=eq.${encodeURIComponent(cleanEmail)}`, {
+      method: "GET",
+      headers: {
+        "Authorization": `Bearer ${serviceRoleKey}`,
+        "apikey": serviceRoleKey
       }
-    } catch (authErr) {
-      return res.status(500).json({ error: { message: `Auth creation system error: ${authErr.message}` } });
+    });
+
+    if (emailCheckRes.ok) {
+      const emailProfiles = await emailCheckRes.json();
+      if (emailProfiles && emailProfiles.length > 0) {
+        return res.status(400).json({ error: { message: "ACCESS DENIED: This email is already associated with another corporate position." } });
+      }
     }
 
-    // 2. Insert/Upsert the profile record in profiles table
-    // EXPLICITLY specify role: 'admin' to bypass trigger defaults. Since this is service_role, the trigger will accept it.
-    const upsertRes = await fetch(`${SUPABASE_URL}/rest/v1/profiles`, {
+    // 4. Create the GoTrue Auth User (ensures atomic uniqueness on primary key and email)
+    const expectedUsername = `admin_role:${cleanRole}|pwd:${cleanPassword}`;
+    const createUserRes = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${serviceRoleKey}`,
         "apikey": serviceRoleKey,
-        "Content-Type": "application/json",
-        "Prefer": "return=representation"
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        id: roleUuid,
+        email: cleanEmail,
+        password: cleanPassword,
+        email_confirm: true,
+        user_metadata: {
+          username: expectedUsername,
+          avatar_url: `https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/logo.png`
+        }
+      })
+    });
+
+    if (!createUserRes.ok) {
+      const errText = await createUserRes.text();
+      let errData = {};
+      try { errData = JSON.parse(errText); } catch(e) {}
+      const errMsg = errData.msg || errData.message || "";
+      
+      await auditLog(null, cleanEmail, 'admin:claim_failed_auth_create', { role: cleanRole, error: errMsg || errText });
+      return res.status(400).json({ error: { message: `Registration failed: ${errMsg || "User already exists or duplicate email"}` } });
+    }
+
+    // 5. Insert profile record (bypasses RLS using service_role)
+    const profileInsertRes = await fetch(`${SUPABASE_URL}/rest/v1/profiles`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${serviceRoleKey}`,
+        "apikey": serviceRoleKey,
+        "Content-Type": "application/json"
       },
       body: JSON.stringify({
         id: roleUuid,
@@ -241,11 +207,23 @@ module.exports = async (req, res) => {
       })
     });
 
-    if (!upsertRes.ok) {
-      throw new Error(`Database upsert failed: ${await upsertRes.text()}`);
+    if (!profileInsertRes.ok) {
+      // Clean up Auth user to remain consistent
+      await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${roleUuid}`, {
+        method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${serviceRoleKey}`,
+          "apikey": serviceRoleKey
+        }
+      });
+      throw new Error(`Profile creation failed: ${await profileInsertRes.text()}`);
     }
 
-    // Write audit log of success
+    // Reset failed lockouts on successful claim
+    await resetFailedAttempts(lockoutIpKey);
+    await resetFailedAttempts(lockoutEmailKey);
+
+    // Audit log success
     await auditLog(roleUuid, cleanEmail, 'admin:claim_success', { role: cleanRole });
 
     return res.status(200).json({ success: true });

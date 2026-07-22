@@ -316,3 +316,28 @@ DROP POLICY IF EXISTS "Deny client rate limits access" ON public.rate_limits;
 CREATE POLICY "Deny client rate limits access"
   ON public.rate_limits FOR ALL TO public
   USING (false); -- service_role bypasses RLS
+
+-- 4.9. ADMIN_CODES Table Definitions & Policies
+CREATE TABLE IF NOT EXISTS public.admin_codes (
+  role text PRIMARY KEY,
+  code_hash text NOT NULL
+);
+
+ALTER TABLE public.admin_codes ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Deny client admin_codes access" ON public.admin_codes;
+CREATE POLICY "Deny client admin_codes access"
+  ON public.admin_codes FOR ALL TO public
+  USING (false); -- service_role bypasses RLS
+
+INSERT INTO public.admin_codes (role, code_hash) VALUES
+  ('founder', 'd79bcf27143ab1b0b607a01afe607d86b925a39300d087f01c8aaa43e303397d'),
+  ('ceo', '12eef3cefab5a097e19e36e7c8317395a10a26e4b3a99b792351ce393f8977d8'),
+  ('ai', 'b2d1251ce6ff321e699101ef6a2543035b5d6335bfd6ce24ecd0a02d58618eaa'),
+  ('video', '3b5295f41f76f075a434ab1c02bccdeac5b2c1842e3c5664eaf6476d2ae4d569'),
+  ('support', '07153f00c3544cf00d317365ec42211051de7a4c64a3bb76b20f7233470f83f2'),
+  ('dev', '01ebe717658de2c284f7b5fe65c025fdde8a182b0064c1ca15b01aeaa5359e6c'),
+  ('design', '932aa5ea554fb56034e7799db002428f52613a530064301fff6d70c60d6a8643'),
+  ('marketing', '3b63726b56ef723d82273343722a878c9d041e8a1f46656bf4bf3b01e3d14bdb')
+ON CONFLICT (role) DO UPDATE SET code_hash = EXCLUDED.code_hash;
+

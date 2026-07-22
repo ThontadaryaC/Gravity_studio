@@ -4580,37 +4580,10 @@ function initPortalAuth() {
         }
       }
     } catch (apiErr) {
-      console.warn("Could not fetch claimed roles from serverless API, falling back to direct database query:", apiErr.message);
-    }
-
-    // 2. Direct Supabase Query (always active, public select allowed on profiles)
-    const bypassDb = localStorage.getItem('gravity-bypass-db-claims') === 'true';
-    if (!bypassDb && Object.keys(claimed).length === 0 && supabaseClient) {
-      try {
-        const { data, error } = await supabaseClient
-          .from('profiles')
-          .select('id, email, username');
-        
-        if (!error && data) {
-          data.forEach(profile => {
-            const email = (profile.email || '').toLowerCase().trim();
-            if (email) {
-              const roleKey = Object.keys(ADMIN_ROLE_UUIDS).find(k => ADMIN_ROLE_UUIDS[k] === profile.id);
-              if (roleKey) {
-                claimed[roleKey] = {
-                  email: email,
-                  username: profile.username
-                };
-              }
-            }
-          });
-        }
-      } catch (dbErr) {
-        console.warn("Direct query failed to fetch claimed roles:", dbErr.message);
-      }
+      console.warn("Could not fetch claimed roles from serverless API:", apiErr.message);
     }
     
-    // 3. Fetch from Local Storage Locks (fallback/offline mode)
+    // 2. Fetch from Local Storage Locks (fallback/offline mode)
     const localLocks = JSON.parse(localStorage.getItem('gravity-admin-locks')) || {};
     Object.keys(localLocks).forEach(roleKey => {
       if (!claimed[roleKey]) {
@@ -4623,6 +4596,7 @@ function initPortalAuth() {
     
     return claimed;
   }
+
 
   async function updateAdminRoleSelectDropdown() {
     const selectElem = document.getElementById('admin-role-select');
@@ -4803,28 +4777,36 @@ function initPortalAuth() {
       if (boundRole) {
         const roleUuid = ADMIN_ROLE_UUIDS[boundRole];
         let loginOk = false;
+        let authSession = null;
 
-        if (supabaseClient) {
-          try {
-            const { data: authData, error: authError } = await supabaseClient.auth.signInWithPassword({
-              email: email,
-              password: password
-            });
+        // Call the serverless backend to authenticate the admin login securely
+        try {
+          const loginRes = await fetch('/api/admin-login', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ email, password })
+          });
 
-            if (!authError && authData && authData.user) {
-              loginOk = true;
-            } else {
-              console.warn("Supabase Auth signIn failed:", authError?.message);
-            }
-          } catch (dbErr) {
-            console.warn("Could not query role binding from database:", dbErr.message);
+          if (loginRes.ok) {
+            const loginData = await loginRes.json();
+            authSession = loginData.session;
+            loginOk = true;
+          } else {
+            const errData = await loginRes.json();
+            const errMsg = errData.error?.message || "Invalid credentials.";
+            showError(adminLoginError, `REGISTRATION FAILED: ${errMsg}`);
           }
-        }
-
-        if (!loginOk) {
+        } catch (apiErr) {
+          console.warn("Backend Login API failed, falling back to local simulation:", apiErr.message);
+          
+          // Sandbox local fallback check
           const localLocks = JSON.parse(localStorage.getItem('gravity-admin-locks')) || {};
           if (localLocks[boundRole] && localLocks[boundRole].password === password) {
             loginOk = true;
+          } else {
+            showError(adminLoginError, `ACCESS DENIED: Incorrect password for this corporate position.`);
           }
         }
 
@@ -4834,14 +4816,17 @@ function initPortalAuth() {
         }
 
         if (loginOk) {
+          // If we have a real Supabase session, sync it to the client SDK
+          if (supabaseClient && authSession) {
+            await supabaseClient.auth.setSession(authSession);
+          }
+          
           loginSuccess({
             role: 'admin',
             email: email,
             uid: roleUuid,
             username: `${boundRole.toUpperCase()} Head`
           });
-        } else {
-          showError(adminLoginError, `ACCESS DENIED: Incorrect password for this corporate position.`);
         }
       } else {
         if (!selectedRole) {

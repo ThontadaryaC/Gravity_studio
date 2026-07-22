@@ -211,10 +211,122 @@ async function verifySessionAndRole(req) {
   return { user, role, isAdmin, error: null };
 }
 
+async function checkLockout(key, maxAttempts, windowSeconds) {
+  const SUPABASE_URL = process.env.SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!SUPABASE_URL || !serviceRoleKey) {
+    return { allowed: true };
+  }
+
+  const now = new Date();
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rate_limits?key=eq.${encodeURIComponent(key)}`, {
+      method: "GET",
+      headers: {
+        "Authorization": `Bearer ${serviceRoleKey}`,
+        "apikey": serviceRoleKey
+      }
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.length > 0) {
+        const record = data[0];
+        const resetTime = new Date(record.reset_at);
+        if (resetTime > now) {
+          if (record.hits >= maxAttempts) {
+            const remainingSeconds = Math.ceil((resetTime - now) / 1000);
+            return { allowed: false, remainingSeconds };
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Lockout check error:", err);
+  }
+  return { allowed: true };
+}
+
+async function recordFailedAttempt(key, windowSeconds) {
+  const SUPABASE_URL = process.env.SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!SUPABASE_URL || !serviceRoleKey) return;
+
+  const now = new Date();
+  const resetAt = new Date(now.getTime() + windowSeconds * 1000).toISOString();
+
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rate_limits?key=eq.${encodeURIComponent(key)}`, {
+      method: "GET",
+      headers: {
+        "Authorization": `Bearer ${serviceRoleKey}`,
+        "apikey": serviceRoleKey
+      }
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.length > 0) {
+        const record = data[0];
+        const resetTime = new Date(record.reset_at);
+        if (resetTime > now) {
+          // Increment hits
+          await fetch(`${SUPABASE_URL}/rest/v1/rate_limits?key=eq.${encodeURIComponent(key)}`, {
+            method: "PATCH",
+            headers: {
+              "Authorization": `Bearer ${serviceRoleKey}`,
+              "apikey": serviceRoleKey,
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ hits: record.hits + 1 })
+          });
+          return;
+        }
+      }
+    }
+
+    // Insert or overwrite expired lockout
+    await fetch(`${SUPABASE_URL}/rest/v1/rate_limits`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${serviceRoleKey}`,
+        "apikey": serviceRoleKey,
+        "Content-Type": "application/json",
+        "Prefer": "resolution=merge-duplicates"
+      },
+      body: JSON.stringify({ key, hits: 1, reset_at: resetAt })
+    });
+  } catch (err) {
+    console.error("Record failed attempt error:", err);
+  }
+}
+
+async function resetFailedAttempts(key) {
+  const SUPABASE_URL = process.env.SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!SUPABASE_URL || !serviceRoleKey) return;
+
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/rate_limits?key=eq.${encodeURIComponent(key)}`, {
+      method: "DELETE",
+      headers: {
+        "Authorization": `Bearer ${serviceRoleKey}`,
+        "apikey": serviceRoleKey
+      }
+    });
+  } catch (err) {
+    console.error("Reset failed attempts error:", err);
+  }
+}
+
 module.exports = {
   validateCSRF,
   sanitizeInput,
   checkRateLimit,
   auditLog,
-  verifySessionAndRole
+  verifySessionAndRole,
+  checkLockout,
+  recordFailedAttempt,
+  resetFailedAttempts
 };
+
