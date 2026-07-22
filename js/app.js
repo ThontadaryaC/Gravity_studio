@@ -167,11 +167,10 @@ async function syncPricingFromSupabase() {
 async function savePricingToSupabase(updatedPrices) {
   if (typeof supabaseClient === 'undefined' || !supabaseClient) return;
   
-  // 1. Try to sync with serverless function /api/admin-action
   try {
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (session) {
-      await fetch('/api/admin-action', {
+      const res = await fetch('/api/admin-action', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -182,39 +181,19 @@ async function savePricingToSupabase(updatedPrices) {
           payload: { updatedPrices }
         })
       });
-    }
-  } catch (err) {
-    console.warn("Secure pricing update API failed, trying direct upsert:", err);
-  }
-
-  // 3. Fallback sync to notifications table
-  try {
-    const { data: existing } = await supabaseClient
-      .from('notifications')
-      .select('id')
-      .eq('title', '[SYSTEM_PRICING_CATALOG]')
-      .limit(1);
-      
-    if (existing && existing.length > 0) {
-      await supabaseClient
-        .from('notifications')
-        .update({ desc_text: JSON.stringify(updatedPrices) })
-        .eq('id', existing[0].id);
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error?.message || `HTTP ${res.status}`);
+      }
     } else {
-      await supabaseClient
-        .from('notifications')
-        .insert([{
-          title: '[SYSTEM_PRICING_CATALOG]',
-          desc_text: JSON.stringify(updatedPrices),
-          time_label: 'System Update',
-          is_read: false,
-          user_id: null
-        }]);
+      throw new Error("No active administrator session");
     }
   } catch (err) {
-    console.warn("Pricing notification sync fallback failed:", err);
+    console.error("Secure pricing update API failed:", err);
+    alert(`Failed to save pricing to database: ${err.message}`);
   }
 }
+
 
 function detectUserCountry(session) {
   if (!session) return 'Other';
@@ -3235,7 +3214,7 @@ function initPortalAuth() {
     if (supabaseClient) {
       try {
         const sessionRes = await supabaseClient.auth.getSession();
-        const session = sessionRes.data.session;
+        const session = sessionRes.data?.session;
         if (session) {
           const response = await fetch('/api/admin-action', {
             method: 'POST',
@@ -3252,34 +3231,13 @@ function initPortalAuth() {
             const err = await response.json();
             throw new Error(err.error?.message || `HTTP ${response.status}`);
           }
-        } else {
-          // Fallback if no active auth session
-          await supabaseClient
-            .from('notifications')
-            .insert([{
-              title: title,
-              desc_text: desc,
-              time_label: "Just now",
-              is_read: false,
-              user_id: userId
-            }]);
         }
       } catch (err) {
-        console.warn("Secure admin action failed, falling back to direct client-side DB insert:", err);
-        await supabaseClient
-          .from('notifications')
-          .insert([{
-            title: title,
-            desc_text: desc,
-            time_label: "Just now",
-            is_read: false,
-            user_id: userId
-          }]);
+        console.error("System notification API failed:", err);
       }
     }
-    
-    await renderNotifications();
   }
+
 
   /* ==========================================================================
      RAZORPAY GATEWAY CHECKOUT INTEGRATION
@@ -3295,7 +3253,7 @@ function initPortalAuth() {
   const formCard = document.getElementById('razorpay-form-card');
 
   // Unified Payment Success Handler
-  async function processSuccessPayment(txId, methodUsed) {
+  async function processSuccessPayment(returnedPurchaseId, returnedPayAmount, txId, methodUsed) {
     if (!activePayment) return;
 
     const isIndian = currentSession && (currentSession.country === 'India' || (currentSession.phone && currentSession.phone.startsWith('+91')));
@@ -3309,7 +3267,7 @@ function initPortalAuth() {
       user: currentSession ? currentSession.username : 'User',
       email: currentSession ? currentSession.email : 'anonymous@gravity.com',
       service: activePayment.serviceName,
-      amount: activePayment.payAmount,
+      amount: returnedPayAmount || activePayment.payAmount,
       currency: purchaseCurrency,
       method: methodUsed,
       type: activePayment.type,
@@ -3318,113 +3276,38 @@ function initPortalAuth() {
     txs.unshift(localTx);
     localStorage.setItem('gravity-transactions', JSON.stringify(txs));
 
-    // Sync transaction to Supabase
-    if (supabaseClient) {
-      await supabaseClient
-        .from('transactions')
-        .insert([{
-          reference: txId,
-          username: localTx.user,
-          email: localTx.email,
-          service: localTx.service,
-          amount: localTx.amount,
-          method: localTx.method,
-          type: localTx.type,
-          date: localTx.date
-        }]);
-    }
-
     // Update purchases state
     let purchases = JSON.parse(localStorage.getItem('gravity-user-purchases')) || [];
     
     if (activePayment.type === 'booking') {
-      const purId = "PUR-" + Date.now().toString().substring(8);
+      const purId = returnedPurchaseId || "PUR-" + Date.now().toString().substring(8);
       const newPurchase = {
         id: purId,
         serviceId: activePayment.serviceId,
         serviceName: activePayment.serviceName,
         totalCost: activePayment.totalCost,
-        paidAmount: activePayment.payAmount,
+        paidAmount: returnedPayAmount || activePayment.payAmount,
         currency: purchaseCurrency,
         status: 'advance_paid',
         date: new Date().toLocaleDateString(),
-        deliveryDeadline: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        deliveryDeadline: new Date(Date.now() + 24 * 60 * 60 * 1000 * 14).toISOString(),
         postponed: false
       };
       purchases.unshift(newPurchase);
       localStorage.setItem('gravity-user-purchases', JSON.stringify(purchases));
-
-      // Sync purchase to Supabase
-      if (supabaseClient && currentSession && currentSession.uid && !currentSession.uid.startsWith('local_')) {
-        try {
-          await supabaseClient
-            .from('purchases')
-            .insert([{
-              id: purId,
-              user_id: currentSession.uid,
-              service_id: newPurchase.serviceId,
-              service_name: newPurchase.serviceName,
-              total_cost: newPurchase.totalCost,
-              paid_amount: newPurchase.paidAmount,
-              status: newPurchase.status,
-              date: newPurchase.date,
-              delivery_deadline: newPurchase.deliveryDeadline,
-              postponed: newPurchase.postponed
-            }]);
-        } catch (e) {
-          console.warn("Failed to sync purchase with deadline to Supabase", e);
-          // Fallback insert
-          await supabaseClient
-            .from('purchases')
-            .insert([{
-              id: purId,
-              user_id: currentSession.uid,
-              service_id: newPurchase.serviceId,
-              service_name: newPurchase.serviceName,
-              total_cost: newPurchase.totalCost,
-              paid_amount: newPurchase.paidAmount,
-              status: newPurchase.status,
-              date: newPurchase.date
-            }]);
-        }
-      }
-      
-      await addSystemNotification(
-        "Booking Confirmed via Razorpay",
-        `Successfully received 50% advance booking payment of ${symbol}${activePayment.payAmount.toLocaleString()} for '${activePayment.serviceName}'. Work starts immediately.`,
-        currentSession ? currentSession.uid : null
-      );
     } else if (activePayment.type === 'final') {
-      // Update existing purchase
       const idx = purchases.findIndex(p => p.id === activePayment.purchaseId);
       if (idx !== -1) {
         purchases[idx].paidAmount = purchases[idx].totalCost;
         purchases[idx].status = 'fully_paid';
         localStorage.setItem('gravity-user-purchases', JSON.stringify(purchases));
-
-        // Sync update to Supabase
-        if (supabaseClient && currentSession && currentSession.uid && !currentSession.uid.startsWith('local_')) {
-          await supabaseClient
-            .from('purchases')
-            .update({
-              paid_amount: purchases[idx].totalCost,
-              status: 'fully_paid'
-            })
-            .eq('id', activePayment.purchaseId);
-        }
-        
-        await addSystemNotification(
-          "Project Successfully Delivered",
-          `Received final 50% payment of ${symbol}${activePayment.payAmount.toLocaleString()} for '${activePayment.serviceName}'. Source files are released for download.`,
-          currentSession ? currentSession.uid : null
-        );
       }
     }
 
-    alert(`Razorpay Payment Complete!\nTransaction Reference: ${txId}\nAmount: $${activePayment.payAmount.toFixed(2)}`);
+    alert(`Razorpay Payment Complete!\nTransaction Reference: ${txId}\nAmount: ${symbol}${(returnedPayAmount || activePayment.payAmount).toLocaleString()}`);
     
     // Find the item to display in the receipt modal
-    let showItem = purchases.find(p => p.id === (activePayment.purchaseId || ''));
+    let showItem = purchases.find(p => p.id === (activePayment.purchaseId || returnedPurchaseId || ''));
     if (!showItem && activePayment.type === 'booking') {
       showItem = purchases[0]; // The one we just unshifted
     }
@@ -3487,7 +3370,7 @@ function initPortalAuth() {
       console.warn("Razorpay SDK not loaded. Offering sandbox simulation fallback.");
       const proceedSimulated = confirm("Razorpay Payment Gateway SDK is not loaded (likely offline).\n\nWould you like to complete this transaction using Simulated Sandbox Mode (for testing/demo purposes)?");
       if (proceedSimulated) {
-        processSuccessPayment("tx_sim_" + Date.now().toString().substring(6), "Simulated Gateway (Offline)");
+        processSuccessPayment(null, data.payAmount, "tx_sim_" + Date.now().toString().substring(6), "Simulated Gateway (Offline)");
       }
       return;
     }
@@ -3496,18 +3379,28 @@ function initPortalAuth() {
       console.warn("Razorpay Key ID is not configured. Offering sandbox simulation fallback.");
       const proceedSimulated = confirm("Razorpay Key ID is not configured on the server.\n\nWould you like to complete this transaction using Simulated Sandbox Mode (for testing/demo purposes)?");
       if (proceedSimulated) {
-        processSuccessPayment("tx_sim_" + Date.now().toString().substring(6), "Simulated Gateway (Unconfigured)");
+        processSuccessPayment(null, data.payAmount, "tx_sim_" + Date.now().toString().substring(6), "Simulated Gateway (Unconfigured)");
       }
       return;
     }
 
     try {
       // 1. Fetch secure order ID from serverless function
+      const sessionRes = await supabaseClient.auth.getSession();
+      const session = sessionRes.data?.session;
+      const orderHeaders = { 'Content-Type': 'application/json' };
+      if (session) {
+        orderHeaders['Authorization'] = `Bearer ${session.access_token}`;
+      }
+
       const orderRes = await fetch('/api/create-razorpay-order', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: orderHeaders,
         body: JSON.stringify({
-          amount: rawAmount,
+          serviceId: data.serviceId,
+          tier: data.tier === 'Premium Tier' ? 'max' : 'min',
+          type: data.type,
+          purchaseId: data.purchaseId || null,
           currency: currencyCode,
           receipt: `rcpt_${data.id || Date.now()}`
         })
@@ -3531,13 +3424,24 @@ function initPortalAuth() {
         handler: async function (response) {
           // 2. Verify payment signature on the server side
           try {
+            const verifyHeaders = { 'Content-Type': 'application/json' };
+            if (session) {
+              verifyHeaders['Authorization'] = `Bearer ${session.access_token}`;
+            }
+
             const verifyRes = await fetch('/api/verify-razorpay-signature', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: verifyHeaders,
               body: JSON.stringify({
                 orderId: response.razorpay_order_id,
                 paymentId: response.razorpay_payment_id,
-                signature: response.razorpay_signature
+                signature: response.razorpay_signature,
+                serviceId: data.serviceId,
+                tier: data.tier === 'Premium Tier' ? 'max' : 'min',
+                type: data.type,
+                purchaseId: data.purchaseId || null,
+                currency: currencyCode,
+                receipt: `rcpt_${data.id || Date.now()}`
               })
             });
 
@@ -3548,8 +3452,7 @@ function initPortalAuth() {
 
             const verifyData = await verifyRes.json();
             if (verifyData.verified) {
-              const txId = response.razorpay_payment_id;
-              processSuccessPayment(txId, 'Razorpay SDK');
+              processSuccessPayment(verifyData.purchaseId, verifyData.payAmount, response.razorpay_payment_id, 'Razorpay SDK');
             } else {
               alert("Payment verification failed: Signature mismatch.");
             }
@@ -3577,10 +3480,11 @@ function initPortalAuth() {
       console.error("Error setting up Razorpay SDK transaction:", err);
       const proceedSimulated = confirm(`Razorpay SDK setup error: ${err.message}\n\nWould you like to complete this transaction using Simulated Sandbox Mode (for testing/demo purposes)?`);
       if (proceedSimulated) {
-        processSuccessPayment("tx_sim_" + Date.now().toString().substring(6), "Simulated Gateway (Auth Fallback)");
+        processSuccessPayment(null, data.payAmount, "tx_sim_" + Date.now().toString().substring(6), "Simulated Gateway (Auth Fallback)");
       }
     }
   }
+
 
   /* ==========================================================================
      REFUND DISPUTE FILE UPLOADER
@@ -3657,94 +3561,121 @@ function initPortalAuth() {
         return;
       }
 
-      // Add to refunds log locally (Fallback)
+      // Add to refunds log locally (Fallback / Offline Cache)
       let refunds = JSON.parse(localStorage.getItem('gravity-refunds')) || [];
       const purchases = JSON.parse(localStorage.getItem('gravity-user-purchases')) || [];
       const item = purchases.find(p => p.id === purchaseId);
       
       if (item) {
-        // Change status to refund_requested locally
-        item.status = 'refund_requested';
-        localStorage.setItem('gravity-user-purchases', JSON.stringify(purchases));
-
         const refId = "REF-" + Date.now().toString().substring(8);
-        const localRefund = {
-          id: refId,
-          purchaseId: purchaseId,
-          user: currentSession ? currentSession.username : 'User',
-          serviceName: item.serviceName,
-          explanation: explanation,
-          fileName: selectedFile.name,
-          fileSize: `${(selectedFile.size/1024).toFixed(1)} KB`,
-          amount: item.paidAmount,
-          status: 'pending',
-          date: new Date().toLocaleString()
-        };
-        refunds.unshift(localRefund);
-        localStorage.setItem('gravity-refunds', JSON.stringify(refunds));
-
-        // Sync dispute and upload file to Supabase if active
-        let evidenceUrl = null;
-        if (supabaseClient && currentSession && currentSession.uid && !currentSession.uid.startsWith('local_')) {
-          const fileExt = selectedFile.name.split('.').pop();
-          const uniqueFileName = `${purchaseId}_${Date.now()}.${fileExt}`;
-          const filePath = `disputes/${uniqueFileName}`;
-          
-          // Upload evidence to 'refund-evidence' bucket
-          const { data: uploadData, error: uploadError } = await supabaseClient.storage
-            .from('refund-evidence')
-            .upload(filePath, selectedFile);
-          
-          if (!uploadError) {
-            const { data: urlData } = supabaseClient.storage
-              .from('refund-evidence')
-              .getPublicUrl(filePath);
-            evidenceUrl = urlData.publicUrl;
-          } else {
-            console.warn("Storage Bucket Warning: File uploaded locally only. (Ensure 'refund-evidence' bucket exists in Supabase Dashboard)");
-            evidenceUrl = `https://mock-storage.supabase.co/refund-evidence/${filePath}`;
-          }
-
-          // Insert refund record
-          await supabaseClient
-            .from('refunds')
-            .insert([{
-              id: refId,
-              purchase_id: purchaseId,
-              explanation: explanation,
-              evidence_url: evidenceUrl,
-              status: 'pending'
-            }]);
-
-          // Update purchase status in Supabase
-          await supabaseClient
-            .from('purchases')
-            .update({ status: 'refund_requested' })
-            .eq('id', purchaseId);
-        }
-
-        await addSystemNotification(
-          "Refund Claim Filed",
-          `Dispute case filed for '${item.serviceName}'. Evidence file '${selectedFile.name}' uploaded. Under administrative review.`,
-          currentSession ? currentSession.uid : null
-        );
-
-        alert("Dispute Filed Successfully!\nYour refund request and uploaded proof are submitted to the administration mainframe.");
         
-        // Reset & Close
-        disputeForm.reset();
-        refundPanel.style.display = 'none';
-        selectedFile = null;
-        uploadText.innerText = "Drag & Drop or Click to Select File";
+        const submitDisputeToServer = async () => {
+          if (supabaseClient && currentSession && currentSession.uid && !currentSession.uid.startsWith('local_')) {
+            const reader = new FileReader();
+            reader.onload = async function() {
+              const base64Data = reader.result.split(',')[1];
+              try {
+                const sessionRes = await supabaseClient.auth.getSession();
+                const session = sessionRes.data?.session;
+                const headers = { 'Content-Type': 'application/json' };
+                if (session) {
+                  headers['Authorization'] = `Bearer ${session.access_token}`;
+                }
 
-        // Refresh
-        await renderPayments();
-        await renderPurchasedServices();
-        await renderServiceTracking();
-        await renderAdminDashboard();
+                const response = await fetch('/api/submit-dispute', {
+                  method: 'POST',
+                  headers: headers,
+                  body: JSON.stringify({
+                    purchaseId: purchaseId,
+                    explanation: explanation,
+                    fileName: selectedFile.name,
+                    fileType: selectedFile.type,
+                    fileData: base64Data
+                  })
+                });
+
+                if (!response.ok) {
+                  const errJson = await response.json();
+                  throw new Error(errJson.error?.message || "Dispute submission failed.");
+                }
+
+                // Change status to refund_requested locally
+                item.status = 'refund_requested';
+                localStorage.setItem('gravity-user-purchases', JSON.stringify(purchases));
+
+                const localRefund = {
+                  id: refId,
+                  purchaseId: purchaseId,
+                  user: currentSession ? currentSession.username : 'User',
+                  serviceName: item.serviceName,
+                  explanation: explanation,
+                  fileName: selectedFile.name,
+                  fileSize: `${(selectedFile.size/1024).toFixed(1)} KB`,
+                  amount: item.paidAmount,
+                  status: 'pending',
+                  date: new Date().toLocaleString()
+                };
+                refunds.unshift(localRefund);
+                localStorage.setItem('gravity-refunds', JSON.stringify(refunds));
+
+                alert("Dispute Filed Successfully!\nYour refund request and uploaded proof are submitted to the administration mainframe.");
+                
+                // Reset & Close
+                disputeForm.reset();
+                refundPanel.style.display = 'none';
+                selectedFile = null;
+                uploadText.innerText = "Drag & Drop or Click to Select File";
+
+                // Refresh
+                await renderPayments();
+                await renderPurchasedServices();
+                await renderServiceTracking();
+                await renderAdminDashboard();
+              } catch (err) {
+                console.error("Dispute filing error:", err);
+                alert(`Dispute Submission Failed: ${err.message}`);
+              }
+            };
+            reader.readAsDataURL(selectedFile);
+          } else {
+            // Local offline fallback simulation
+            item.status = 'refund_requested';
+            localStorage.setItem('gravity-user-purchases', JSON.stringify(purchases));
+
+            const localRefund = {
+              id: refId,
+              purchaseId: purchaseId,
+              user: currentSession ? currentSession.username : 'User',
+              serviceName: item.serviceName,
+              explanation: explanation,
+              fileName: selectedFile.name,
+              fileSize: `${(selectedFile.size/1024).toFixed(1)} KB`,
+              amount: item.paidAmount,
+              status: 'pending',
+              date: new Date().toLocaleString()
+            };
+            refunds.unshift(localRefund);
+            localStorage.setItem('gravity-refunds', JSON.stringify(refunds));
+
+            alert("Dispute Filed Locally (Sandbox Mode)!\nYour request has been cached.");
+            
+            disputeForm.reset();
+            refundPanel.style.display = 'none';
+            selectedFile = null;
+            uploadText.innerText = "Drag & Drop or Click to Select File";
+
+            await renderPayments();
+            await renderPurchasedServices();
+            await renderServiceTracking();
+            await renderAdminDashboard();
+          }
+        };
+
+        await submitDisputeToServer();
       }
     });
   }
+
 
   /* ==========================================================================
      ADMIN CONSOLE DASHBOARD EVENT HANDLERS
@@ -3777,21 +3708,20 @@ function initPortalAuth() {
       let refunds = [];
       if (supabaseClient) {
         try {
-          const { data: refundsData, error: refError } = await supabaseClient
-            .from('refunds')
-            .select('*, purchases(*)')
-            .order('created_at', { ascending: false });
-          
-          const { data: profilesData } = await supabaseClient
-            .from('profiles')
-            .select('id, username, email');
-          
-          if (!refError && refundsData) {
-            const profilesMap = new Map(profilesData ? profilesData.map(p => [p.id, p]) : []);
+          const sessionRes = await supabaseClient.auth.getSession();
+          const session = sessionRes.data?.session;
+          const headers = {};
+          if (session) {
+            headers['Authorization'] = `Bearer ${session.access_token}`;
+          }
+
+          const res = await fetch('/api/get-refund-claims', { headers });
+          if (res.ok) {
+            const refundsData = await res.json();
             refunds = refundsData.map(r => {
               const purchaseWithProfile = r.purchases ? {
                 ...r.purchases,
-                profiles: profilesMap.get(r.purchases.user_id) || null
+                profiles: r.purchases.profiles || null
               } : null;
               
               return {
@@ -3811,7 +3741,7 @@ function initPortalAuth() {
             refunds = JSON.parse(localStorage.getItem('gravity-refunds')) || [];
           }
         } catch (e) {
-          console.warn("Error rendering admin dashboard refunds:", e.message);
+          console.warn("Error rendering admin dashboard refunds via secure API:", e.message);
           refunds = JSON.parse(localStorage.getItem('gravity-refunds')) || [];
         }
       } else {
@@ -3874,23 +3804,32 @@ function initPortalAuth() {
     if (paymentsListContainer) {
       let txs = [];
       if (supabaseClient) {
-        const { data, error } = await supabaseClient
-          .from('transactions')
-          .select('*')
-          .order('created_at', { ascending: false });
+        try {
+          const sessionRes = await supabaseClient.auth.getSession();
+          const session = sessionRes.data?.session;
+          const headers = {};
+          if (session) {
+            headers['Authorization'] = `Bearer ${session.access_token}`;
+          }
 
-        if (!error && data) {
-          txs = data.map(t => ({
-            id: t.reference,
-            user: t.username,
-            email: t.email,
-            service: t.service,
-            amount: parseFloat(t.amount),
-            method: t.method,
-            type: t.type,
-            date: t.date
-          }));
-        } else {
+          const res = await fetch('/api/get-payments-log', { headers });
+          if (res.ok) {
+            const data = await res.json();
+            txs = data.map(t => ({
+              id: t.reference,
+              user: t.username,
+              email: t.email,
+              service: t.service,
+              amount: parseFloat(t.amount),
+              method: t.method,
+              type: t.type,
+              date: t.date
+            }));
+          } else {
+            txs = JSON.parse(localStorage.getItem('gravity-transactions')) || [];
+          }
+        } catch (e) {
+          console.warn("Error rendering admin payments log via secure API:", e.message);
           txs = JSON.parse(localStorage.getItem('gravity-transactions')) || [];
         }
       } else {
@@ -3999,11 +3938,11 @@ function initPortalAuth() {
         localStorage.setItem('gravity-refunds', JSON.stringify(refunds));
       }
 
-      // Sync to Supabase
+      // Sync to Supabase via admin-action endpoint
       if (supabaseClient) {
         try {
           const sessionRes = await supabaseClient.auth.getSession();
-          const session = sessionRes.data.session;
+          const session = sessionRes.data?.session;
           if (session) {
             const response = await fetch('/api/admin-action', {
               method: 'POST',
@@ -4026,33 +3965,19 @@ function initPortalAuth() {
               throw new Error(err.error?.message || `HTTP ${response.status}`);
             }
           } else {
-            // Fallback if no active admin session
-            await supabaseClient
-              .from('refunds')
-              .update({ status: action === 'approve' ? 'approved' : 'denied' })
-              .eq('id', claimId);
-            await supabaseClient
-              .from('purchases')
-              .update({ status: newStatus })
-              .eq('id', purchaseId);
+            throw new Error("No active administrator session");
           }
         } catch (err) {
-          console.warn("Secure refund claim action failed, falling back to client-side DB updates:", err);
-          await supabaseClient
-            .from('refunds')
-            .update({ status: action === 'approve' ? 'approved' : 'denied' })
-            .eq('id', claimId);
-          await supabaseClient
-            .from('purchases')
-            .update({ status: newStatus })
-            .eq('id', purchaseId);
+          console.error("Secure refund claim action failed:", err);
+          alert(`Refund update failed: ${err.message}`);
+          return;
         }
       }
 
       if (action === 'approve') {
         const txId = "refund_" + Math.random().toString(36).substring(2, 10).toUpperCase();
         
-        // Log transaction locally
+        // Log transaction locally (local sandbox/caching)
         let txs = JSON.parse(localStorage.getItem('gravity-transactions')) || [];
         const localTx = {
           id: txId,
@@ -4067,35 +3992,9 @@ function initPortalAuth() {
         txs.unshift(localTx);
         localStorage.setItem('gravity-transactions', JSON.stringify(txs));
 
-        // Sync transaction to Supabase
-        if (supabaseClient) {
-          await supabaseClient
-            .from('transactions')
-            .insert([{
-              reference: txId,
-              username: localTx.user,
-              email: localTx.email,
-              service: localTx.service,
-              amount: localTx.amount,
-              method: localTx.method,
-              type: localTx.type,
-              date: localTx.date
-            }]);
-        }
-
-        await addSystemNotification(
-          "Refund Approved by Admin",
-          `Dispute case for '${serviceName}' approved. Refund of $${amount.toFixed(2)} returned. Original booking advance fully reversed.`,
-          targetUserId
-        );
         alert(`[ADMIN MAINFRAME] Refund dispute case ${claimId} approved! Capital has been returned to the user.`);
 
       } else if (action === 'deny') {
-        await addSystemNotification(
-          "Dispute Claim Rejected",
-          `Dispute claim for '${serviceName}' has been reviewed and rejected by system administrators. Awaiting final payment to complete release.`,
-          targetUserId
-        );
         alert(`[ADMIN MAINFRAME] Dispute claim case ${claimId} has been reviewed and denied. Milestone timeline resumed.`);
       }
 

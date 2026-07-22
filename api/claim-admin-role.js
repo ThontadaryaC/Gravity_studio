@@ -1,6 +1,8 @@
 // api/claim-admin-role.js
 // Securely claims an administrative role on the backend (RLS bypass)
 
+const { validateCSRF, sanitizeInput, checkRateLimit, auditLog } = require("./security-utils");
+
 const ADMIN_ROLE_UUIDS = {
   'founder': 'f0000000-0000-0000-0000-000000000001',
   'ceo': 'c0000000-0000-0000-0000-000000000002',
@@ -47,7 +49,21 @@ module.exports = async (req, res) => {
     return res.status(405).json({ error: { message: "Method Not Allowed" } });
   }
 
+  // CSRF Check
+  if (!validateCSRF(req)) {
+    return res.status(403).json({ error: { message: "Access Denied: CSRF verification failed." } });
+  }
+
   try {
+    const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress || "global";
+    
+    // Rate Limit: Max 10 role-claiming requests per hour per IP
+    const rateLimitKey = `claim_admin_role:${ip}`;
+    const rateLimitOk = await checkRateLimit(rateLimitKey, 10, 3600);
+    if (!rateLimitOk) {
+      return res.status(429).json({ error: { message: "Too many claims attempts. Please try again later." } });
+    }
+
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
     const { role, email, password } = body || {};
 
@@ -55,9 +71,12 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: { message: "Missing required fields: role, email, password" } });
     }
 
-    const expectedUsername = `admin_role:${role}|pwd:${password}`;
+    const cleanRole = sanitizeInput(role);
+    const cleanEmail = sanitizeInput(email).toLowerCase().trim();
+    const cleanPassword = password; // Do not html-sanitize passwords as it might corrupt special characters
 
-    const roleUuid = ADMIN_ROLE_UUIDS[role];
+    const expectedUsername = `admin_role:${cleanRole}|pwd:${cleanPassword}`;
+    const roleUuid = ADMIN_ROLE_UUIDS[cleanRole];
     if (!roleUuid) {
       return res.status(400).json({ error: { message: "Invalid administrative role" } });
     }
@@ -68,6 +87,9 @@ module.exports = async (req, res) => {
     if (!SUPABASE_URL || !serviceRoleKey) {
       return res.status(500).json({ error: { message: "Supabase service role configuration is missing on server" } });
     }
+
+    // Write audit log of attempt
+    await auditLog(null, cleanEmail, 'admin:claim_attempt', { role: cleanRole });
 
     // Fetch all claimed admin roles first to check if the role is already claimed or if the email is already associated with any other admin role
     const uuidsStr = Object.values(ADMIN_ROLE_UUIDS).map(id => `"${id}"`).join(",");
@@ -92,7 +114,7 @@ module.exports = async (req, res) => {
     }
 
     // Check if email is already claimed by any other admin role
-    const isEmailClaimed = data.some(p => (p.email || '').toLowerCase().trim() === email.toLowerCase().trim());
+    const isEmailClaimed = data.some(p => (p.email || '').toLowerCase().trim() === cleanEmail);
     if (isEmailClaimed) {
       return res.status(400).json({ error: { message: "This email is already associated with another administrative role." } });
     }
@@ -101,8 +123,7 @@ module.exports = async (req, res) => {
     try {
       let existingId = null;
 
-      // 1. Check profiles table first (direct database query)
-      const profileCheckRes = await fetch(`${SUPABASE_URL}/rest/v1/profiles?email=eq.${encodeURIComponent(email.toLowerCase().trim())}`, {
+      const profileCheckRes = await fetch(`${SUPABASE_URL}/rest/v1/profiles?email=eq.${encodeURIComponent(cleanEmail)}`, {
         method: "GET",
         headers: {
           "Authorization": `Bearer ${serviceRoleKey}`,
@@ -116,7 +137,6 @@ module.exports = async (req, res) => {
         }
       }
 
-      // 2. Check GoTrue users list if not found in profiles
       if (!existingId) {
         const listRes = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
           method: "GET",
@@ -128,17 +148,15 @@ module.exports = async (req, res) => {
         if (listRes.ok) {
           const resData = await listRes.json();
           const users = resData.users || resData || [];
-          const matchedUser = users.find(u => (u.email || '').toLowerCase().trim() === email.toLowerCase().trim());
+          const matchedUser = users.find(u => (u.email || '').toLowerCase().trim() === cleanEmail);
           if (matchedUser) {
             existingId = matchedUser.id;
           }
         }
       }
 
-      // 3. Delete existing user if ID differs from the admin roleUuid
       if (existingId && existingId !== roleUuid) {
-        console.log(`Found existing user with email ${email} and ID ${existingId}. Deleting it first to claim admin role...`);
-        // Delete profile
+        console.log(`Deleting existing user ID ${existingId} for admin override.`);
         await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${existingId}`, {
           method: "DELETE",
           headers: {
@@ -146,7 +164,6 @@ module.exports = async (req, res) => {
             "apikey": serviceRoleKey
           }
         });
-        // Delete user from auth
         await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${existingId}`, {
           method: "DELETE",
           headers: {
@@ -159,8 +176,7 @@ module.exports = async (req, res) => {
       console.warn("Failed to clean up existing user by email:", cleanupErr.message);
     }
 
-    // 1. Create the user in auth.users using the admin API first (if not already exists)
-    // This resolves the foreign key constraint on the profiles table
+    // 1. Create the user in auth.users using admin API
     try {
       const createUserRes = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
         method: "POST",
@@ -171,8 +187,8 @@ module.exports = async (req, res) => {
         },
         body: JSON.stringify({
           id: roleUuid,
-          email: email,
-          password: password,
+          email: cleanEmail,
+          password: cleanPassword,
           email_confirm: true,
           user_metadata: {
             username: expectedUsername,
@@ -180,10 +196,9 @@ module.exports = async (req, res) => {
           }
         })
       });
+
       if (!createUserRes.ok) {
         const errText = await createUserRes.text();
-        console.log(`Auth user creation response: ${errText}`);
-        
         let errData = {};
         try { errData = JSON.parse(errText); } catch(e) {}
         const errMsg = errData.msg || errData.message || "";
@@ -192,7 +207,7 @@ module.exports = async (req, res) => {
           return res.status(400).json({ error: { message: "A user with this email address already exists in Supabase. Please use a different or completely fresh email address." } });
         }
 
-        // Check if the user already exists in auth.users under the correct ID
+        // Verify if it exists under the correct ID
         const checkUserRes = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${roleUuid}`, {
           method: "GET",
           headers: {
@@ -205,11 +220,11 @@ module.exports = async (req, res) => {
         }
       }
     } catch (authErr) {
-      console.warn("Failed to create auth user:", authErr.message);
       return res.status(500).json({ error: { message: `Auth creation system error: ${authErr.message}` } });
     }
 
-    // 2. Insert/Upsert the profile in the profiles table (now the foreign key check will succeed!)
+    // 2. Insert/Upsert the profile record in profiles table
+    // EXPLICITLY specify role: 'admin' to bypass trigger defaults. Since this is service_role, the trigger will accept it.
     const upsertRes = await fetch(`${SUPABASE_URL}/rest/v1/profiles`, {
       method: "POST",
       headers: {
@@ -220,14 +235,18 @@ module.exports = async (req, res) => {
       },
       body: JSON.stringify({
         id: roleUuid,
-        email: email,
-        username: expectedUsername
+        email: cleanEmail,
+        username: expectedUsername,
+        role: 'admin'
       })
     });
 
     if (!upsertRes.ok) {
       throw new Error(`Database upsert failed: ${await upsertRes.text()}`);
     }
+
+    // Write audit log of success
+    await auditLog(roleUuid, cleanEmail, 'admin:claim_success', { role: cleanRole });
 
     return res.status(200).json({ success: true });
   } catch (err) {

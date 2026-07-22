@@ -1,10 +1,12 @@
 // api/delete-profile.js
 // Securely deletes a profile and auth user on the backend (RLS bypass)
 
+const { validateCSRF, checkRateLimit, auditLog, verifySessionAndRole } = require("./security-utils");
+
 module.exports = async (req, res) => {
   // Enable CORS
   const headers = {
-    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Content-Type": "application/json"
   };
@@ -32,58 +34,38 @@ module.exports = async (req, res) => {
     return res.status(200).end();
   }
 
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: { message: "Method Not Allowed" } });
+  }
+
+  // CSRF Check
+  if (!validateCSRF(req)) {
+    return res.status(403).json({ error: { message: "Access Denied: CSRF verification failed." } });
+  }
+
   try {
-    const authHeader = req.headers.authorization || req.headers.Authorization;
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({ error: { message: "Unauthorized: Missing Authorization Header" } });
+    // 1. Verify session and role
+    const { user, isAdmin, error } = await verifySessionAndRole(req);
+    if (error) {
+      return res.status(401).json({ error: { message: error } });
     }
-
-    const token = authHeader.split(" ")[1];
-    const SUPABASE_URL = process.env.SUPABASE_URL;
-    const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-    if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !serviceRoleKey) {
-      return res.status(500).json({ error: { message: "Server configuration error: missing Supabase credentials" } });
-    }
-
-    // Call Supabase Auth API to verify the JWT token
-    const userResponse = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-      method: "GET",
-      headers: {
-        "Authorization": `Bearer ${token}`,
-        "apikey": SUPABASE_ANON_KEY
-      }
-    });
-
-    if (!userResponse.ok) {
-      const errDetails = await userResponse.text();
-      console.warn("Supabase Auth verification failed:", errDetails);
-      return res.status(401).json({ error: { message: "Unauthorized: Invalid or expired session token" } });
-    }
-
-    const requester = await userResponse.json();
-
-    const ADMIN_ROLE_UUIDS = [
-      'f0000000-0000-0000-0000-000000000001', // founder
-      'c0000000-0000-0000-0000-000000000002', // ceo
-      'a0000000-0000-0000-0000-000000000003', // ai
-      'd0000000-0000-0000-0000-000000000004', // dev
-      'e0000000-0000-0000-0000-000000000005', // design
-      'b0000000-0000-0000-0000-000000000006', // video
-      'b0000000-0000-0000-0000-000000000007', // marketing
-      'b0000000-0000-0000-0000-000000000008'  // support
-    ];
-
-    const requesterEmail = requester.email || "";
-    const isAdmin = requesterEmail.endsWith("@gravitystudios.com") || 
-                    requesterEmail === "admin@gravitystudios.com" || 
-                    requesterEmail === "thontadaryacapt8073@gmail.com" ||
-                    requesterEmail === "antigravitystudios1@gmail.com" ||
-                    ADMIN_ROLE_UUIDS.includes(requester.id);
-
     if (!isAdmin) {
       return res.status(403).json({ error: { message: "Access Denied: Administrator privileges required." } });
+    }
+
+    // Rate Limiting (50 profile deletions per hour per IP)
+    const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress || "global";
+    const rateLimitKey = `delete_profile:${user.id}:${ip}`;
+    const rateLimitOk = await checkRateLimit(rateLimitKey, 50, 3600);
+    if (!rateLimitOk) {
+      return res.status(429).json({ error: { message: "Too many delete requests. Please wait." } });
+    }
+
+    const SUPABASE_URL = process.env.SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!SUPABASE_URL || !serviceRoleKey) {
+      return res.status(500).json({ error: { message: "Server configuration error: missing Supabase credentials" } });
     }
 
     // Extract email from query or body
@@ -113,6 +95,9 @@ module.exports = async (req, res) => {
     }
 
     const userId = profiles[0].id;
+
+    // Write audit log before execution
+    await auditLog(user.id, user.email, 'admin:delete_profile', { targetEmail: cleanEmail, targetUserId: userId });
 
     // 2. Delete from public.profiles table
     const delProfileRes = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`, {
