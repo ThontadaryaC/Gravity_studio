@@ -55,23 +55,25 @@ module.exports = async (req, res) => {
     }
   }
 
-  // Copy and configure request headers
+  // Copy and configure request headers, skipping problematic transport/encoding headers
   const headers = {};
+  const skipHeaders = ['host', 'connection', 'content-length', 'accept-encoding'];
   for (const [key, val] of Object.entries(req.headers)) {
-    if (key.toLowerCase() === 'host') continue;
+    if (skipHeaders.includes(key.toLowerCase())) continue;
     headers[key] = val;
   }
 
   const DUMMY_KEY = "safe-dummy-anon-key";
   
-  if (headers["apikey"] === DUMMY_KEY) {
+  // Clean up and populate Apikey
+  if (!headers["apikey"] || headers["apikey"] === DUMMY_KEY) {
     headers["apikey"] = supabaseAnonKey;
   }
-  if (headers["authorization"] === `Bearer ${DUMMY_KEY}`) {
+
+  // Clean up and populate Authorization header (ensure case-insensitive check and fallback if missing)
+  const authHeader = headers["authorization"] || "";
+  if (!authHeader || authHeader === `Bearer ${DUMMY_KEY}` || authHeader.toLowerCase() === `bearer ${DUMMY_KEY}`) {
     headers["authorization"] = `Bearer ${supabaseAnonKey}`;
-  }
-  if (!headers["apikey"]) {
-    headers["apikey"] = supabaseAnonKey;
   }
 
   try {
