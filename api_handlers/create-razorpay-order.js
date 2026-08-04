@@ -192,6 +192,9 @@ module.exports = async (req, res) => {
     const keyId = (process.env.RAZORPAY_KEY_ID || "").trim();
     const keySecret = (process.env.RAZORPAY_KEY_SECRET || "").trim();
 
+    // Safe debugging: Log if the environment variables exist on the server (doesn't print the actual keys)
+    console.log(`Razorpay Server Debug: RAZORPAY_KEY_ID configured = ${!!keyId}, RAZORPAY_KEY_SECRET configured = ${!!keySecret}`);
+
     if (!keyId || !keySecret) {
       return res.status(500).json({ 
         error: { 
