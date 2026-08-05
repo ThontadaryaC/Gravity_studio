@@ -191,8 +191,8 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: { message: "Invalid transaction type" } });
     }
 
-    const keyId = (process.env.RAZORPAY_KEY_ID || "").trim();
-    const keySecret = (process.env.RAZORPAY_KEY_SECRET || "").trim();
+    const keyId = (process.env.RAZORPAY_KEY_ID || "").replace(/[^\x20-\x7E]/g, "").trim();
+    const keySecret = (process.env.RAZORPAY_KEY_SECRET || "").replace(/[^\x20-\x7E]/g, "").trim();
 
     // Safe debugging: Log if the environment variables exist on the server (doesn't print the actual keys)
     console.log(`Razorpay Server Debug: RAZORPAY_KEY_ID configured = ${!!keyId}, RAZORPAY_KEY_SECRET configured = ${!!keySecret}`);
