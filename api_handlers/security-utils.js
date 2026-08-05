@@ -9,8 +9,10 @@ const allowedOrigins = [
   "http://localhost:3000",
   "http://localhost:8000",
   "http://localhost:5173",
+  "http://localhost:5500",
   "http://127.0.0.1:3000",
-  "http://127.0.0.1:8000"
+  "http://127.0.0.1:8000",
+  "http://127.0.0.1:5500"
 ];
 
 // 1. Verify CSRF
@@ -18,13 +20,20 @@ function validateCSRF(req) {
   const origin = req.headers.origin;
   const referer = req.headers.referer;
 
-  if (origin && !allowedOrigins.includes(origin)) {
+  const isAllowed = (org) => {
+    if (!org) return true;
+    if (allowedOrigins.includes(org)) return true;
+    if (org.endsWith(".vercel.app")) return true;
+    return false;
+  };
+
+  if (origin && !isAllowed(origin)) {
     return false;
   }
   if (referer) {
     try {
       const refUrl = new URL(referer);
-      if (!allowedOrigins.includes(refUrl.origin)) {
+      if (!isAllowed(refUrl.origin)) {
         return false;
       }
     } catch (e) {
