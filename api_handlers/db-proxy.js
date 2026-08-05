@@ -55,25 +55,37 @@ module.exports = async (req, res) => {
     }
   }
 
-  // Copy and configure request headers, skipping problematic transport/encoding headers
+  // Copy and configure request headers, whitelisting standard safe headers
   const headers = {};
-  const skipHeaders = ['host', 'connection', 'content-length', 'accept-encoding'];
+  const allowedHeaders = ['content-type', 'prefer', 'range', 'x-client-info', 'accept', 'user-agent'];
   for (const [key, val] of Object.entries(req.headers)) {
-    if (skipHeaders.includes(key.toLowerCase())) continue;
-    headers[key] = val;
+    if (allowedHeaders.includes(key.toLowerCase())) {
+      headers[key.toLowerCase()] = val;
+    }
   }
 
   const DUMMY_KEY = "safe-dummy-anon-key";
   
-  // Clean up and populate Apikey
-  if (!headers["apikey"] || headers["apikey"] === DUMMY_KEY) {
+  // Resolve apikey and standardize case to standard 'apikey' (all lowercase)
+  const apiKeyVal = req.headers["apikey"] || req.headers["Apikey"] || req.headers["APIKEY"];
+  delete headers["apikey"];
+  delete headers["Apikey"];
+  delete headers["APIKEY"];
+  if (!apiKeyVal || apiKeyVal === DUMMY_KEY) {
     headers["apikey"] = supabaseAnonKey;
+  } else {
+    headers["apikey"] = apiKeyVal;
   }
 
-  // Clean up and populate Authorization header (ensure case-insensitive check and fallback if missing)
-  const authHeader = headers["authorization"] || "";
-  if (!authHeader || authHeader === `Bearer ${DUMMY_KEY}` || authHeader.toLowerCase() === `bearer ${DUMMY_KEY}`) {
-    headers["authorization"] = `Bearer ${supabaseAnonKey}`;
+  // Resolve Authorization and standardize case to standard 'Authorization' (capital A)
+  const authHeaderVal = req.headers["authorization"] || req.headers["Authorization"] || req.headers["AUTHORIZATION"];
+  delete headers["authorization"];
+  delete headers["Authorization"];
+  delete headers["AUTHORIZATION"];
+  if (!authHeaderVal || authHeaderVal === `Bearer ${DUMMY_KEY}` || authHeaderVal.toLowerCase() === `bearer ${DUMMY_KEY}`) {
+    headers["Authorization"] = `Bearer ${supabaseAnonKey}`;
+  } else {
+    headers["Authorization"] = authHeaderVal;
   }
 
   try {
@@ -97,6 +109,12 @@ module.exports = async (req, res) => {
 
     // Read and return body content
     const text = await fetchResponse.text();
+    
+    // Log failures server-side for real-time debugging
+    if (!fetchResponse.ok) {
+      console.error(`[Supabase Proxy Error] Target URL ${targetUrl} returned status ${fetchResponse.status}. Body:`, text);
+    }
+
     if (text) {
       const contentType = fetchResponse.headers.get('content-type') || '';
       if (contentType.includes('application/json')) {
