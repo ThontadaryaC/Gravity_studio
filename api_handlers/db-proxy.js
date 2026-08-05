@@ -55,12 +55,21 @@ module.exports = async (req, res) => {
     }
   }
 
-  // Copy and configure request headers, whitelisting standard safe headers
+  // Copy and configure request headers, whitelisting standard safe headers with correct casing
   const headers = {};
-  const allowedHeaders = ['content-type', 'prefer', 'range', 'x-client-info', 'accept', 'user-agent'];
+  const casingMap = {
+    'content-type': 'Content-Type',
+    'prefer': 'Prefer',
+    'range': 'Range',
+    'x-client-info': 'x-client-info',
+    'accept': 'Accept',
+    'user-agent': 'User-Agent'
+  };
+
   for (const [key, val] of Object.entries(req.headers)) {
-    if (allowedHeaders.includes(key.toLowerCase())) {
-      headers[key.toLowerCase()] = val;
+    const lowerKey = key.toLowerCase();
+    if (casingMap[lowerKey]) {
+      headers[casingMap[lowerKey]] = val;
     }
   }
 
