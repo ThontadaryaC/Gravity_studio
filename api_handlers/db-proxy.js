@@ -89,11 +89,17 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const fetchResponse = await fetch(targetUrl, {
+    const fetchOptions = {
       method: req.method,
-      headers: headers,
-      body: body
-    });
+      headers: headers
+    };
+
+    // Only include body for methods that accept it to prevent 400 Bad Request issues in fetch/gateways
+    if (body !== undefined && req.method !== "GET" && req.method !== "HEAD" && req.method !== "OPTIONS") {
+      fetchOptions.body = body;
+    }
+
+    const fetchResponse = await fetch(targetUrl, fetchOptions);
 
     // Copy status and headers from response
     res.status(fetchResponse.status);
@@ -107,24 +113,25 @@ module.exports = async (req, res) => {
       res.setHeader(key, value);
     }
 
-    // Read and return body content
-    const text = await fetchResponse.text();
+    // Read response body as Buffer to prevent binary corruption (e.g. PDFs, images)
+    const arrayBuffer = await fetchResponse.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
     
     // Log failures server-side for real-time debugging
     if (!fetchResponse.ok) {
-      console.error(`[Supabase Proxy Error] Target URL ${targetUrl} returned status ${fetchResponse.status}. Body:`, text);
+      console.error(`[Supabase Proxy Error] Target URL ${targetUrl} returned status ${fetchResponse.status}. Body:`, buffer.toString('utf8'));
     }
 
-    if (text) {
+    if (buffer.length > 0) {
       const contentType = fetchResponse.headers.get('content-type') || '';
       if (contentType.includes('application/json')) {
         try {
-          return res.json(JSON.parse(text));
+          return res.json(JSON.parse(buffer.toString('utf8')));
         } catch (e) {
-          return res.end(text);
+          return res.end(buffer);
         }
       }
-      return res.end(text);
+      return res.end(buffer);
     }
     return res.end();
 
