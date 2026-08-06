@@ -18,6 +18,11 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   updated_at timestamptz DEFAULT now()
 );
 
+-- Ensure columns exist if the table was created previously by another migration
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS avatar_url text;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS role text NOT NULL DEFAULT 'user';
+
+
 -- Purchased Services / Projects Table
 CREATE TABLE IF NOT EXISTS public.purchases (
   id text PRIMARY KEY,
@@ -279,9 +284,10 @@ CREATE POLICY "Allow users update own notification state"
   WITH CHECK (user_id = auth.uid() OR public.is_admin());
 
 DROP POLICY IF EXISTS "Deny write notifications to client" ON public.notifications;
-CREATE POLICY "Deny write notifications to client"
+DROP POLICY IF EXISTS "Allow users to insert own notifications" ON public.notifications;
+CREATE POLICY "Allow users to insert own notifications"
   ON public.notifications FOR INSERT TO authenticated
-  WITH CHECK (public.is_admin());
+  WITH CHECK (user_id = auth.uid() OR public.is_admin());
 
 DROP POLICY IF EXISTS "Deny delete notifications to client" ON public.notifications;
 CREATE POLICY "Deny delete notifications to client"

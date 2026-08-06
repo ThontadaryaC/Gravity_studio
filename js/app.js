@@ -2206,53 +2206,69 @@ function initPortalAuth() {
     if (!container) return;
 
     let notifs = [];
-    if (supabaseClient && currentSession) {
-      const { data, error } = await supabaseClient
-        .from('notifications')
-        .select('*')
-        .order('created_at', { ascending: false });
-      
-      if (!error && data) {
-        if (data.length === 0) {
-          try {
-            await supabaseClient
-              .from('notifications')
-              .insert([{
-                title: defaultNotifications[0].title,
-                desc_text: defaultNotifications[0].desc,
-                time_label: defaultNotifications[0].time,
-                is_read: defaultNotifications[0].read
-              }]);
-            const refetched = await supabaseClient
-              .from('notifications')
-              .select('*')
-              .order('created_at', { ascending: false });
-            if (!refetched.error && refetched.data) {
-              const filtered = refetched.data.filter(n => (!n.user_id || n.user_id === currentSession.uid) && n.title !== '[SYSTEM_PRICING_CATALOG]');
-              notifs = filtered.map(n => ({
-                id: n.id,
-                title: n.title,
-                desc: n.desc_text,
-                time: n.time_label,
-                read: n.is_read,
-                userId: n.user_id
-              }));
+    if (supabaseClient && currentSession && !currentSession.uid.startsWith('local_')) {
+      try {
+        const { data, error } = await supabaseClient
+          .from('notifications')
+          .select('*')
+          .order('created_at', { ascending: false });
+        
+        if (!error && data) {
+          if (data.length === 0) {
+            try {
+              await supabaseClient
+                .from('notifications')
+                .insert([{
+                  title: defaultNotifications[0].title,
+                  desc_text: defaultNotifications[0].desc,
+                  time_label: defaultNotifications[0].time,
+                  is_read: defaultNotifications[0].read,
+                  user_id: currentSession.uid
+                }]);
+              const refetched = await supabaseClient
+                .from('notifications')
+                .select('*')
+                .order('created_at', { ascending: false });
+              if (!refetched.error && refetched.data) {
+                const filtered = refetched.data.filter(n => (!n.user_id || n.user_id === currentSession.uid) && n.title !== '[SYSTEM_PRICING_CATALOG]');
+                notifs = filtered.map(n => ({
+                  id: n.id,
+                  title: n.title,
+                  desc: n.desc_text,
+                  time: n.time_label,
+                  read: n.is_read,
+                  userId: n.user_id
+                }));
+              }
+            } catch (e) {
+              console.warn("Failed to seed default welcome notification in Supabase:", e);
             }
-          } catch (e) {
-            console.warn("Failed to seed default welcome notification in Supabase:", e);
+          } else {
+            const filtered = data.filter(n => (!n.user_id || n.user_id === currentSession.uid) && n.title !== '[SYSTEM_PRICING_CATALOG]');
+            notifs = filtered.map(n => ({
+              id: n.id,
+              title: n.title,
+              desc: n.desc_text,
+              time: n.time_label,
+              read: n.is_read,
+              userId: n.user_id
+            }));
           }
-        } else {
-          const filtered = data.filter(n => (!n.user_id || n.user_id === currentSession.uid) && n.title !== '[SYSTEM_PRICING_CATALOG]');
-          notifs = filtered.map(n => ({
-            id: n.id,
-            title: n.title,
-            desc: n.desc_text,
-            time: n.time_label,
-            read: n.is_read,
-            userId: n.user_id
-          }));
         }
+      } catch (err) {
+        console.warn("Failed to fetch notifications from Supabase:", err);
       }
+    }
+
+    if (notifs.length === 0) {
+      notifs = defaultNotifications.map(n => ({
+        id: n.id,
+        title: n.title,
+        desc: n.desc,
+        time: n.time,
+        read: n.read,
+        userId: null
+      }));
     }
 
     // Filter out blacklisted (deleted) notifications

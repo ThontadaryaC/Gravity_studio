@@ -19,7 +19,7 @@ const handlers = {
 };
 
 module.exports = async (req, res) => {
-  const parsedUrl = url.parse(req.url, true);
+  const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   let pathname = parsedUrl.pathname.replace(/\/$/, ''); // Normalize trailing slashes
 
   // Support Netlify functions compatibility path rewrite
