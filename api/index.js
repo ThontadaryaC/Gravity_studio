@@ -12,6 +12,7 @@ const handlers = {
   '/api/get-claimed-roles': require('../api_handlers/get-claimed-roles'),
   '/api/get-payments-log': require('../api_handlers/get-payments-log'),
   '/api/get-razorpay-key': require('../api_handlers/get-razorpay-key'),
+  '/api/razorpay-check': require('../api_handlers/razorpay-check'),
   '/api/get-refund-claims': require('../api_handlers/get-refund-claims'),
   '/api/get-supabase-config': require('../api_handlers/get-supabase-config'),
   '/api/submit-dispute': require('../api_handlers/submit-dispute'),
