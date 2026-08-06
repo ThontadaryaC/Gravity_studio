@@ -26,8 +26,8 @@ module.exports = async (req, res) => {
     return res.status(200).end();
   }
 
-  const supabaseUrl = (process.env.SUPABASE_URL || "").trim();
-  const supabaseAnonKey = (process.env.SUPABASE_ANON_KEY || "").trim();
+  const supabaseUrl = (process.env.SUPABASE_URL || "").replace(/^["']|["']$/g, "").trim();
+  const supabaseAnonKey = (process.env.SUPABASE_ANON_KEY || "").replace(/^["']|["']$/g, "").trim();
 
   if (!supabaseUrl || !supabaseAnonKey) {
     return res.status(500).json({ error: { message: "Supabase environment variables are missing on the server." } });

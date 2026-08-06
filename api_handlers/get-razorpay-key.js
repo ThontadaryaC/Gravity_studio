@@ -38,7 +38,7 @@ module.exports = async (req, res) => {
     return res.status(405).json({ error: { message: "Method Not Allowed" } });
   }
 
-  const keyId = (process.env.RAZORPAY_KEY_ID || "").replace(/[^\x20-\x7E]/g, "").trim();
+  const keyId = (process.env.RAZORPAY_KEY_ID || "").replace(/[^\x20-\x7E]/g, "").replace(/^["']|["']$/g, "").trim();
 
   return res.status(200).json({ keyId });
 };

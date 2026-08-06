@@ -125,7 +125,7 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: { message: "Missing verification parameters." } });
     }
 
-    const keySecret = (process.env.RAZORPAY_KEY_SECRET || "").replace(/[^\x20-\x7E]/g, "").trim();
+    const keySecret = (process.env.RAZORPAY_KEY_SECRET || "").replace(/[^\x20-\x7E]/g, "").replace(/^["']|["']$/g, "").trim();
     if (!keySecret) {
       return res.status(500).json({ error: { message: "Razorpay configuration error." } });
     }
