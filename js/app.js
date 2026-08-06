@@ -31,7 +31,6 @@ if (!localStorage.getItem('gravity-force-cleared-locks-v1')) {
 // Razorpay Integration Configuration
 const RAZORPAY_CONFIG = {
   // Enter your Razorpay Key ID here (e.g. "rzp_test_xxxxxxxxxx")
-  // Leave empty "" to run in Simulated Sandbox Mode.
   keyId: localStorage.getItem('gravity_razorpay_key') || "",
   currency: "INR" // Currency code (INR is standard for Indian transactions)
 };
@@ -3383,20 +3382,14 @@ function initPortalAuth() {
     }
 
     if (typeof Razorpay === 'undefined') {
-      console.warn("Razorpay SDK not loaded. Offering sandbox simulation fallback.");
-      const proceedSimulated = confirm("Razorpay Payment Gateway SDK is not loaded (likely offline).\n\nWould you like to complete this transaction using Simulated Sandbox Mode (for testing/demo purposes)?");
-      if (proceedSimulated) {
-        processSuccessPayment(null, data.payAmount, "tx_sim_" + Date.now().toString().substring(6), "Simulated Gateway (Offline)");
-      }
+      console.error("Razorpay SDK not loaded.");
+      alert("Error: The payment gateway could not be loaded. Please check your network connection or contact support.");
       return;
     }
 
     if (!RAZORPAY_CONFIG.keyId) {
-      console.warn("Razorpay Key ID is not configured. Offering sandbox simulation fallback.");
-      const proceedSimulated = confirm("Razorpay Key ID is not configured on the server.\n\nWould you like to complete this transaction using Simulated Sandbox Mode (for testing/demo purposes)?");
-      if (proceedSimulated) {
-        processSuccessPayment(null, data.payAmount, "tx_sim_" + Date.now().toString().substring(6), "Simulated Gateway (Unconfigured)");
-      }
+      console.error("Razorpay Key ID is not configured.");
+      alert("Error: The payment gateway is not configured on the server. Please contact support.");
       return;
     }
 
@@ -3494,10 +3487,7 @@ function initPortalAuth() {
       rzp.open();
     } catch (err) {
       console.error("Error setting up Razorpay SDK transaction:", err);
-      const proceedSimulated = confirm(`Razorpay SDK setup error: ${err.message}\n\nWould you like to complete this transaction using Simulated Sandbox Mode (for testing/demo purposes)?`);
-      if (proceedSimulated) {
-        processSuccessPayment(null, data.payAmount, "tx_sim_" + Date.now().toString().substring(6), "Simulated Gateway (Auth Fallback)");
-      }
+      alert(`Error setting up transaction: ${err.message}. Please try again later or contact support.`);
     }
   }
 
