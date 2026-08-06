@@ -37,6 +37,9 @@ module.exports = async (req, res) => {
   const urlObj = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   let subpath = urlObj.pathname.replace(/^\/api\/db-proxy/, '');
   
+  // Remove Vercel rewrite parameter to prevent polluting Supabase API filters
+  urlObj.searchParams.delete('path');
+  
   const targetUrl = `${supabaseUrl.replace(/\/$/, '')}${subpath}${urlObj.search}`;
 
   // Read request body for write methods
