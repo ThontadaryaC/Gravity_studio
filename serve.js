@@ -117,7 +117,7 @@ const server = http.createServer((req, res) => {
         'Content-Type': contentType,
         'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0'
       });
-      res.end(content, 'utf-8');
+      res.end(content);
     }
   });
 });
