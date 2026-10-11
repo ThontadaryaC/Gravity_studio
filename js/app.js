@@ -3400,7 +3400,7 @@ function initPortalAuth() {
     let purchases = JSON.parse(localStorage.getItem('gravity-user-purchases')) || [];
     
     if (activePayment.type === 'booking') {
-      const purId = returnedPurchaseId || "PUR-" + Date.now().toString().substring(8);
+      const purId = returnedPurchaseId || ((window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID() : ("pur-" + Date.now().toString(36)));
       const newPurchase = {
         id: purId,
         serviceId: activePayment.serviceId,

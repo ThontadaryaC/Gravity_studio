@@ -193,12 +193,12 @@ module.exports = async (req, res) => {
         serviceName = `${serviceName} (Standard Tier)`;
       }
 
-      // Generate a new purchaseId
-      finalPurchaseId = "PUR-" + Date.now().toString().substring(8);
+      // Generate a new purchaseId (UUID format compatible with PostgreSQL uuid column)
+      finalPurchaseId = crypto.randomUUID();
       const deliveryDeadline = new Date(Date.now() + 24 * 60 * 60 * 1000 * 14).toISOString(); // 14 days standard deadline
 
       // Sync purchase to database (service_role bypasses RLS)
-      const purchaseRes = await fetch(`${SUPABASE_URL}/rest/v1/purchases`, {
+      let purchaseRes = await fetch(`${SUPABASE_URL}/rest/v1/purchases`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${serviceRoleKey}`,
@@ -212,6 +212,7 @@ module.exports = async (req, res) => {
           service_name: serviceName,
           total_cost: verifiedTotalCost,
           paid_amount: payAmount,
+          currency: currency || (isIndian ? 'INR' : 'USD'),
           status: 'advance_paid',
           date: new Date().toLocaleDateString(),
           delivery_deadline: deliveryDeadline,
@@ -220,7 +221,36 @@ module.exports = async (req, res) => {
       });
 
       if (!purchaseRes.ok) {
-        throw new Error(`Database purchase sync failed: ${await purchaseRes.text()}`);
+        const errorText = await purchaseRes.text();
+        console.warn("Initial purchase sync error in Supabase:", errorText);
+
+        // Resilient fallback: If database schema cache is missing optional columns (delivery_deadline / postponed / currency),
+        // retry insert with base columns so the user's booking is safely stored in Supabase rather than failing payment!
+        if (errorText.includes("delivery_deadline") || errorText.includes("postponed") || errorText.includes("currency")) {
+          console.warn("Retrying purchase sync without optional deadline/currency columns for database schema compatibility...");
+          purchaseRes = await fetch(`${SUPABASE_URL}/rest/v1/purchases`, {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${serviceRoleKey}`,
+              "apikey": serviceRoleKey,
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              id: finalPurchaseId,
+              user_id: user.id,
+              service_id: serviceId,
+              service_name: serviceName,
+              total_cost: verifiedTotalCost,
+              paid_amount: payAmount,
+              status: 'advance_paid',
+              date: new Date().toLocaleDateString()
+            })
+          });
+        }
+
+        if (!purchaseRes.ok) {
+          throw new Error(`Database purchase sync failed: ${await purchaseRes.text()}`);
+        }
       }
 
       // Send System Notification (service_role bypasses RLS)

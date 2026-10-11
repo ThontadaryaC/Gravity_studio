@@ -35,8 +35,15 @@ CREATE TABLE IF NOT EXISTS public.purchases (
   date text NOT NULL,
   delivery_deadline timestamptz,
   postponed boolean DEFAULT false,
+  currency text DEFAULT 'INR',
   created_at timestamptz DEFAULT now()
 );
+
+-- Ensure columns exist if the table was created previously by another migration
+ALTER TABLE public.purchases ADD COLUMN IF NOT EXISTS delivery_deadline timestamptz;
+ALTER TABLE public.purchases ADD COLUMN IF NOT EXISTS postponed boolean DEFAULT false;
+ALTER TABLE public.purchases ADD COLUMN IF NOT EXISTS currency text DEFAULT 'INR';
+ALTER TABLE public.purchases ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();
 
 -- Payments / Transactions Log Table
 CREATE TABLE IF NOT EXISTS public.transactions (
@@ -45,11 +52,15 @@ CREATE TABLE IF NOT EXISTS public.transactions (
   email text,
   service text,
   amount numeric NOT NULL,
+  currency text DEFAULT 'INR',
   method text,
   type text,
   date text,
   created_at timestamptz DEFAULT now()
 );
+
+ALTER TABLE public.transactions ADD COLUMN IF NOT EXISTS currency text DEFAULT 'INR';
+ALTER TABLE public.transactions ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();
 
 -- Refund Claims Table
 CREATE TABLE IF NOT EXISTS public.refunds (
@@ -347,3 +358,5 @@ INSERT INTO public.admin_codes (role, code_hash) VALUES
   ('marketing', '3b63726b56ef723d82273343722a878c9d041e8a1f46656bf4bf3b01e3d14bdb')
 ON CONFLICT (role) DO UPDATE SET code_hash = EXCLUDED.code_hash;
 
+-- Reload PostgREST schema cache to ensure all newly added columns are immediately active
+NOTIFY pgrst, 'reload schema';
