@@ -2474,6 +2474,35 @@ function initPortalAuth() {
     const container = document.getElementById('invoices-list-container');
     if (!container) return;
 
+    // Fetch user purchases from Supabase first so catalog knows active bookings
+    let purchases = [];
+    if (supabaseClient && currentSession && currentSession.uid && !currentSession.uid.startsWith('local_')) {
+      const { data, error } = await supabaseClient
+        .from('purchases')
+        .select('*')
+        .eq('user_id', currentSession.uid)
+        .order('created_at', { ascending: false });
+
+      if (!error && data) {
+        purchases = data.map(p => ({
+          id: p.id,
+          serviceId: p.service_id,
+          serviceName: p.service_name,
+          totalCost: parseFloat(p.total_cost),
+          paidAmount: parseFloat(p.paid_amount),
+          currency: p.currency || (parseFloat(p.total_cost) > 500 ? 'INR' : 'USD'),
+          status: p.status,
+          date: p.date,
+          deliveryDeadline: p.delivery_deadline,
+          postponed: p.postponed
+        }));
+      } else {
+        purchases = JSON.parse(localStorage.getItem('gravity-user-purchases')) || [];
+      }
+    } else {
+      purchases = JSON.parse(localStorage.getItem('gravity-user-purchases')) || [];
+    }
+
     // Render the dynamic catalog first
     const catalogGrid = document.querySelector('.service-catalog-grid');
     if (catalogGrid) {
@@ -2541,8 +2570,11 @@ function initPortalAuth() {
         card.style.borderRadius = '8px';
         card.style.marginBottom = '0.5rem';
         
+        // Check if customer already has an active booking for this service
+        const activePurchase = purchases.find(p => p.serviceId === s.id && p.status !== 'fully_paid' && p.status !== 'refund_approved');
+
         let selectHtml = '';
-        if (hasRange) {
+        if (hasRange && !activePurchase) {
           selectHtml = `
             <div style="margin-top: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
               <label style="font-size: 0.75rem; color: var(--text-muted); font-weight: bold;">Quality Tier:</label>
@@ -2554,13 +2586,23 @@ function initPortalAuth() {
           `;
         }
         
+        let buttonHtml = '';
+        let statusBadgeHtml = '';
+        if (activePurchase && (activePurchase.totalCost - activePurchase.paidAmount) > 0) {
+          const remaining = activePurchase.totalCost - activePurchase.paidAmount;
+          statusBadgeHtml = `<br><span style="color:var(--neon-cyan); font-weight:600; font-size:0.75rem;">⚡ In Progress (${activePurchase.id}) • 50% Advance Paid</span>`;
+          buttonHtml = `<button class="catalog-pay-btn catalog-pay-final-btn" data-action="pay-final" data-purchase-id="${activePurchase.id}" data-service-id="${s.id}" data-service-name="${activePurchase.serviceName}" data-total-cost="${activePurchase.totalCost}" data-remaining="${remaining}" style="padding: 0.5rem 0.75rem; background: rgba(0, 240, 255, 0.15); border: 1px solid var(--neon-cyan); border-radius: 6px; color: var(--neon-cyan); font-weight: 600; font-family: inherit; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; white-space: nowrap; margin-left: 0.5rem;">Pay 2nd Installment (${symbol}${remaining.toLocaleString()})</button>`;
+        } else {
+          buttonHtml = `<button class="catalog-pay-btn" data-action="booking" data-service-id="${s.id}" data-service-name="${s.name}" data-price="${totalMin}" data-advance="${totalMin / 2}" data-tier="Standard Tier" style="padding: 0.5rem 0.75rem; background: rgba(176, 38, 255, 0.15); border: 1px solid var(--neon-purple); border-radius: 6px; color: var(--neon-purple); font-weight: 600; font-family: inherit; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; white-space: nowrap; margin-left: 0.5rem;">Book for ${symbol}${(totalMin / 2).toLocaleString()}</button>`;
+        }
+
         card.innerHTML = `
           <div style="flex: 1;">
             <h6 style="margin: 0; font-size: 0.95rem; color: var(--text-pure);">${s.name}</h6>
-            <span class="price-desc" style="font-size: 0.8rem; color: var(--text-muted);">Est. Range: ${range} <br><span class="advance-label" style="opacity:0.6;">(50% Booking Advance: ${symbol}${(totalMin / 2).toLocaleString()})</span></span>
+            <span class="price-desc" style="font-size: 0.8rem; color: var(--text-muted);">Est. Range: ${range} <br><span class="advance-label" style="opacity:0.6;">(50% Booking Advance: ${symbol}${(totalMin / 2).toLocaleString()})</span>${statusBadgeHtml}</span>
             ${selectHtml}
           </div>
-          <button class="catalog-pay-btn" data-service-id="${s.id}" data-service-name="${s.name}" data-price="${totalMin}" data-advance="${totalMin / 2}" data-tier="Standard Tier" style="padding: 0.5rem 0.75rem; background: rgba(176, 38, 255, 0.15); border: 1px solid var(--neon-purple); border-radius: 6px; color: var(--neon-purple); font-weight: 600; font-family: inherit; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; white-space: nowrap; margin-left: 0.5rem;">Book for ${symbol}${(totalMin / 2).toLocaleString()}</button>
+          ${buttonHtml}
         `;
         return card;
       };
@@ -2683,9 +2725,27 @@ function initPortalAuth() {
         });
       });
 
-      // Bind dynamic click triggers for catalog booking buttons
+      // Bind dynamic click triggers for catalog booking and 2nd installment buttons
       catalogGrid.querySelectorAll('.catalog-pay-btn').forEach(btn => {
         btn.addEventListener('click', () => {
+          const action = btn.getAttribute('data-action');
+          if (action === 'pay-final') {
+            const purchaseId = btn.getAttribute('data-purchase-id');
+            const serviceId = btn.getAttribute('data-service-id');
+            const serviceName = btn.getAttribute('data-service-name');
+            const totalCost = parseFloat(btn.getAttribute('data-total-cost'));
+            const remaining = parseFloat(btn.getAttribute('data-remaining'));
+            initiateRazorpayPayment({
+              type: 'final',
+              serviceId: serviceId,
+              serviceName: serviceName,
+              totalCost: totalCost,
+              payAmount: remaining,
+              purchaseId: purchaseId
+            });
+            return;
+          }
+
           const serviceId = btn.getAttribute('data-service-id');
           let serviceName = btn.getAttribute('data-service-name');
           const tier = btn.getAttribute('data-tier') || '';
@@ -2704,34 +2764,6 @@ function initPortalAuth() {
           });
         });
       });
-    }
-
-    let purchases = [];
-    if (supabaseClient && currentSession && currentSession.uid && !currentSession.uid.startsWith('local_')) {
-      const { data, error } = await supabaseClient
-        .from('purchases')
-        .select('*')
-        .eq('user_id', currentSession.uid)
-        .order('created_at', { ascending: false });
-
-      if (!error && data) {
-        purchases = data.map(p => ({
-          id: p.id,
-          serviceId: p.service_id,
-          serviceName: p.service_name,
-          totalCost: parseFloat(p.total_cost),
-          paidAmount: parseFloat(p.paid_amount),
-          currency: p.currency || (parseFloat(p.total_cost) > 500 ? 'INR' : 'USD'),
-          status: p.status,
-          date: p.date,
-          deliveryDeadline: p.delivery_deadline,
-          postponed: p.postponed
-        }));
-      } else {
-        purchases = JSON.parse(localStorage.getItem('gravity-user-purchases')) || [];
-      }
-    } else {
-      purchases = JSON.parse(localStorage.getItem('gravity-user-purchases')) || [];
     }
 
     purchases.forEach(p => {
@@ -2773,6 +2805,9 @@ function initPortalAuth() {
     purchases.forEach(p => {
       const tr = document.createElement('tr');
       
+      const remainingAmount = p.totalCost - p.paidAmount;
+      const symbol = p.currency === 'INR' ? '₹' : '$';
+
       let statusClass = 'status-paid';
       let statusText = 'Fully Paid';
       let actionHtml = '';
@@ -2781,13 +2816,13 @@ function initPortalAuth() {
       if (p.status === 'advance_paid') {
         statusClass = 'status-pending';
         statusText = 'Advance (50%)';
-        actionHtml = `<button class="invoice-action-btn pay-final-btn" data-id="${p.id}" style="padding:0.25rem 0.5rem; background:rgba(0, 240, 255, 0.15); border:1px solid var(--neon-cyan); border-radius:4px; color:var(--neon-cyan); font-size:0.75rem; font-weight:bold; cursor:pointer;">Pay Final 50%</button>${viewReceiptBtnHtml}`;
+        actionHtml = `<button class="invoice-action-btn pay-final-btn" data-id="${p.id}" style="padding:0.25rem 0.5rem; background:rgba(0, 240, 255, 0.15); border:1px solid var(--neon-cyan); border-radius:4px; color:var(--neon-cyan); font-size:0.75rem; font-weight:bold; cursor:pointer;">Pay 2nd Installment (${symbol}${remainingAmount.toLocaleString()})</button>${viewReceiptBtnHtml}`;
       } else if (p.status === 'completed') {
         statusClass = 'status-pending';
         statusText = 'Awaiting Final';
         actionHtml = `
           <div style="display:flex; gap:0.35rem; align-items:center;">
-            <button class="invoice-action-btn pay-final-btn" data-id="${p.id}" style="padding:0.25rem 0.5rem; background:rgba(0, 240, 255, 0.15); border:1px solid var(--neon-cyan); border-radius:4px; color:var(--neon-cyan); font-size:0.75rem; font-weight:bold; cursor:pointer;">Pay Final 50%</button>
+            <button class="invoice-action-btn pay-final-btn" data-id="${p.id}" style="padding:0.25rem 0.5rem; background:rgba(0, 240, 255, 0.15); border:1px solid var(--neon-cyan); border-radius:4px; color:var(--neon-cyan); font-size:0.75rem; font-weight:bold; cursor:pointer;">Pay 2nd Installment (${symbol}${remainingAmount.toLocaleString()})</button>
             <button class="invoice-action-btn dispute-btn" data-id="${p.id}" style="padding:0.25rem 0.5rem; background:rgba(255, 51, 102, 0.15); border:1px solid #ff3366; border-radius:4px; color:#ff3366; font-size:0.75rem; font-weight:bold; cursor:pointer;">File Dispute</button>
             ${viewReceiptBtnHtml}
           </div>
@@ -2803,13 +2838,11 @@ function initPortalAuth() {
       } else if (p.status === 'refund_denied') {
         statusClass = 'status-pending';
         statusText = 'Dispute Denied';
-        actionHtml = `<button class="invoice-action-btn pay-final-btn" data-id="${p.id}" style="padding:0.25rem 0.5rem; background:rgba(0, 240, 255, 0.15); border:1px solid var(--neon-cyan); border-radius:4px; color:var(--neon-cyan); font-size:0.75rem; font-weight:bold; cursor:pointer;">Pay Final 50%</button>${viewReceiptBtnHtml}`;
+        actionHtml = `<button class="invoice-action-btn pay-final-btn" data-id="${p.id}" style="padding:0.25rem 0.5rem; background:rgba(0, 240, 255, 0.15); border:1px solid var(--neon-cyan); border-radius:4px; color:var(--neon-cyan); font-size:0.75rem; font-weight:bold; cursor:pointer;">Pay 2nd Installment (${symbol}${remainingAmount.toLocaleString()})</button>${viewReceiptBtnHtml}`;
       } else {
         actionHtml = viewReceiptBtnHtml;
       }
 
-      const remainingAmount = p.totalCost - p.paidAmount;
-      const symbol = p.currency === 'INR' ? '₹' : '$';
       tr.innerHTML = `
         <td style="font-size:0.8rem;">${p.date}</td>
         <td>
@@ -2882,6 +2915,7 @@ function initPortalAuth() {
           serviceName: p.service_name,
           totalCost: parseFloat(p.total_cost),
           paidAmount: parseFloat(p.paid_amount),
+          currency: p.currency || (parseFloat(p.total_cost) > 500 ? 'INR' : 'USD'),
           status: p.status,
           date: p.date
         }));
@@ -2902,26 +2936,79 @@ function initPortalAuth() {
     purchases.forEach(p => {
       const itemDiv = document.createElement('div');
       itemDiv.className = 'service-item';
+      itemDiv.style.display = 'flex';
+      itemDiv.style.alignItems = 'center';
+      itemDiv.style.justifyContent = 'space-between';
+      itemDiv.style.padding = '0.85rem 1rem';
+      itemDiv.style.marginBottom = '0.75rem';
+      itemDiv.style.background = 'rgba(255,255,255,0.02)';
+      itemDiv.style.border = '1px solid var(--glass-border)';
+      itemDiv.style.borderRadius = '8px';
       
       let iconName = 'clapperboard';
       if (p.serviceId === 'youtube_intro') iconName = 'tv';
       if (p.serviceId === 'anime_design') iconName = 'smile';
 
-      let statusText = 'Active';
-      if (p.status === 'fully_paid') statusText = 'Completed & Delivered';
+      const symbol = p.currency === 'INR' ? '₹' : '$';
+      const remaining = p.totalCost - p.paidAmount;
+
+      let statusText = 'Installment 1 (50% Advance Paid)';
+      if (p.status === 'fully_paid') statusText = 'Completed & Fully Settled (100%)';
       if (p.status === 'refund_requested') statusText = 'Dispute Pending';
       if (p.status === 'refund_approved') statusText = 'Refunded';
 
+      let payBtnHtml = '';
+      if (remaining > 0 && p.status !== 'refund_approved' && p.status !== 'refund_requested') {
+        payBtnHtml = `<button class="invoice-action-btn pay-final-btn" data-id="${p.id}" style="padding:0.35rem 0.65rem; background:rgba(0, 240, 255, 0.15); border:1px solid var(--neon-cyan); border-radius:4px; color:var(--neon-cyan); font-weight:bold; font-size:0.75rem; cursor:pointer; margin-right:0.4rem;">Pay 2nd Installment (${symbol}${remaining.toLocaleString()})</button>`;
+      }
+
       itemDiv.innerHTML = `
         <div class="service-icon"><i data-lucide="${iconName}"></i></div>
-        <div class="service-info" style="flex:1;">
-          <h5 style="margin:0; font-size:0.95rem; color:#fff;">${p.serviceName}</h5>
-          <p style="margin:0.15rem 0 0; font-size:0.8rem; color:var(--text-muted);">Purchased: ${p.date} • Paid: $${p.paidAmount.toFixed(2)}/$${p.totalCost.toFixed(2)}</p>
+        <div class="service-info" style="flex:1; margin-left:0.75rem;">
+          <h5 style="margin:0; font-size:0.95rem; color:#fff;">${p.serviceName} <span style="font-size:0.75rem; color:var(--text-muted); font-weight:normal;">(${p.id})</span></h5>
+          <p style="margin:0.25rem 0 0; font-size:0.8rem; color:var(--text-muted);">
+            Booked: ${p.date} • Total: ${symbol}${p.totalCost.toLocaleString()} • Paid: <strong style="color:var(--neon-green);">${symbol}${p.paidAmount.toLocaleString()}</strong>
+            ${remaining > 0 ? ` • <strong style="color:var(--neon-amber);">2nd Installment: ${symbol}${remaining.toLocaleString()}</strong>` : ''}
+          </p>
+          <div style="margin-top:0.3rem;"><span class="service-status" style="font-size:0.7rem; padding:0.15rem 0.5rem; background:rgba(0, 240, 255, 0.1); border-radius:4px; border:1px solid var(--neon-cyan); color:var(--neon-cyan);">${statusText}</span></div>
         </div>
-        <span class="service-status" style="background:rgba(0, 240, 255, 0.1); border-color:var(--neon-cyan); color:var(--neon-cyan);">${statusText}</span>
+        <div style="display:flex; align-items:center;">
+          ${payBtnHtml}
+          <button class="invoice-action-btn view-bill-btn" data-id="${p.id}" style="padding:0.35rem 0.65rem; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); border-radius:4px; color:#fff; font-size:0.75rem; font-weight:bold; cursor:pointer;">Invoice</button>
+        </div>
       `;
       container.appendChild(itemDiv);
     });
+
+    // Attach listeners in Purchased Services tab
+    container.querySelectorAll('.pay-final-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const purchaseId = btn.getAttribute('data-id');
+        const item = purchases.find(p => p.id === purchaseId);
+        if (item) {
+          const remainingAmount = item.totalCost - item.paidAmount;
+          initiateRazorpayPayment({
+            type: 'final',
+            serviceId: item.serviceId,
+            serviceName: item.serviceName,
+            totalCost: item.totalCost,
+            payAmount: remainingAmount,
+            purchaseId: item.id
+          });
+        }
+      });
+    });
+
+    container.querySelectorAll('.view-bill-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const purchaseId = btn.getAttribute('data-id');
+        const item = purchases.find(p => p.id === purchaseId);
+        if (item) {
+          showInvoiceBill(item);
+        }
+      });
+    });
+
     if (window.lucide) lucide.createIcons();
   }
 
@@ -2945,6 +3032,7 @@ function initPortalAuth() {
           serviceName: p.service_name,
           totalCost: parseFloat(p.total_cost),
           paidAmount: parseFloat(p.paid_amount),
+          currency: p.currency || (parseFloat(p.total_cost) > 500 ? 'INR' : 'USD'),
           status: p.status,
           date: p.date,
           deliveryDeadline: p.delivery_deadline,
@@ -2974,6 +3062,9 @@ function initPortalAuth() {
         p.postponed = false;
       }
       checkAndApplyPostponement(p);
+
+      const symbol = p.currency === 'INR' ? '₹' : '$';
+      const remainingAmount = p.totalCost - p.paidAmount;
 
       const div = document.createElement('div');
       div.className = 'tracking-item';
@@ -3019,13 +3110,6 @@ function initPortalAuth() {
         statusMsg = p.postponed 
           ? `Production completed! Waiting for final payment. Delivery postponed by 24 hours because the final 50% payment was not received 12 hours prior to the original deadline.`
           : `Production completed! Awaiting remaining 50% final payment to release source files. Note: Payment must be made at least 12 hours before the deadline: ${new Date(p.deliveryDeadline).toLocaleString()}.`;
-        finalPayBtnHtml = `
-          <div style="margin-top:1rem; display:flex; gap:0.5rem; align-items:center;">
-            <button class="invoice-action-btn pay-final-btn" data-id="${p.id}" style="padding:0.4rem 0.75rem; background:rgba(0, 240, 255, 0.15); border:1px solid var(--neon-cyan); border-radius:6px; color:var(--neon-cyan); font-weight:bold; font-size:0.8rem; cursor:pointer;">Pay Remaining 50% ($${(p.totalCost - p.paidAmount).toFixed(2)})</button>
-            <button class="invoice-action-btn dispute-btn" data-id="${p.id}" style="padding:0.4rem 0.75rem; background:rgba(255, 51, 102, 0.15); border:1px solid #ff3366; border-radius:6px; color:#ff3366; font-weight:bold; font-size:0.8rem; cursor:pointer;">Dispute & Refund</button>
-            <button class="invoice-action-btn view-bill-btn" data-id="${p.id}" style="padding:0.4rem 0.75rem; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); border-radius:6px; color:#fff; font-weight:bold; font-size:0.8rem; cursor:pointer;">View Receipt</button>
-          </div>
-        `;
       } else if (p.status === 'refund_requested') {
         currentStepIndex = 5;
         statusMsg = `Dispute Filed. Under review by Gravity administration. Files held in escrow.`;
@@ -3034,21 +3118,42 @@ function initPortalAuth() {
         statusMsg = p.postponed 
           ? `Refund Dispute Denied. Waiting for final payment. Delivery postponed by 24 hours because the final 50% payment was not received 12 hours prior to the original deadline.`
           : `Refund Dispute Denied by administration. Awaiting remaining 50% final payment to release source files. Note: Payment must be made at least 12 hours before the deadline: ${new Date(p.deliveryDeadline).toLocaleString()}.`;
-        finalPayBtnHtml = `
-          <div style="margin-top:1rem; display:flex; gap:0.5rem; align-items:center;">
-            <button class="invoice-action-btn pay-final-btn" data-id="${p.id}" style="padding:0.4rem 0.75rem; background:rgba(0, 240, 255, 0.15); border:1px solid var(--neon-cyan); border-radius:6px; color:var(--neon-cyan); font-weight:bold; font-size:0.8rem; cursor:pointer;">Pay Remaining 50% ($${(p.totalCost - p.paidAmount).toFixed(2)})</button>
-            <button class="invoice-action-btn view-bill-btn" data-id="${p.id}" style="padding:0.4rem 0.75rem; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); border-radius:6px; color:#fff; font-weight:bold; font-size:0.8rem; cursor:pointer;">View Receipt</button>
-          </div>
-        `;
       } else if (p.status === 'fully_paid') {
         currentStepIndex = 6; // All complete
         statusMsg = `Delivered! Source files and production assets are ready for download.`;
+      }
+
+      // Generate action buttons based on payment balance & status
+      if (p.status === 'fully_paid') {
         finalPayBtnHtml = `
           <div style="margin-top:1rem; display:flex; gap:0.5rem; align-items:center;">
             <button class="admin-action-btn download-assets-btn" style="background:rgba(57, 255, 20, 0.15); border:1px solid var(--neon-green); border-radius:6px; color:var(--neon-green); font-size:0.8rem; padding:0.5rem 1rem; cursor:pointer; font-weight:bold;" onclick="alert('Downloading standard zip package containing your compiled assets...')">
               <i data-lucide="download" style="width:14px; height:14px; vertical-align:middle; margin-right:4px;"></i> Download Production Package
             </button>
             <button class="invoice-action-btn view-bill-btn" data-id="${p.id}" style="padding:0.5rem 1rem; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); border-radius:6px; color:#fff; font-weight:bold; font-size:0.8rem; cursor:pointer;">View Receipt</button>
+          </div>
+        `;
+      } else if (p.status === 'refund_requested') {
+        finalPayBtnHtml = `
+          <div style="margin-top:1rem; display:flex; gap:0.5rem; align-items:center;">
+            <span style="font-size:0.8rem; color:var(--neon-amber);"><i data-lucide="clock" style="width:13px; height:13px; vertical-align:middle; margin-right:3px;"></i> Dispute Under Administrative Review</span>
+            <button class="invoice-action-btn view-bill-btn" data-id="${p.id}" style="padding:0.4rem 0.75rem; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); border-radius:6px; color:#fff; font-weight:bold; font-size:0.8rem; cursor:pointer;">View Receipt</button>
+          </div>
+        `;
+      } else if (remainingAmount > 0) {
+        finalPayBtnHtml = `
+          <div style="margin-top:1rem; display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+            <button class="invoice-action-btn pay-final-btn" data-id="${p.id}" style="padding:0.4rem 0.75rem; background:rgba(0, 240, 255, 0.15); border:1px solid var(--neon-cyan); border-radius:6px; color:var(--neon-cyan); font-weight:bold; font-size:0.8rem; cursor:pointer;">
+              <i data-lucide="credit-card" style="width:13px; height:13px; vertical-align:middle; margin-right:3px;"></i> Pay 2nd Installment (${symbol}${remainingAmount.toLocaleString()})
+            </button>
+            ${(p.status === 'completed' || p.status === 'refund_denied') ? `<button class="invoice-action-btn dispute-btn" data-id="${p.id}" style="padding:0.4rem 0.75rem; background:rgba(255, 51, 102, 0.15); border:1px solid #ff3366; border-radius:6px; color:#ff3366; font-weight:bold; font-size:0.8rem; cursor:pointer;">Dispute & Refund</button>` : ''}
+            <button class="invoice-action-btn view-bill-btn" data-id="${p.id}" style="padding:0.4rem 0.75rem; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); border-radius:6px; color:#fff; font-weight:bold; font-size:0.8rem; cursor:pointer;">View Receipt</button>
+          </div>
+        `;
+      } else {
+        finalPayBtnHtml = `
+          <div style="margin-top:1rem; display:flex; gap:0.5rem; align-items:center;">
+            <button class="invoice-action-btn view-bill-btn" data-id="${p.id}" style="padding:0.4rem 0.75rem; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); border-radius:6px; color:#fff; font-weight:bold; font-size:0.8rem; cursor:pointer;">View Receipt</button>
           </div>
         `;
       }
@@ -5135,23 +5240,27 @@ function initPortalAuth() {
             
             <div class="totals">
               <div class="total-row">
-                <span>Total Project Cost:</span>
+                <span>Total Agreed Service Cost:</span>
                 <span>${symbol}${purchase.totalCost.toLocaleString()}</span>
               </div>
               <div class="total-row" style="color: #4caf50; font-weight: bold;">
-                <span>Amount Paid This Term:</span>
-                <span>${symbol}${(isFinal ? purchase.totalCost / 2 : purchase.paidAmount).toLocaleString()}</span>
+                <span>Installment 1 (50% Booking Advance):</span>
+                <span>PAID (${symbol}${(purchase.totalCost / 2).toLocaleString()})</span>
               </div>
-              <div class="total-row bold">
-                <span>Remaining Balance:</span>
-                <span>${symbol}${remaining.toLocaleString()}</span>
+              <div class="total-row" style="font-weight: bold; color: ${isFinal ? '#4caf50' : '#e65100'};">
+                <span>Installment 2 (50% Final Settlement):</span>
+                <span>${isFinal ? `PAID (${symbol}${(purchase.totalCost / 2).toLocaleString()})` : `PENDING DUE (${symbol}${remaining.toLocaleString()})`}</span>
+              </div>
+              <div class="total-row bold" style="border-top: 1px solid #ccc; padding-top: 0.5rem; margin-top: 0.5rem;">
+                <span>Total Paid To Date:</span>
+                <span style="color: #4caf50;">${symbol}${purchase.paidAmount.toLocaleString()}</span>
               </div>
             </div>
             
             <div class="footer-msg">
               ${isFinal 
-                ? "Thank you for using our service. If any other service is required, please visit us again." 
-                : "Waiting for your final payment. Final payment must be made at least 12 hours prior to delivery."
+                ? "Thank you for using our service. All installments settled — service delivered!" 
+                : "Waiting for your 2nd installment final payment. Final payment must be made at least 12 hours prior to delivery."
               }
             </div>
           </div>
@@ -5212,30 +5321,61 @@ function initPortalAuth() {
           <strong>Service Provider Head Name:</strong> ${headName}
         </div>
 
-        <div style="border-bottom:1px solid var(--glass-border); padding-bottom:0.5rem; margin-bottom:0.5rem;">
-          <div style="display:flex; justify-content:space-between;">
-            <span>Total Cost:</span>
-            <span>${symbol}${purchase.totalCost.toLocaleString()}</span>
+        <div style="border-bottom:1px solid var(--glass-border); padding-bottom:0.6rem; margin-bottom:0.6rem;">
+          <div style="display:flex; justify-content:space-between; margin-bottom:0.35rem;">
+            <span>Total Agreed Cost:</span>
+            <strong>${symbol}${purchase.totalCost.toLocaleString()}</strong>
           </div>
-          <div style="display:flex; justify-content:space-between; font-weight:bold; color:var(--neon-green);">
-            <span>Amount Paid This Term:</span>
-            <span>${symbol}${(isFinal ? purchase.totalCost / 2 : purchase.paidAmount).toLocaleString()}</span>
+          <div style="display:flex; justify-content:space-between; font-weight:bold; color:var(--neon-green); margin-bottom:0.35rem;">
+            <span>Installment 1 (50% Booking Advance):</span>
+            <span>PAID (${symbol}${(purchase.totalCost / 2).toLocaleString()})</span>
           </div>
-          <div style="display:flex; justify-content:space-between; font-weight:bold;">
-            <span>Remaining Amount:</span>
-            <span style="color:${remaining > 0 ? 'var(--neon-amber)' : 'var(--neon-green)'}">${symbol}${remaining.toLocaleString()}</span>
+          <div style="display:flex; justify-content:space-between; font-weight:bold; margin-bottom:0.35rem;">
+            <span>Installment 2 (50% Final Settlement):</span>
+            <span style="color:${isFinal ? 'var(--neon-green)' : 'var(--neon-amber)'}">
+              ${isFinal ? `PAID (${symbol}${(purchase.totalCost / 2).toLocaleString()})` : `PENDING DUE (${symbol}${remaining.toLocaleString()})`}
+            </span>
+          </div>
+          <div style="display:flex; justify-content:space-between; border-top:1px dashed var(--glass-border); padding-top:0.4rem; font-weight:bold;">
+            <span>Total Paid:</span>
+            <span style="color:var(--neon-green);">${symbol}${purchase.paidAmount.toLocaleString()}</span>
           </div>
         </div>
 
-        <div style="text-align:center; margin-top:1.25rem; padding:0.75rem; border-radius:8px; background:${isFinal ? 'rgba(57,255,20,0.1)' : 'rgba(255,170,0,0.1)'}; border:1px solid ${isFinal ? 'var(--neon-green)' : 'var(--neon-amber)'}; font-weight:bold; font-size:0.8rem; line-height:1.4;">
+        ${!isFinal ? `
+          <div style="text-align:center; margin-top:1rem;">
+            <button class="invoice-action-btn invoice-pay-final-now-btn" data-id="${purchase.id}" style="padding:0.6rem 1.25rem; background:rgba(0, 240, 255, 0.2); border:1px solid var(--neon-cyan); border-radius:6px; color:var(--neon-cyan); font-weight:bold; font-size:0.85rem; cursor:pointer; width:100%; transition:all 0.2s;">
+              <i data-lucide="credit-card" style="width:14px; height:14px; vertical-align:middle; margin-right:4px;"></i> Pay 2nd Installment Now (${symbol}${remaining.toLocaleString()})
+            </button>
+          </div>
+        ` : ''}
+
+        <div style="text-align:center; margin-top:1rem; padding:0.75rem; border-radius:8px; background:${isFinal ? 'rgba(57,255,20,0.1)' : 'rgba(255,170,0,0.1)'}; border:1px solid ${isFinal ? 'var(--neon-green)' : 'var(--neon-amber)'}; font-weight:bold; font-size:0.8rem; line-height:1.4;">
           ${isFinal 
-            ? "Thank you for using our service. If any other service is required, please visit us again." 
-            : "Waiting for your final payment. Final payment must be made at least 12 hours prior to delivery."
+            ? "Thank you for using our service. All installments settled — service delivered!" 
+            : "Waiting for your 2nd installment final payment. Final payment must be made at least 12 hours prior to delivery."
           }
         </div>
       </div>
     `;
+
+    // Attach click listener for Pay 2nd Installment inside the invoice modal
+    const payNowBtn = content.querySelector('.invoice-pay-final-now-btn');
+    if (payNowBtn) {
+      payNowBtn.addEventListener('click', () => {
+        if (receiptOverlay) receiptOverlay.style.display = 'none';
+        initiateRazorpayPayment({
+          type: 'final',
+          serviceId: purchase.serviceId,
+          serviceName: purchase.serviceName,
+          totalCost: purchase.totalCost,
+          payAmount: remaining,
+          purchaseId: purchase.id
+        });
+      });
+    }
     
+    if (window.lucide) lucide.createIcons();
     if (receiptOverlay) receiptOverlay.style.display = 'flex';
   }
 
