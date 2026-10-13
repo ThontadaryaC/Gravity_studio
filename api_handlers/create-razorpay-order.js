@@ -194,8 +194,10 @@ module.exports = async (req, res) => {
     const keyId = (process.env.RAZORPAY_KEY_ID || "").replace(/[^\x20-\x7E]/g, "").replace(/^["']|["']$/g, "").trim();
     const keySecret = (process.env.RAZORPAY_KEY_SECRET || "").replace(/[^\x20-\x7E]/g, "").replace(/^["']|["']$/g, "").trim();
 
-    // Safe diagnostic logging: shows first 8 chars and length only — never logs the full secret
-    console.log(`Razorpay Diagnostic: KEY_ID = '${keyId.substring(0,12)}...' (len=${keyId.length}), KEY_SECRET len=${keySecret.length}, first8='${keySecret.substring(0,8)}'`);
+    // Environment variable presence check (no key material logged)
+    if (keyId.length < 10) {
+      console.error("Razorpay KEY_ID appears misconfigured — unexpected length:", keyId.length);
+    }
 
     if (!keyId || !keySecret) {
       return res.status(500).json({ 

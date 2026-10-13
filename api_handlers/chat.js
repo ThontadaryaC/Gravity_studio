@@ -1,6 +1,8 @@
 // Vercel Serverless Function for Gravity AI Chatbot Proxy
 // Safeguards the Gemini API Key by keeping it on the server side.
 
+const { checkRateLimit } = require("./security-utils");
+
 module.exports = async (req, res) => {
   // Enable CORS
   const allowedOrigins = [
@@ -31,20 +33,20 @@ module.exports = async (req, res) => {
   }
 
   try {
+    // Rate limiting: 30 chatbot messages per minute per IP
+    const ip = req.headers["x-forwarded-for"] || req.socket?.remoteAddress || "global";
+    const rateLimitOk = await checkRateLimit(`chat:${ip}`, 30, 60);
+    if (!rateLimitOk) {
+      return res.status(429).json({ error: { message: "Too many requests. Please wait a moment before trying again." } });
+    }
+
     // Read the secure API Key from the Vercel environment variables
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      // Filter out any key names that might sound sensitive just to be safe
-      const safeKeys = Object.keys(process.env).filter(k => 
-        !k.toLowerCase().includes("key") && 
-        !k.toLowerCase().includes("secret") && 
-        !k.toLowerCase().includes("password") && 
-        !k.toLowerCase().includes("token") &&
-        !k.toLowerCase().includes("auth")
-      );
+      // Return a safe error — never enumerate env var names in responses
       return res.status(500).json({ 
         error: { 
-          message: `Gemini API key is not configured on the server. Please add GEMINI_API_KEY in your Vercel dashboard.\n\nAvailable Env Keys: [${safeKeys.join(', ')}]` 
+          message: "Gemini API key is not configured on the server. Please add GEMINI_API_KEY in your Vercel environment settings." 
         } 
       });
     }
