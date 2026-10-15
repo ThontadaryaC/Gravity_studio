@@ -1725,24 +1725,6 @@ function initPortalAuth() {
   
   if (!loginBtn || !overlay || !sidebar) return;
 
-  // Bind catalog booking buttons
-  document.querySelectorAll('.catalog-pay-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const serviceId = btn.getAttribute('data-service-id');
-      const serviceName = btn.getAttribute('data-service-name');
-      const totalCost = parseFloat(btn.getAttribute('data-price'));
-      const payAmount = parseFloat(btn.getAttribute('data-advance'));
-      
-      initiateRazorpayPayment({
-        type: 'booking',
-        serviceId: serviceId,
-        serviceName: serviceName,
-        totalCost: totalCost,
-        payAmount: payAmount
-      });
-    });
-  });
-
   // Initialize Session
   let currentSession = JSON.parse(localStorage.getItem('gravity-user-session')) || null;
   updateAuthUI();
@@ -1751,6 +1733,55 @@ function initPortalAuth() {
     if (usernameElem) usernameElem.innerText = currentSession.username || 'User';
     updateSidebarAvatar();
   }
+
+  // Unified Booking and Invoice trigger
+  function triggerBookingFlow(btn) {
+    const action = btn.getAttribute('data-action');
+    if (action === 'pay-final') {
+      const purchaseId = btn.getAttribute('data-purchase-id');
+      const purchases = JSON.parse(localStorage.getItem('gravity-user-purchases')) || [];
+      const item = purchases.find(p => p.id === purchaseId);
+      if (item) {
+        showInvoiceBill(item, 'invoice');
+      }
+      return;
+    }
+
+    if (!currentSession) {
+      alert("Please log in and complete your profile to generate an invoice and book a service.");
+      openPortal('user-login');
+      return;
+    }
+
+    if (!currentSession.email || currentSession.email.trim() === '' || !currentSession.phone || currentSession.phone.trim() === '') {
+      alert("Please complete your profile (email and contact number) to generate your formal invoice.");
+      openSidebar();
+      openWindow('profile-settings', document.querySelector('.dock-btn[data-window="profile-settings"]'));
+      return;
+    }
+
+    const serviceId = btn.getAttribute('data-service-id');
+    let serviceName = btn.getAttribute('data-service-name');
+    const tier = btn.getAttribute('data-tier') || '';
+    if (tier && tier !== '') {
+      serviceName = `${serviceName} (${tier})`;
+    }
+    const totalCost = parseFloat(btn.getAttribute('data-price'));
+    const payAmount = parseFloat(btn.getAttribute('data-advance'));
+
+    showPrePaymentInvoice({
+      serviceId: serviceId,
+      serviceName: serviceName,
+      tier: tier,
+      totalCost: totalCost,
+      payAmount: payAmount
+    });
+  }
+
+  // Bind catalog booking buttons
+  document.querySelectorAll('.catalog-pay-btn').forEach(btn => {
+    btn.addEventListener('click', () => triggerBookingFlow(btn));
+  });
 
   // Sync session with Supabase if active
   if (supabaseClient) {
@@ -2727,42 +2758,7 @@ function initPortalAuth() {
 
       // Bind dynamic click triggers for catalog booking and 2nd installment buttons
       catalogGrid.querySelectorAll('.catalog-pay-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const action = btn.getAttribute('data-action');
-          if (action === 'pay-final') {
-            const purchaseId = btn.getAttribute('data-purchase-id');
-            const serviceId = btn.getAttribute('data-service-id');
-            const serviceName = btn.getAttribute('data-service-name');
-            const totalCost = parseFloat(btn.getAttribute('data-total-cost'));
-            const remaining = parseFloat(btn.getAttribute('data-remaining'));
-            initiateRazorpayPayment({
-              type: 'final',
-              serviceId: serviceId,
-              serviceName: serviceName,
-              totalCost: totalCost,
-              payAmount: remaining,
-              purchaseId: purchaseId
-            });
-            return;
-          }
-
-          const serviceId = btn.getAttribute('data-service-id');
-          let serviceName = btn.getAttribute('data-service-name');
-          const tier = btn.getAttribute('data-tier') || '';
-          if (tier && tier !== '') {
-            serviceName = `${serviceName} (${tier})`;
-          }
-          const totalCost = parseFloat(btn.getAttribute('data-price'));
-          const payAmount = parseFloat(btn.getAttribute('data-advance'));
-          
-          initiateRazorpayPayment({
-            type: 'booking',
-            serviceId: serviceId,
-            serviceName: serviceName,
-            totalCost: totalCost,
-            payAmount: payAmount
-          });
-        });
+        btn.addEventListener('click', () => triggerBookingFlow(btn));
       });
     }
 
@@ -2811,12 +2807,13 @@ function initPortalAuth() {
       let statusClass = 'status-paid';
       let statusText = 'Fully Paid';
       let actionHtml = '';
-      const viewReceiptBtnHtml = `<button class="invoice-action-btn view-bill-btn" data-id="${p.id}" style="padding:0.25rem 0.5rem; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); border-radius:4px; color:#fff; font-size:0.75rem; font-weight:bold; cursor:pointer; margin-left:0.35rem;">Receipt</button>`;
+      const viewInvoiceBtnHtml = `<button class="invoice-action-btn view-invoice-btn" data-id="${p.id}" style="padding:0.25rem 0.5rem; background:rgba(0, 240, 255, 0.1); border:1px solid var(--neon-cyan); border-radius:4px; color:var(--neon-cyan); font-size:0.75rem; font-weight:bold; cursor:pointer; margin-left:0.35rem;">Invoice</button>`;
+      const viewReceiptBtnHtml = `<button class="invoice-action-btn view-receipt-btn" data-id="${p.id}" style="padding:0.25rem 0.5rem; background:rgba(57, 255, 20, 0.1); border:1px solid var(--neon-green); border-radius:4px; color:var(--neon-green); font-size:0.75rem; font-weight:bold; cursor:pointer; margin-left:0.35rem;">Receipt</button>`;
 
       if (p.status === 'advance_paid') {
         statusClass = 'status-pending';
         statusText = 'Advance (50%)';
-        actionHtml = `<button class="invoice-action-btn pay-final-btn" data-id="${p.id}" style="padding:0.25rem 0.5rem; background:rgba(0, 240, 255, 0.15); border:1px solid var(--neon-cyan); border-radius:4px; color:var(--neon-cyan); font-size:0.75rem; font-weight:bold; cursor:pointer;">Pay 2nd Installment (${symbol}${remainingAmount.toLocaleString()})</button>${viewReceiptBtnHtml}`;
+        actionHtml = `<button class="invoice-action-btn pay-final-btn" data-id="${p.id}" style="padding:0.25rem 0.5rem; background:rgba(0, 240, 255, 0.15); border:1px solid var(--neon-cyan); border-radius:4px; color:var(--neon-cyan); font-size:0.75rem; font-weight:bold; cursor:pointer;">Pay 2nd Installment (${symbol}${remainingAmount.toLocaleString()})</button>${viewInvoiceBtnHtml}${viewReceiptBtnHtml}`;
       } else if (p.status === 'completed') {
         statusClass = 'status-pending';
         statusText = 'Awaiting Final';
@@ -2824,23 +2821,24 @@ function initPortalAuth() {
           <div style="display:flex; gap:0.35rem; align-items:center;">
             <button class="invoice-action-btn pay-final-btn" data-id="${p.id}" style="padding:0.25rem 0.5rem; background:rgba(0, 240, 255, 0.15); border:1px solid var(--neon-cyan); border-radius:4px; color:var(--neon-cyan); font-size:0.75rem; font-weight:bold; cursor:pointer;">Pay 2nd Installment (${symbol}${remainingAmount.toLocaleString()})</button>
             <button class="invoice-action-btn dispute-btn" data-id="${p.id}" style="padding:0.25rem 0.5rem; background:rgba(255, 51, 102, 0.15); border:1px solid #ff3366; border-radius:4px; color:#ff3366; font-size:0.75rem; font-weight:bold; cursor:pointer;">File Dispute</button>
+            ${viewInvoiceBtnHtml}
             ${viewReceiptBtnHtml}
           </div>
         `;
       } else if (p.status === 'refund_requested') {
         statusClass = 'status-pending';
         statusText = 'Disputed';
-        actionHtml = `<span style="font-size:0.75rem; color:var(--neon-amber);">Reviewing Proof</span>${viewReceiptBtnHtml}`;
+        actionHtml = `<span style="font-size:0.75rem; color:var(--neon-amber);">Reviewing Proof</span>${viewInvoiceBtnHtml}${viewReceiptBtnHtml}`;
       } else if (p.status === 'refund_approved') {
         statusClass = 'status-refunded';
         statusText = 'Refunded (100%)';
-        actionHtml = `<span style="font-size:0.75rem; color:#ff3366;">Funds Returned</span>${viewReceiptBtnHtml}`;
+        actionHtml = `<span style="font-size:0.75rem; color:#ff3366;">Funds Returned</span>${viewInvoiceBtnHtml}${viewReceiptBtnHtml}`;
       } else if (p.status === 'refund_denied') {
         statusClass = 'status-pending';
         statusText = 'Dispute Denied';
-        actionHtml = `<button class="invoice-action-btn pay-final-btn" data-id="${p.id}" style="padding:0.25rem 0.5rem; background:rgba(0, 240, 255, 0.15); border:1px solid var(--neon-cyan); border-radius:4px; color:var(--neon-cyan); font-size:0.75rem; font-weight:bold; cursor:pointer;">Pay 2nd Installment (${symbol}${remainingAmount.toLocaleString()})</button>${viewReceiptBtnHtml}`;
+        actionHtml = `<button class="invoice-action-btn pay-final-btn" data-id="${p.id}" style="padding:0.25rem 0.5rem; background:rgba(0, 240, 255, 0.15); border:1px solid var(--neon-cyan); border-radius:4px; color:var(--neon-cyan); font-size:0.75rem; font-weight:bold; cursor:pointer;">Pay 2nd Installment (${symbol}${remainingAmount.toLocaleString()})</button>${viewInvoiceBtnHtml}${viewReceiptBtnHtml}`;
       } else {
-        actionHtml = viewReceiptBtnHtml;
+        actionHtml = `${viewInvoiceBtnHtml}${viewReceiptBtnHtml}`;
       }
 
       tr.innerHTML = `
@@ -2863,26 +2861,29 @@ function initPortalAuth() {
         const purchaseId = btn.getAttribute('data-id');
         const item = purchases.find(p => p.id === purchaseId);
         if (item) {
-          const remainingAmount = item.totalCost - item.paidAmount;
-          initiateRazorpayPayment({
-            type: 'final',
-            serviceId: item.serviceId,
-            serviceName: item.serviceName,
-            totalCost: item.totalCost,
-            payAmount: remainingAmount,
-            purchaseId: item.id
-          });
+          showInvoiceBill(item, 'invoice');
+        }
+      });
+    });
+
+    // Attach view invoice listeners
+    document.querySelectorAll('.view-invoice-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const purchaseId = btn.getAttribute('data-id');
+        const item = purchases.find(p => p.id === purchaseId);
+        if (item) {
+          showInvoiceBill(item, 'invoice');
         }
       });
     });
 
     // Attach view receipt listeners
-    document.querySelectorAll('.view-bill-btn').forEach(btn => {
+    document.querySelectorAll('.view-receipt-btn, .view-bill-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const purchaseId = btn.getAttribute('data-id');
         const item = purchases.find(p => p.id === purchaseId);
         if (item) {
-          showInvoiceBill(item);
+          showInvoiceBill(item, 'receipt');
         }
       });
     });
@@ -2974,7 +2975,8 @@ function initPortalAuth() {
         </div>
         <div style="display:flex; align-items:center;">
           ${payBtnHtml}
-          <button class="invoice-action-btn view-bill-btn" data-id="${p.id}" style="padding:0.35rem 0.65rem; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); border-radius:4px; color:#fff; font-size:0.75rem; font-weight:bold; cursor:pointer;">Invoice</button>
+          <button class="invoice-action-btn view-invoice-btn" data-id="${p.id}" style="padding:0.35rem 0.65rem; background:rgba(0, 240, 255, 0.1); border:1px solid var(--neon-cyan); border-radius:4px; color:var(--neon-cyan); font-size:0.75rem; font-weight:bold; cursor:pointer; margin-right:0.35rem;">Invoice</button>
+          <button class="invoice-action-btn view-receipt-btn" data-id="${p.id}" style="padding:0.35rem 0.65rem; background:rgba(57, 255, 20, 0.1); border:1px solid var(--neon-green); border-radius:4px; color:var(--neon-green); font-size:0.75rem; font-weight:bold; cursor:pointer;">Receipt</button>
         </div>
       `;
       container.appendChild(itemDiv);
@@ -2986,25 +2988,27 @@ function initPortalAuth() {
         const purchaseId = btn.getAttribute('data-id');
         const item = purchases.find(p => p.id === purchaseId);
         if (item) {
-          const remainingAmount = item.totalCost - item.paidAmount;
-          initiateRazorpayPayment({
-            type: 'final',
-            serviceId: item.serviceId,
-            serviceName: item.serviceName,
-            totalCost: item.totalCost,
-            payAmount: remainingAmount,
-            purchaseId: item.id
-          });
+          showInvoiceBill(item, 'invoice');
         }
       });
     });
 
-    container.querySelectorAll('.view-bill-btn').forEach(btn => {
+    container.querySelectorAll('.view-invoice-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const purchaseId = btn.getAttribute('data-id');
         const item = purchases.find(p => p.id === purchaseId);
         if (item) {
-          showInvoiceBill(item);
+          showInvoiceBill(item, 'invoice');
+        }
+      });
+    });
+
+    container.querySelectorAll('.view-receipt-btn, .view-bill-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const purchaseId = btn.getAttribute('data-id');
+        const item = purchases.find(p => p.id === purchaseId);
+        if (item) {
+          showInvoiceBill(item, 'receipt');
         }
       });
     });
@@ -3130,14 +3134,16 @@ function initPortalAuth() {
             <button class="admin-action-btn download-assets-btn" style="background:rgba(57, 255, 20, 0.15); border:1px solid var(--neon-green); border-radius:6px; color:var(--neon-green); font-size:0.8rem; padding:0.5rem 1rem; cursor:pointer; font-weight:bold;" onclick="alert('Downloading standard zip package containing your compiled assets...')">
               <i data-lucide="download" style="width:14px; height:14px; vertical-align:middle; margin-right:4px;"></i> Download Production Package
             </button>
-            <button class="invoice-action-btn view-bill-btn" data-id="${p.id}" style="padding:0.5rem 1rem; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); border-radius:6px; color:#fff; font-weight:bold; font-size:0.8rem; cursor:pointer;">View Receipt</button>
+            <button class="invoice-action-btn view-invoice-btn" data-id="${p.id}" style="padding:0.5rem 0.85rem; background:rgba(0, 240, 255, 0.1); border:1px solid var(--neon-cyan); border-radius:6px; color:var(--neon-cyan); font-weight:bold; font-size:0.8rem; cursor:pointer;">Invoice</button>
+            <button class="invoice-action-btn view-receipt-btn" data-id="${p.id}" style="padding:0.5rem 0.85rem; background:rgba(57, 255, 20, 0.1); border:1px solid var(--neon-green); border-radius:6px; color:var(--neon-green); font-weight:bold; font-size:0.8rem; cursor:pointer;">Receipt</button>
           </div>
         `;
       } else if (p.status === 'refund_requested') {
         finalPayBtnHtml = `
           <div style="margin-top:1rem; display:flex; gap:0.5rem; align-items:center;">
             <span style="font-size:0.8rem; color:var(--neon-amber);"><i data-lucide="clock" style="width:13px; height:13px; vertical-align:middle; margin-right:3px;"></i> Dispute Under Administrative Review</span>
-            <button class="invoice-action-btn view-bill-btn" data-id="${p.id}" style="padding:0.4rem 0.75rem; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); border-radius:6px; color:#fff; font-weight:bold; font-size:0.8rem; cursor:pointer;">View Receipt</button>
+            <button class="invoice-action-btn view-invoice-btn" data-id="${p.id}" style="padding:0.4rem 0.75rem; background:rgba(0, 240, 255, 0.1); border:1px solid var(--neon-cyan); border-radius:6px; color:var(--neon-cyan); font-weight:bold; font-size:0.8rem; cursor:pointer;">Invoice</button>
+            <button class="invoice-action-btn view-receipt-btn" data-id="${p.id}" style="padding:0.4rem 0.75rem; background:rgba(57, 255, 20, 0.1); border:1px solid var(--neon-green); border-radius:6px; color:var(--neon-green); font-weight:bold; font-size:0.8rem; cursor:pointer;">Receipt</button>
           </div>
         `;
       } else if (remainingAmount > 0) {
@@ -3147,13 +3153,15 @@ function initPortalAuth() {
               <i data-lucide="credit-card" style="width:13px; height:13px; vertical-align:middle; margin-right:3px;"></i> Pay 2nd Installment (${symbol}${remainingAmount.toLocaleString()})
             </button>
             ${(p.status === 'completed' || p.status === 'refund_denied') ? `<button class="invoice-action-btn dispute-btn" data-id="${p.id}" style="padding:0.4rem 0.75rem; background:rgba(255, 51, 102, 0.15); border:1px solid #ff3366; border-radius:6px; color:#ff3366; font-weight:bold; font-size:0.8rem; cursor:pointer;">Dispute & Refund</button>` : ''}
-            <button class="invoice-action-btn view-bill-btn" data-id="${p.id}" style="padding:0.4rem 0.75rem; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); border-radius:6px; color:#fff; font-weight:bold; font-size:0.8rem; cursor:pointer;">View Receipt</button>
+            <button class="invoice-action-btn view-invoice-btn" data-id="${p.id}" style="padding:0.4rem 0.75rem; background:rgba(0, 240, 255, 0.1); border:1px solid var(--neon-cyan); border-radius:6px; color:var(--neon-cyan); font-weight:bold; font-size:0.8rem; cursor:pointer;">Invoice</button>
+            <button class="invoice-action-btn view-receipt-btn" data-id="${p.id}" style="padding:0.4rem 0.75rem; background:rgba(57, 255, 20, 0.1); border:1px solid var(--neon-green); border-radius:6px; color:var(--neon-green); font-weight:bold; font-size:0.8rem; cursor:pointer;">Receipt</button>
           </div>
         `;
       } else {
         finalPayBtnHtml = `
           <div style="margin-top:1rem; display:flex; gap:0.5rem; align-items:center;">
-            <button class="invoice-action-btn view-bill-btn" data-id="${p.id}" style="padding:0.4rem 0.75rem; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); border-radius:6px; color:#fff; font-weight:bold; font-size:0.8rem; cursor:pointer;">View Receipt</button>
+            <button class="invoice-action-btn view-invoice-btn" data-id="${p.id}" style="padding:0.4rem 0.75rem; background:rgba(0, 240, 255, 0.1); border:1px solid var(--neon-cyan); border-radius:6px; color:var(--neon-cyan); font-weight:bold; font-size:0.8rem; cursor:pointer;">Invoice</button>
+            <button class="invoice-action-btn view-receipt-btn" data-id="${p.id}" style="padding:0.4rem 0.75rem; background:rgba(57, 255, 20, 0.1); border:1px solid var(--neon-green); border-radius:6px; color:var(--neon-green); font-weight:bold; font-size:0.8rem; cursor:pointer;">Receipt</button>
           </div>
         `;
       }
@@ -3246,15 +3254,7 @@ function initPortalAuth() {
         const purchaseId = btn.getAttribute('data-id');
         const item = purchases.find(p => p.id === purchaseId);
         if (item) {
-          const remainingAmount = item.totalCost - item.paidAmount;
-          initiateRazorpayPayment({
-            type: 'final',
-            serviceId: item.serviceId,
-            serviceName: item.serviceName,
-            totalCost: item.totalCost,
-            payAmount: remainingAmount,
-            purchaseId: item.id
-          });
+          showInvoiceBill(item, 'invoice');
         }
       });
     });
@@ -3266,13 +3266,23 @@ function initPortalAuth() {
       });
     });
 
-    // Attach view receipt listeners inside tracker
-    document.querySelectorAll('.view-bill-btn').forEach(btn => {
+    document.querySelectorAll('.view-invoice-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const purchaseId = btn.getAttribute('data-id');
         const item = purchases.find(p => p.id === purchaseId);
         if (item) {
-          showInvoiceBill(item);
+          showInvoiceBill(item, 'invoice');
+        }
+      });
+    });
+
+    // Attach view receipt listeners inside tracker
+    document.querySelectorAll('.view-receipt-btn, .view-bill-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const purchaseId = btn.getAttribute('data-id');
+        const item = purchases.find(p => p.id === purchaseId);
+        if (item) {
+          showInvoiceBill(item, 'receipt');
         }
       });
     });
@@ -3445,7 +3455,7 @@ function initPortalAuth() {
     // Trigger Bill Overlay display dynamically
     if (showItem) {
       setTimeout(() => {
-        showInvoiceBill(showItem);
+        showInvoiceBill(showItem, 'receipt');
       }, 600);
     }
   }
@@ -5145,6 +5155,7 @@ function initPortalAuth() {
   const closeReceiptBottomBtn = document.getElementById('close-receipt-bottom-btn');
   const printReceiptBtn = document.getElementById('print-receipt-btn');
   let activeReceiptItem = null;
+  let activeDocType = 'receipt'; // 'invoice' or 'receipt'
 
   if (closeReceiptBtn) {
     closeReceiptBtn.addEventListener('click', () => {
@@ -5161,48 +5172,64 @@ function initPortalAuth() {
   if (printReceiptBtn) {
     printReceiptBtn.addEventListener('click', () => {
       if (activeReceiptItem) {
-        printReceiptWindow(activeReceiptItem);
+        printReceiptWindow(activeReceiptItem, activeDocType);
       }
     });
   }
 
-  function printReceiptWindow(purchase) {
+  function printReceiptWindow(item, docType = 'receipt') {
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
-      alert("Popup blocked! Please allow popups to print the receipt.");
+      alert("Popup blocked! Please allow popups to print the document.");
       return;
     }
     
     let headName = "Thontadaraya (CTO & Tech Head)";
-    if (purchase.serviceId === 'youtube_intro' || purchase.serviceId === 'vfx_package' || purchase.serviceId === 'anime_design') {
+    if (item.serviceId === 'youtube_intro' || item.serviceId === 'vfx_package' || item.serviceId === 'anime_design') {
       headName = "Ajay Raj B.K (Founder & Creative Director)";
     }
     
-    const remaining = purchase.totalCost - purchase.paidAmount;
-    const isFinal = remaining <= 0;
+    const isPrePayment = item.isPrePayment || false;
+    const totalCost = item.totalCost || 0;
+    const paidAmount = isPrePayment ? 0 : (item.paidAmount || 0);
+    const remaining = totalCost - paidAmount;
+    const isFinal = !isPrePayment && remaining <= 0;
+
     const custName = currentSession ? currentSession.username : 'Valued Client';
     const custContact = currentSession && currentSession.phone ? currentSession.phone : '+91 98920 10101';
+    const custEmail = currentSession && currentSession.email ? currentSession.email : 'client@gravity.com';
     
-    const purchaseCurrency = purchase.currency || (purchase.totalCost > 500 ? 'INR' : 'USD');
+    const purchaseCurrency = item.currency || (totalCost > 500 ? 'INR' : 'USD');
     const symbol = purchaseCurrency === 'INR' ? '₹' : '$';
-    
+
+    const cleanId = item.id ? (item.id.startsWith('pur-') ? item.id.substring(4) : item.id.slice(-8)).toUpperCase() : (item.invoiceNum || Date.now().toString().slice(-6));
+    const isInvoice = docType === 'invoice';
+    const docTitle = isInvoice ? (isPrePayment ? "PROFORMA INVOICE" : "INVOICE STATEMENT") : "OFFICIAL PAYMENT RECEIPT";
+    const refLabel = isInvoice ? "Invoice Reference:" : "Receipt Reference:";
+    const refValue = isInvoice ? (item.invoiceNum || `INV-${cleanId}`) : (item.rcptNum || `RCPT-${cleanId}`);
+    const badgeText = isPrePayment ? "AWAITING ADVANCE PAYMENT" : (isInvoice ? (isFinal ? "FULLY PAID" : "PAYMENT DUE (50%)") : "PAID & VERIFIED");
+    const badgeColor = isPrePayment ? "#e65100" : (isInvoice ? (isFinal ? "#2e7d32" : "#e65100") : "#2e7d32");
+    const badgeBg = isPrePayment ? "#fff3e0" : (isInvoice ? (isFinal ? "#e8f5e9" : "#fff3e0") : "#e8f5e9");
+
     printWindow.document.write(`
       <html>
         <head>
-          <title>Invoice Receipt - ${purchase.id}</title>
+          <title>${docTitle} - ${refValue}</title>
           <style>
             body { font-family: 'Helvetica Neue', Arial, sans-serif; padding: 2rem; color: #333; line-height: 1.5; }
             .receipt-box { max-width: 600px; margin: auto; border: 1px solid #ddd; padding: 2rem; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.05); }
             .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #333; padding-bottom: 1rem; margin-bottom: 1.5rem; }
             .logo { height: 40px; vertical-align: middle; margin-right: 10px; }
-            .title { font-size: 1.5rem; font-weight: bold; color: #111; letter-spacing: 1px; }
+            .title { font-size: 1.4rem; font-weight: bold; color: #111; letter-spacing: 1px; }
+            .doc-type { font-size: 0.85rem; font-weight: bold; color: #666; margin-top: 2px; }
             .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem; }
             .panel { background: #f9f9f9; padding: 1rem; border-radius: 6px; border: 1px solid #eee; }
             .panel h3 { margin: 0 0 0.5rem 0; font-size: 0.95rem; color: #b026ff; border-bottom: 1px solid #eee; padding-bottom: 0.25rem; }
             .totals { border-top: 2px dashed #eee; padding-top: 1rem; margin-top: 1rem; }
             .total-row { display: flex; justify-content: space-between; margin-bottom: 0.5rem; }
             .total-row.bold { font-weight: bold; font-size: 1.1rem; color: #000; }
-            .footer-msg { text-align: center; margin-top: 2rem; padding: 1rem; border-radius: 6px; background: ${isFinal ? '#e8f5e9' : '#fff3e0'}; border: 1px solid ${isFinal ? '#4caf50' : '#ffb74d'}; font-weight: bold; font-size: 0.9rem; }
+            .badge { display: inline-block; padding: 4px 10px; border-radius: 4px; font-weight: bold; font-size: 0.75rem; border: 1px solid ${badgeColor}; color: ${badgeColor}; background: ${badgeBg}; margin-bottom: 0.5rem; }
+            .footer-msg { text-align: center; margin-top: 2rem; padding: 1rem; border-radius: 6px; background: ${badgeBg}; border: 1px solid ${badgeColor}; font-weight: bold; font-size: 0.9rem; }
             @media print {
               body { padding: 0; }
               .receipt-box { border: none; box-shadow: none; }
@@ -5214,11 +5241,15 @@ function initPortalAuth() {
             <div class="header">
               <div style="display:flex; align-items:center;">
                 <img class="logo" src="https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/logo.png" alt="Company Logo">
-                <span class="title">GRAVITY STUDIOS</span>
+                <div>
+                  <div class="title">GRAVITY STUDIOS</div>
+                  <div class="doc-type">${docTitle}</div>
+                </div>
               </div>
               <div style="text-align:right; font-size:0.85rem;">
-                <strong>Invoice Reference:</strong> TXN-${purchase.id.substring(4)}<br>
-                <strong>Date:</strong> ${purchase.date}
+                <span class="badge">${badgeText}</span><br>
+                <strong>${refLabel}</strong> ${refValue}<br>
+                <strong>Date:</strong> ${item.date || new Date().toLocaleDateString()}
               </div>
             </div>
             
@@ -5226,12 +5257,13 @@ function initPortalAuth() {
               <div class="panel">
                 <h3>Customer Details</h3>
                 <strong>Name:</strong> ${custName}<br>
-                <strong>Contact Number:</strong> ${custContact}
+                <strong>Contact Number:</strong> ${custContact}<br>
+                <strong>Email:</strong> ${custEmail}
               </div>
               
               <div class="panel">
                 <h3>Service Information</h3>
-                <strong>Service Booked:</strong> ${purchase.serviceName}<br>
+                <strong>Service Booked:</strong> ${item.serviceName}<br>
                 <strong>Founder:</strong> Ajay Raj B.K<br>
                 <strong>CEO:</strong> Shashank Raj B.K<br>
                 <strong>Dept. Head:</strong> ${headName}
@@ -5241,26 +5273,34 @@ function initPortalAuth() {
             <div class="totals">
               <div class="total-row">
                 <span>Total Agreed Service Cost:</span>
-                <span>${symbol}${purchase.totalCost.toLocaleString()}</span>
+                <span>${symbol}${totalCost.toLocaleString()}</span>
               </div>
-              <div class="total-row" style="color: #4caf50; font-weight: bold;">
+              <div class="total-row" style="color: ${paidAmount > 0 ? '#4caf50' : '#e65100'}; font-weight: bold;">
                 <span>Installment 1 (50% Booking Advance):</span>
-                <span>PAID (${symbol}${(purchase.totalCost / 2).toLocaleString()})</span>
+                <span>${paidAmount > 0 ? `PAID (${symbol}${(totalCost / 2).toLocaleString()})` : `DUE NOW (${symbol}${(totalCost / 2).toLocaleString()})`}</span>
               </div>
               <div class="total-row" style="font-weight: bold; color: ${isFinal ? '#4caf50' : '#e65100'};">
                 <span>Installment 2 (50% Final Settlement):</span>
-                <span>${isFinal ? `PAID (${symbol}${(purchase.totalCost / 2).toLocaleString()})` : `PENDING DUE (${symbol}${remaining.toLocaleString()})`}</span>
+                <span>${isFinal ? `PAID (${symbol}${(totalCost / 2).toLocaleString()})` : `DUE ON DELIVERY (${symbol}${(totalCost / 2).toLocaleString()})`}</span>
               </div>
               <div class="total-row bold" style="border-top: 1px solid #ccc; padding-top: 0.5rem; margin-top: 0.5rem;">
-                <span>Total Paid To Date:</span>
-                <span style="color: #4caf50;">${symbol}${purchase.paidAmount.toLocaleString()}</span>
+                <span>${isInvoice ? (isPrePayment ? 'Total Due Today:' : 'Outstanding Balance Due:') : 'Total Paid To Date:'}</span>
+                <span style="color: ${isInvoice ? '#e65100' : '#4caf50'};">
+                  ${symbol}${isInvoice ? (isPrePayment ? (totalCost / 2).toLocaleString() : remaining.toLocaleString()) : paidAmount.toLocaleString()}
+                </span>
               </div>
             </div>
             
             <div class="footer-msg">
-              ${isFinal 
-                ? "Thank you for using our service. All installments settled — service delivered!" 
-                : "Waiting for your 2nd installment final payment. Final payment must be made at least 12 hours prior to delivery."
+              ${isPrePayment
+                ? "This proforma invoice is generated prior to payment. Work commences upon 50% advance booking deposit."
+                : (isFinal 
+                    ? "Thank you for choosing Gravity Studios. All installments settled — service delivered!" 
+                    : (isInvoice
+                        ? "Waiting for your 2nd installment final payment. Final payment must be made at least 12 hours prior to delivery."
+                        : "Thank you! 50% advance received. Your project is actively in production."
+                      )
+                  )
               }
             </div>
           </div>
@@ -5275,11 +5315,135 @@ function initPortalAuth() {
     printWindow.document.close();
   }
 
-  function showInvoiceBill(purchase) {
+  function showPrePaymentInvoice(booking) {
+    activeReceiptItem = { ...booking, date: new Date().toLocaleDateString(), isPrePayment: true };
+    activeDocType = 'invoice';
+
+    const content = document.getElementById('receipt-content');
+    if (!content) return;
+
+    if (printReceiptBtn) {
+      printReceiptBtn.innerText = 'Print Invoice';
+    }
+
+    let headName = "Thontadaraya (CTO & Tech Head)";
+    if (booking.serviceId === 'youtube_intro' || booking.serviceId === 'vfx_package' || booking.serviceId === 'anime_design') {
+      headName = "Ajay Raj B.K (Founder & Creative Director)";
+    }
+
+    const custName = currentSession ? currentSession.username : 'Valued Client';
+    const custContact = currentSession && currentSession.phone ? currentSession.phone : '+91 98920 10101';
+    const custEmail = currentSession && currentSession.email ? currentSession.email : 'client@gravity.com';
+
+    const isIndian = currentSession && (currentSession.country === 'India' || (currentSession.phone && currentSession.phone.startsWith('+91')));
+    const symbol = isIndian ? '₹' : '$';
+    const invoiceNum = 'INV-PRE-' + Date.now().toString().slice(-6);
+    activeReceiptItem.invoiceNum = invoiceNum;
+    activeReceiptItem.symbol = symbol;
+
+    content.innerHTML = `
+      <div style="font-size:0.85rem; line-height:1.6;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; padding-bottom:0.75rem; border-bottom:1px solid var(--glass-border);">
+          <div>
+            <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:4px;">
+              <span style="font-weight:700; color:var(--neon-cyan); font-size:1rem; text-transform:uppercase; letter-spacing:1px;">PROFORMA INVOICE</span>
+            </div>
+            <strong style="color:var(--text-muted); font-size:0.8rem;">Invoice #:</strong> <span style="font-family:monospace; color:#fff;">${invoiceNum}</span><br>
+            <strong style="color:var(--text-muted); font-size:0.8rem;">Date Issued:</strong> <span style="color:#ddd;">${new Date().toLocaleDateString()}</span>
+          </div>
+          <div style="text-align:right;">
+            <span style="display:inline-block; padding:0.25rem 0.6rem; border-radius:4px; background:rgba(255,170,0,0.15); border:1px solid var(--neon-amber); color:var(--neon-amber); font-weight:bold; font-size:0.75rem; text-transform:uppercase;">
+              Awaiting Advance
+            </span>
+            <div style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">Due: Upon Booking</div>
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.75rem; margin-bottom:1rem;">
+          <div style="background:rgba(255,255,255,0.02); border:1px solid var(--glass-border); padding:0.75rem; border-radius:8px;">
+            <h6 style="margin:0 0 0.35rem 0; font-size:0.85rem; color:var(--neon-cyan); font-weight:700;">Billed To (Client)</h6>
+            <strong>Name:</strong> ${custName}<br>
+            <strong>Contact:</strong> ${custContact}<br>
+            <strong>Email:</strong> ${custEmail}
+          </div>
+          <div style="background:rgba(255,255,255,0.02); border:1px solid var(--glass-border); padding:0.75rem; border-radius:8px;">
+            <h6 style="margin:0 0 0.35rem 0; font-size:0.85rem; color:var(--neon-purple); font-weight:700;">Service Provider</h6>
+            <strong>Company:</strong> Gravity Studios<br>
+            <strong>Dept. Head:</strong> ${headName}<br>
+            <strong>Founder:</strong> Ajay Raj B.K
+          </div>
+        </div>
+
+        <div style="background:rgba(255,255,255,0.02); border:1px solid var(--glass-border); padding:0.75rem; border-radius:8px; margin-bottom:1rem;">
+          <div style="display:flex; justify-content:space-between; margin-bottom:0.25rem; font-size:0.8rem; color:var(--text-muted);">
+            <span>Service Description</span>
+            <span>Agreed Price</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-weight:bold; color:#fff; border-bottom:1px dashed var(--glass-border); padding-bottom:0.5rem; margin-bottom:0.5rem;">
+            <span>${booking.serviceName}</span>
+            <span>${symbol}${booking.totalCost.toLocaleString()}</span>
+          </div>
+
+          <div style="display:flex; justify-content:space-between; margin-bottom:0.35rem;">
+            <span>Total Agreed Cost:</span>
+            <strong>${symbol}${booking.totalCost.toLocaleString()}</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-weight:bold; color:var(--neon-amber); margin-bottom:0.35rem;">
+            <span>Installment 1 (50% Advance Booking Due Now):</span>
+            <span>${symbol}${booking.payAmount.toLocaleString()}</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; color:var(--text-muted); font-size:0.8rem; margin-bottom:0.35rem;">
+            <span>Installment 2 (50% Final Due Before Delivery):</span>
+            <span>${symbol}${(booking.totalCost - booking.payAmount).toLocaleString()}</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; border-top:1px dashed var(--glass-border); padding-top:0.4rem; font-weight:bold;">
+            <span>Amount Payable Today:</span>
+            <span style="color:var(--neon-cyan); font-size:1.05rem;">${symbol}${booking.payAmount.toLocaleString()}</span>
+          </div>
+        </div>
+
+        <div style="text-align:center; margin-top:1rem;">
+          <button id="invoice-confirm-pay-btn" class="invoice-action-btn" style="padding:0.7rem 1.25rem; background:linear-gradient(135deg, var(--neon-purple), var(--neon-cyan)); border:none; border-radius:6px; color:#fff; font-weight:bold; font-size:0.9rem; cursor:pointer; width:100%; transition:all 0.2s; box-shadow:0 0 15px rgba(0,240,255,0.25);">
+            <i data-lucide="credit-card" style="width:16px; height:16px; vertical-align:middle; margin-right:4px;"></i> Proceed to Pay 50% Advance (${symbol}${booking.payAmount.toLocaleString()})
+          </button>
+        </div>
+
+        <div style="text-align:center; margin-top:0.75rem; padding:0.6rem; border-radius:8px; background:rgba(255,170,0,0.08); border:1px solid rgba(255,170,0,0.3); font-size:0.78rem; line-height:1.4; color:var(--text-muted);">
+          Note: This is a pre-payment proforma invoice. Production will commence as soon as the 50% advance booking is received via Razorpay.
+        </div>
+      </div>
+    `;
+
+    // Click handler for Proceed to Pay
+    const confirmPayBtn = content.querySelector('#invoice-confirm-pay-btn');
+    if (confirmPayBtn) {
+      confirmPayBtn.addEventListener('click', () => {
+        if (receiptOverlay) receiptOverlay.style.display = 'none';
+        initiateRazorpayPayment({
+          type: 'booking',
+          serviceId: booking.serviceId,
+          serviceName: booking.serviceName,
+          tier: booking.tier,
+          totalCost: booking.totalCost,
+          payAmount: booking.payAmount
+        });
+      });
+    }
+
+    if (window.lucide) lucide.createIcons();
+    if (receiptOverlay) receiptOverlay.style.display = 'flex';
+  }
+
+  function showInvoiceBill(purchase, docType = 'receipt') {
     activeReceiptItem = purchase;
+    activeDocType = docType;
     const content = document.getElementById('receipt-content');
     if (!content) return;
     
+    if (printReceiptBtn) {
+      printReceiptBtn.innerText = docType === 'invoice' ? 'Print Invoice' : 'Print Receipt';
+    }
+
     const remaining = purchase.totalCost - purchase.paidAmount;
     const isFinal = remaining <= 0;
     
@@ -5290,74 +5454,164 @@ function initPortalAuth() {
     
     const custName = currentSession ? currentSession.username : 'Valued Client';
     const custContact = currentSession && currentSession.phone ? currentSession.phone : '+91 98920 10101';
+    const custEmail = currentSession && currentSession.email ? currentSession.email : 'client@gravity.com';
     
     const purchaseCurrency = purchase.currency || (purchase.totalCost > 500 ? 'INR' : 'USD');
     const symbol = purchaseCurrency === 'INR' ? '₹' : '$';
-    
-    content.innerHTML = `
-      <div style="font-size:0.85rem; line-height:1.6;">
-        <div style="display:flex; justify-content:space-between; margin-bottom:1rem; font-size:0.8rem; color:var(--text-muted);">
-          <div>
-            <strong>Receipt:</strong> TXN-${purchase.id.substring(4)}<br>
-            <strong>Date:</strong> ${purchase.date}
-          </div>
-          <div style="text-align:right;">
-            <strong>Service ID:</strong> ${purchase.serviceId || 'N/A'}<br>
-            <strong>Purchase ID:</strong> ${purchase.id}
-          </div>
-        </div>
-        
-        <div style="background:rgba(255,255,255,0.02); border:1px solid var(--glass-border); padding:0.75rem; border-radius:8px; margin-bottom:1rem;">
-          <h6 style="margin:0 0 0.5rem 0; font-size:0.9rem; color:var(--neon-cyan); font-weight:700;">Customer Details</h6>
-          <strong>Name:</strong> ${custName}<br>
-          <strong>Contact Number:</strong> ${custContact}
-        </div>
 
-        <div style="background:rgba(255,255,255,0.02); border:1px solid var(--glass-border); padding:0.75rem; border-radius:8px; margin-bottom:1rem;">
-          <h6 style="margin:0 0 0.5rem 0; font-size:0.9rem; color:var(--neon-purple); font-weight:700;">Service Information</h6>
-          <strong>Service Name:</strong> ${purchase.serviceName}<br>
-          <strong>Founder Name:</strong> Ajay Raj B.K<br>
-          <strong>CEO Name:</strong> Shashank Raj B.K<br>
-          <strong>Service Provider Head Name:</strong> ${headName}
-        </div>
+    const cleanId = (purchase.id.startsWith('pur-') ? purchase.id.substring(4) : purchase.id.slice(-8)).toUpperCase();
+    const invNum = `INV-${cleanId}`;
+    const rcptNum = `RCPT-${cleanId}`;
 
-        <div style="border-bottom:1px solid var(--glass-border); padding-bottom:0.6rem; margin-bottom:0.6rem;">
-          <div style="display:flex; justify-content:space-between; margin-bottom:0.35rem;">
-            <span>Total Agreed Cost:</span>
-            <strong>${symbol}${purchase.totalCost.toLocaleString()}</strong>
+    activeReceiptItem.symbol = symbol;
+    activeReceiptItem.invNum = invNum;
+    activeReceiptItem.rcptNum = rcptNum;
+
+    if (docType === 'invoice') {
+      // INVOICE STATEMENT (Displays total bill, paid amount, and outstanding 2nd installment)
+      content.innerHTML = `
+        <div style="font-size:0.85rem; line-height:1.6;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; padding-bottom:0.75rem; border-bottom:1px solid var(--glass-border);">
+            <div>
+              <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:4px;">
+                <span style="font-weight:700; color:var(--neon-cyan); font-size:1rem; text-transform:uppercase; letter-spacing:1px;">INVOICE STATEMENT</span>
+              </div>
+              <strong style="color:var(--text-muted); font-size:0.8rem;">Invoice #:</strong> <span style="font-family:monospace; color:#fff;">${invNum}</span><br>
+              <strong style="color:var(--text-muted); font-size:0.8rem;">Date:</strong> <span style="color:#ddd;">${purchase.date}</span>
+            </div>
+            <div style="text-align:right;">
+              <span style="display:inline-block; padding:0.25rem 0.6rem; border-radius:4px; background:${isFinal ? 'rgba(57,255,20,0.15)' : 'rgba(255,170,0,0.15)'}; border:1px solid ${isFinal ? 'var(--neon-green)' : 'var(--neon-amber)'}; color:${isFinal ? 'var(--neon-green)' : 'var(--neon-amber)'}; font-weight:bold; font-size:0.75rem; text-transform:uppercase;">
+                ${isFinal ? 'Fully Settled' : 'Payment Due (50%)'}
+              </span>
+              <div style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">Purchase ID: ${cleanId}</div>
+            </div>
           </div>
-          <div style="display:flex; justify-content:space-between; font-weight:bold; color:var(--neon-green); margin-bottom:0.35rem;">
-            <span>Installment 1 (50% Booking Advance):</span>
-            <span>PAID (${symbol}${(purchase.totalCost / 2).toLocaleString()})</span>
+
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.75rem; margin-bottom:1rem;">
+            <div style="background:rgba(255,255,255,0.02); border:1px solid var(--glass-border); padding:0.75rem; border-radius:8px;">
+              <h6 style="margin:0 0 0.35rem 0; font-size:0.85rem; color:var(--neon-cyan); font-weight:700;">Customer Details</h6>
+              <strong>Name:</strong> ${custName}<br>
+              <strong>Contact:</strong> ${custContact}<br>
+              <strong>Email:</strong> ${custEmail}
+            </div>
+            <div style="background:rgba(255,255,255,0.02); border:1px solid var(--glass-border); padding:0.75rem; border-radius:8px;">
+              <h6 style="margin:0 0 0.35rem 0; font-size:0.85rem; color:var(--neon-purple); font-weight:700;">Service Information</h6>
+              <strong>Service:</strong> ${purchase.serviceName}<br>
+              <strong>Dept. Head:</strong> ${headName}<br>
+              <strong>Founder:</strong> Ajay Raj B.K
+            </div>
           </div>
-          <div style="display:flex; justify-content:space-between; font-weight:bold; margin-bottom:0.35rem;">
-            <span>Installment 2 (50% Final Settlement):</span>
-            <span style="color:${isFinal ? 'var(--neon-green)' : 'var(--neon-amber)'}">
-              ${isFinal ? `PAID (${symbol}${(purchase.totalCost / 2).toLocaleString()})` : `PENDING DUE (${symbol}${remaining.toLocaleString()})`}
-            </span>
+
+          <div style="border-bottom:1px solid var(--glass-border); padding-bottom:0.6rem; margin-bottom:0.6rem;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:0.35rem;">
+              <span>Total Agreed Cost:</span>
+              <strong>${symbol}${purchase.totalCost.toLocaleString()}</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-weight:bold; color:var(--neon-green); margin-bottom:0.35rem;">
+              <span>Installment 1 (50% Booking Advance):</span>
+              <span>PAID (${symbol}${(purchase.totalCost / 2).toLocaleString()})</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-weight:bold; margin-bottom:0.35rem;">
+              <span>Installment 2 (50% Final Settlement):</span>
+              <span style="color:${isFinal ? 'var(--neon-green)' : 'var(--neon-amber)'}">
+                ${isFinal ? `PAID (${symbol}${(purchase.totalCost / 2).toLocaleString()})` : `PENDING DUE (${symbol}${remaining.toLocaleString()})`}
+              </span>
+            </div>
+            <div style="display:flex; justify-content:space-between; border-top:1px dashed var(--glass-border); padding-top:0.4rem; font-weight:bold;">
+              <span>Total Paid To Date:</span>
+              <span style="color:var(--neon-green);">${symbol}${purchase.paidAmount.toLocaleString()}</span>
+            </div>
           </div>
-          <div style="display:flex; justify-content:space-between; border-top:1px dashed var(--glass-border); padding-top:0.4rem; font-weight:bold;">
-            <span>Total Paid:</span>
-            <span style="color:var(--neon-green);">${symbol}${purchase.paidAmount.toLocaleString()}</span>
+
+          ${!isFinal ? `
+            <div style="text-align:center; margin-top:1rem;">
+              <button class="invoice-action-btn invoice-pay-final-now-btn" data-id="${purchase.id}" style="padding:0.65rem 1.25rem; background:linear-gradient(135deg, var(--neon-purple), var(--neon-cyan)); border:none; border-radius:6px; color:#fff; font-weight:bold; font-size:0.85rem; cursor:pointer; width:100%; transition:all 0.2s; box-shadow:0 0 15px rgba(0,240,255,0.25);">
+                <i data-lucide="credit-card" style="width:14px; height:14px; vertical-align:middle; margin-right:4px;"></i> Pay 2nd Installment Now (${symbol}${remaining.toLocaleString()})
+              </button>
+            </div>
+          ` : ''}
+
+          <div style="text-align:center; margin-top:1rem; padding:0.75rem; border-radius:8px; background:${isFinal ? 'rgba(57,255,20,0.1)' : 'rgba(255,170,0,0.1)'}; border:1px solid ${isFinal ? 'var(--neon-green)' : 'var(--neon-amber)'}; font-weight:bold; font-size:0.8rem; line-height:1.4;">
+            ${isFinal 
+              ? "All installments settled — service delivered and completed!" 
+              : "Waiting for your 2nd installment final payment. Final payment must be made at least 12 hours prior to delivery."
+            }
           </div>
         </div>
-
-        ${!isFinal ? `
-          <div style="text-align:center; margin-top:1rem;">
-            <button class="invoice-action-btn invoice-pay-final-now-btn" data-id="${purchase.id}" style="padding:0.6rem 1.25rem; background:rgba(0, 240, 255, 0.2); border:1px solid var(--neon-cyan); border-radius:6px; color:var(--neon-cyan); font-weight:bold; font-size:0.85rem; cursor:pointer; width:100%; transition:all 0.2s;">
-              <i data-lucide="credit-card" style="width:14px; height:14px; vertical-align:middle; margin-right:4px;"></i> Pay 2nd Installment Now (${symbol}${remaining.toLocaleString()})
-            </button>
+      `;
+    } else {
+      // OFFICIAL PAYMENT RECEIPT (Confirmed transaction view)
+      content.innerHTML = `
+        <div style="font-size:0.85rem; line-height:1.6;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; padding-bottom:0.75rem; border-bottom:1px solid var(--glass-border);">
+            <div>
+              <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:4px;">
+                <span style="font-weight:700; color:var(--neon-green); font-size:1rem; text-transform:uppercase; letter-spacing:1px;">OFFICIAL PAYMENT RECEIPT</span>
+              </div>
+              <strong style="color:var(--text-muted); font-size:0.8rem;">Receipt #:</strong> <span style="font-family:monospace; color:#fff;">${rcptNum}</span><br>
+              <strong style="color:var(--text-muted); font-size:0.8rem;">Date Paid:</strong> <span style="color:#ddd;">${purchase.date}</span>
+            </div>
+            <div style="text-align:right;">
+              <span style="display:inline-block; padding:0.25rem 0.6rem; border-radius:4px; background:rgba(57,255,20,0.15); border:1px solid var(--neon-green); color:var(--neon-green); font-weight:bold; font-size:0.75rem; text-transform:uppercase;">
+                <i data-lucide="check" style="width:12px; height:12px; vertical-align:middle;"></i> PAID & VERIFIED
+              </span>
+              <div style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">Transaction ID: TXN-${cleanId}</div>
+            </div>
           </div>
-        ` : ''}
 
-        <div style="text-align:center; margin-top:1rem; padding:0.75rem; border-radius:8px; background:${isFinal ? 'rgba(57,255,20,0.1)' : 'rgba(255,170,0,0.1)'}; border:1px solid ${isFinal ? 'var(--neon-green)' : 'var(--neon-amber)'}; font-weight:bold; font-size:0.8rem; line-height:1.4;">
-          ${isFinal 
-            ? "Thank you for using our service. All installments settled — service delivered!" 
-            : "Waiting for your 2nd installment final payment. Final payment must be made at least 12 hours prior to delivery."
-          }
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.75rem; margin-bottom:1rem;">
+            <div style="background:rgba(255,255,255,0.02); border:1px solid var(--glass-border); padding:0.75rem; border-radius:8px;">
+              <h6 style="margin:0 0 0.35rem 0; font-size:0.85rem; color:var(--neon-cyan); font-weight:700;">Customer Details</h6>
+              <strong>Name:</strong> ${custName}<br>
+              <strong>Contact:</strong> ${custContact}<br>
+              <strong>Email:</strong> ${custEmail}
+            </div>
+            <div style="background:rgba(255,255,255,0.02); border:1px solid var(--glass-border); padding:0.75rem; border-radius:8px;">
+              <h6 style="margin:0 0 0.35rem 0; font-size:0.85rem; color:var(--neon-purple); font-weight:700;">Service Information</h6>
+              <strong>Service:</strong> ${purchase.serviceName}<br>
+              <strong>Dept. Head:</strong> ${headName}<br>
+              <strong>Founder:</strong> Ajay Raj B.K
+            </div>
+          </div>
+
+          <div style="border-bottom:1px solid var(--glass-border); padding-bottom:0.6rem; margin-bottom:0.6rem;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:0.35rem;">
+              <span>Total Agreed Cost:</span>
+              <strong>${symbol}${purchase.totalCost.toLocaleString()}</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-weight:bold; color:var(--neon-green); margin-bottom:0.35rem;">
+              <span>Installment 1 (50% Booking Advance):</span>
+              <span>PAID (${symbol}${(purchase.totalCost / 2).toLocaleString()})</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-weight:bold; margin-bottom:0.35rem;">
+              <span>Installment 2 (50% Final Settlement):</span>
+              <span style="color:${isFinal ? 'var(--neon-green)' : 'var(--neon-amber)'}">
+                ${isFinal ? `PAID (${symbol}${(purchase.totalCost / 2).toLocaleString()})` : `PENDING DUE (${symbol}${remaining.toLocaleString()})`}
+              </span>
+            </div>
+            <div style="display:flex; justify-content:space-between; border-top:1px dashed var(--glass-border); padding-top:0.4rem; font-weight:bold;">
+              <span>Amount Received / Paid:</span>
+              <span style="color:var(--neon-green); font-size:1.05rem;">${symbol}${purchase.paidAmount.toLocaleString()}</span>
+            </div>
+          </div>
+
+          ${!isFinal ? `
+            <div style="text-align:center; margin-top:1rem;">
+              <button class="invoice-action-btn invoice-pay-final-now-btn" data-id="${purchase.id}" style="padding:0.65rem 1.25rem; background:linear-gradient(135deg, var(--neon-purple), var(--neon-cyan)); border:none; border-radius:6px; color:#fff; font-weight:bold; font-size:0.85rem; cursor:pointer; width:100%; transition:all 0.2s; box-shadow:0 0 15px rgba(0,240,255,0.25);">
+                <i data-lucide="credit-card" style="width:14px; height:14px; vertical-align:middle; margin-right:4px;"></i> Pay 2nd Installment Now (${symbol}${remaining.toLocaleString()})
+              </button>
+            </div>
+          ` : ''}
+
+          <div style="text-align:center; margin-top:1rem; padding:0.75rem; border-radius:8px; background:rgba(57,255,20,0.1); border:1px solid var(--neon-green); font-weight:bold; font-size:0.8rem; line-height:1.4;">
+            ${isFinal 
+              ? "Payment confirmed. All installments settled — service delivered!" 
+              : "50% Advance received successfully! Your project is now queued and active in development."
+            }
+          </div>
         </div>
-      </div>
-    `;
+      `;
+    }
 
     // Attach click listener for Pay 2nd Installment inside the invoice modal
     const payNowBtn = content.querySelector('.invoice-pay-final-now-btn');

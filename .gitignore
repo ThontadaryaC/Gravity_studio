@@ -13,3 +13,7 @@ node_modules/
 
 .vercel
 .env*
+
+# AI crawler exposure — do not expose codebase structure to crawlers
+llms.txt
+llms-full.txt

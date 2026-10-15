@@ -1872,8 +1872,8 @@
 
   <!-- DYNAMIC BILL/RECEIPT OVERLAY -->
   <div id="receipt-modal-overlay" class="razorpay-overlay" style="display: none;">
-    <div class="razorpay-modal" style="width: 450px; background: #0c0a1b; border: 1px solid var(--glass-border); color: #fff; padding: 2rem; border-radius:16px;">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; border-bottom:1px solid var(--glass-border); padding-bottom:1rem;">
+    <div class="razorpay-modal" style="max-width: 520px; width: 92%; background: #0c0a1b; border: 1px solid var(--glass-border); color: #fff; padding: 1.75rem; border-radius:16px; max-height: 90vh; overflow-y: auto;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem; border-bottom:1px solid var(--glass-border); padding-bottom:0.85rem;">
         <div style="display:flex; align-items:center; gap:0.5rem;">
           <img src="https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/logo.png" alt="Logo" style="height:35px;">
           <span style="font-weight:bold; font-size:1.1rem; color:var(--neon-cyan); letter-spacing:1px;">GRAVITY STUDIOS</span>
@@ -1886,7 +1886,7 @@
       </div>
       
       <div style="margin-top:1.5rem; display:flex; gap:0.5rem; justify-content:flex-end;">
-        <button id="print-receipt-btn" style="padding:0.5rem 1rem; background:rgba(0, 240, 255, 0.15); border:1px solid var(--neon-cyan); border-radius:6px; color:var(--neon-cyan); font-weight:bold; cursor:pointer;">Print Bill</button>
+        <button id="print-receipt-btn" style="padding:0.5rem 1rem; background:rgba(0, 240, 255, 0.15); border:1px solid var(--neon-cyan); border-radius:6px; color:var(--neon-cyan); font-weight:bold; cursor:pointer;">Print Document</button>
         <button id="close-receipt-bottom-btn" style="padding:0.5rem 1rem; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); border-radius:6px; color:#fff; cursor:pointer;">Close</button>
       </div>
     </div>
