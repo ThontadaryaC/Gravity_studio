@@ -1,7 +1,9 @@
 User-agent: *
 Allow: /
+Disallow: /api/
+Disallow: /api_handlers/
 
-# Explicitly welcome AI and LLM Search Crawlers to access all resources
+# Explicitly welcome AI and LLM Search Crawlers to access all public resources
 User-agent: GPTBot
 Allow: /
 
@@ -25,9 +27,5 @@ Allow: /
 
 User-agent: cohere-ai
 Allow: /
-
-# LLM Crawler Indexes (AEO/GEO optimization)
-# llms.txt: https://antigravitystudios.in/llms.txt
-# llms-full.txt: https://antigravitystudios.in/llms-full.txt
 
 Sitemap: https://antigravitystudios.in/sitemap.xml

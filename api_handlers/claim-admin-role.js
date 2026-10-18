@@ -163,7 +163,8 @@ module.exports = async (req, res) => {
     }
 
     // 4. Create the GoTrue Auth User (ensures atomic uniqueness on primary key and email)
-    const expectedUsername = `admin_role:${cleanRole}|pwd:${cleanPassword}`;
+    // SECURITY: Never embed the plaintext password in any stored field.
+    const expectedUsername = `admin_role:${cleanRole}`;
     const createUserRes = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
       method: "POST",
       headers: {

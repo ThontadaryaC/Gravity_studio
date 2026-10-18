@@ -23,11 +23,6 @@ module.exports = async (req, res) => {
   const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   let pathname = parsedUrl.pathname.replace(/\/$/, ''); // Normalize trailing slashes
 
-  // Support Netlify functions compatibility path rewrite
-  if (pathname.startsWith('/.netlify/functions')) {
-    pathname = pathname.replace('/.netlify/functions', '/api');
-  }
-
   // Handle database proxy routing
   if (pathname.startsWith('/api/db-proxy')) {
     try {
@@ -52,6 +47,6 @@ module.exports = async (req, res) => {
     }
   }
 
-  res.setHeader('Content-Type', 'text/plain');
-  return res.status(404).end(`404 Not Found: No handler configured for ${pathname}`);
+  res.setHeader('Content-Type', 'application/json');
+  return res.status(404).json({ error: { message: "Not Found" } });
 };

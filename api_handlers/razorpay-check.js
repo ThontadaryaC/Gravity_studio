@@ -40,7 +40,7 @@ module.exports = async (req, res) => {
   const diagnostics = {
     KEY_ID: {
       cleaned_length: keyId.length,
-      value: keyId,               // Key ID is public, safe to show
+      prefix: keyId.substring(0, 8),   // e.g. "rzp_live" — safe prefix only, not the full key
       is_live: keyId.startsWith("rzp_live_"),
       is_test: keyId.startsWith("rzp_test_"),
     },

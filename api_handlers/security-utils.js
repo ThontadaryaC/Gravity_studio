@@ -19,27 +19,37 @@ const allowedOrigins = [
 function validateCSRF(req) {
   const origin = req.headers.origin;
   const referer = req.headers.referer;
+  const method = (req.method || 'GET').toUpperCase();
 
   const isAllowed = (org) => {
-    if (!org) return true;
+    if (!org) return false;
     if (allowedOrigins.includes(org)) return true;
     if (org.endsWith(".vercel.app")) return true;
     return false;
   };
 
-  if (origin && !isAllowed(origin)) {
-    return false;
+  // For mutating methods, require a valid origin or referer
+  const isMutating = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method);
+
+  if (origin) {
+    return isAllowed(origin);
   }
+
   if (referer) {
     try {
       const refUrl = new URL(referer);
-      if (!isAllowed(refUrl.origin)) {
-        return false;
-      }
+      return isAllowed(refUrl.origin);
     } catch (e) {
       return false;
     }
   }
+
+  // If no origin and no referer: allow only non-mutating methods (e.g. browser direct GET nav)
+  // Reject all mutating requests with no origin header
+  if (isMutating) {
+    return false;
+  }
+
   return true;
 }
 
@@ -194,28 +204,8 @@ async function verifySessionAndRole(req) {
     }
   }
 
-  // Fallback to static lists/domains for initialization step
-  const ADMIN_ROLE_UUIDS = [
-    'f0000000-0000-0000-0000-000000000001', // founder
-    'c0000000-0000-0000-0000-000000000002', // ceo
-    'a0000000-0000-0000-0000-000000000003', // ai
-    'd0000000-0000-0000-0000-000000000004', // dev
-    'e0000000-0000-0000-0000-000000000005', // design
-    'b0000000-0000-0000-0000-000000000006', // video
-    'b0000000-0000-0000-0000-000000000007', // marketing
-    'b0000000-0000-0000-0000-000000000008'  // support
-  ];
-
-  const email = user.email || "";
-  if (!isAdmin && (
-    email.endsWith("@gravitystudios.com") || 
-    email === "admin@gravitystudios.com" || 
-    email === "thontadaryacapt8073@gmail.com" ||
-    email === "antigravitystudios1@gmail.com" ||
-    ADMIN_ROLE_UUIDS.includes(user.id)
-  )) {
-    isAdmin = true;
-  }
+  // SECURITY: Admin status is determined ONLY by the database role field checked above.
+  // No email or UUID-based bypass — all admin grants must go through the DB.
 
   return { user, role, isAdmin, error: null };
 }

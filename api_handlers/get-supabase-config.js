@@ -1,3 +1,5 @@
+const { checkRateLimit } = require("./security-utils");
+
 module.exports = async (req, res) => {
   // Enable CORS with restricted origin checks
   const headers = {
@@ -33,6 +35,13 @@ module.exports = async (req, res) => {
 
   if (req.method !== "GET") {
     return res.status(405).json({ error: { message: "Method Not Allowed" } });
+  }
+
+  // Rate limiting: 60 requests per minute per IP
+  const ip = req.headers["x-forwarded-for"] || req.socket?.remoteAddress || "global";
+  const rateLimitOk = await checkRateLimit(`get_supabase_config:${ip}`, 60, 60);
+  if (!rateLimitOk) {
+    return res.status(429).json({ error: { message: "Too many requests. Please wait." } });
   }
 
   const hasConfig = process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY;

@@ -26,6 +26,13 @@ module.exports = async (req, res) => {
     return res.status(200).end();
   }
 
+  // CSRF check for mutating operations
+  const mutatingMethods = ['POST', 'PUT', 'PATCH', 'DELETE'];
+  if (mutatingMethods.includes((req.method || '').toUpperCase()) && !validateCSRF(req)) {
+    return res.status(403).json({ error: { message: "Access Denied: CSRF verification failed." } });
+  }
+
+
   const supabaseUrl = (process.env.SUPABASE_URL || "").replace(/^["']|["']$/g, "").trim();
   const supabaseAnonKey = (process.env.SUPABASE_ANON_KEY || "").replace(/^["']|["']$/g, "").trim();
 
