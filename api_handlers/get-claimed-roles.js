@@ -1,5 +1,8 @@
 // api/get-claimed-roles.js
-// Public endpoint to retrieve claimed administrative roles
+// Secure endpoint to check leadership post vacancy status
+// Protected: Never exposes raw emails, credentials, or server environment keys publicly
+
+const { verifySessionAndRole, validateCSRF } = require("./security-utils");
 
 const ADMIN_ROLE_UUIDS = {
   'founder': 'f0000000-0000-0000-0000-000000000001',
@@ -12,10 +15,25 @@ const ADMIN_ROLE_UUIDS = {
   'support': 'b0000000-0000-0000-0000-000000000008'
 };
 
+function maskEmail(email) {
+  if (!email || !email.includes('@')) return '';
+  const [user, domain] = email.split('@');
+  if (user.length <= 2) return `${user[0]}***@${domain}`;
+  return `${user.slice(0, 2)}***${user.slice(-1)}@${domain}`;
+}
+
+function cleanUsername(rawUsername, defaultName) {
+  if (!rawUsername) return defaultName || 'Leadership Lead';
+  if (rawUsername.startsWith('admin_role:') || rawUsername.includes('|pwd:')) {
+    return defaultName || 'Authorized Lead';
+  }
+  return rawUsername;
+}
+
 module.exports = async (req, res) => {
   // Enable CORS
   const headers = {
-    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
     "Access-Control-Allow-Methods": "GET, OPTIONS",
     "Content-Type": "application/json"
   };
@@ -45,16 +63,30 @@ module.exports = async (req, res) => {
     return res.status(200).end();
   }
 
+  if (req.method !== "GET") {
+    return res.status(405).json({ error: { message: "Method Not Allowed" } });
+  }
+
   try {
     const SUPABASE_URL = process.env.SUPABASE_URL || "https://kivfatgytkjqoreltuyu.supabase.co";
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    const keyConfigured = !!serviceRoleKey;
-    const foundKeys = Object.keys(process.env).filter(k => k.includes("SUPABASE") || k.includes("KEY"));
-
     if (!serviceRoleKey) {
-      console.warn("SUPABASE_SERVICE_ROLE_KEY is missing on server.");
-      return res.status(200).json({ claimed: {}, keyConfigured, foundKeys });
+      return res.status(200).json({ claimed: {} });
+    }
+
+    // Check if the caller is an authenticated CEO or Founder
+    let isSuperAdmin = false;
+    try {
+      const authHeader = req.headers.authorization || req.headers.Authorization;
+      if (authHeader && authHeader.startsWith("Bearer ")) {
+        const { user, isAdmin } = await verifySessionAndRole(req);
+        if (isAdmin && user && (user.id === 'f0000000-0000-0000-0000-000000000001' || user.id === 'c0000000-0000-0000-0000-000000000002')) {
+          isSuperAdmin = true;
+        }
+      }
+    } catch (e) {
+      isSuperAdmin = false;
     }
 
     const roleUuids = Object.values(ADMIN_ROLE_UUIDS);
@@ -77,16 +109,26 @@ module.exports = async (req, res) => {
     data.forEach(profile => {
       const roleKey = Object.keys(ADMIN_ROLE_UUIDS).find(k => ADMIN_ROLE_UUIDS[k] === profile.id);
       if (roleKey) {
-        claimed[roleKey] = {
-          email: (profile.email || '').toLowerCase().trim(),
-          username: profile.username
-        };
+        if (isSuperAdmin) {
+          // Authorized CEO / Founder session: show sanitized, masked information
+          claimed[roleKey] = {
+            assigned: true,
+            email: maskEmail(profile.email),
+            username: cleanUsername(profile.username)
+          };
+        } else {
+          // Public or non-superadmin caller: strictly boolean status, ZERO personal info
+          claimed[roleKey] = {
+            assigned: true
+          };
+        }
       }
     });
 
-    return res.status(200).json({ claimed, keyConfigured, foundKeys });
+    // Clean response with ZERO debug info or leaked environment keys
+    return res.status(200).json({ claimed });
   } catch (err) {
     console.error("Get Claimed Roles Error:", err);
-    return res.status(500).json({ error: { message: err.message || "Internal Server Error" } });
+    return res.status(500).json({ error: { message: "Internal Server Error" } });
   }
 };

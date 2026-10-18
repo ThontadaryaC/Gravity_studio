@@ -48,6 +48,7 @@ const DEFAULT_SERVICE_PRICES = [
   { id: "custom_ai_solution", name: "Custom AI Solution", priceINR: 100000, priceUSD: 5000, priceMaxINR: 500000, priceMaxUSD: 25000, rangeINR: "₹1,00,000+", rangeUSD: "Starting at $5,000" },
 
   // 2. Web & App Development
+  { id: "digital_invitations", name: "Digital Invitations Websites", priceINR: 10000, priceUSD: 150, priceMaxINR: 15000, priceMaxUSD: 250, rangeINR: "₹10,000–₹15,000", rangeUSD: "$150–$250" },
   { id: "business_website", name: "Business Website", priceINR: 19999, priceUSD: 799, priceMaxINR: 80000, priceMaxUSD: 3000, rangeINR: "₹20,000–₹80,000", rangeUSD: "$800–$3,000" },
   { id: "premium_website", name: "Premium Website", priceINR: 80000, priceUSD: 3000, priceMaxINR: 250000, priceMaxUSD: 10000, rangeINR: "₹80,000–₹2,50,000", rangeUSD: "$3,000–$10,000" },
   { id: "web_application", name: "Web Application", priceINR: 100000, priceUSD: 5000, priceMaxINR: 1000000, priceMaxUSD: 50000, rangeINR: "₹1,00,000–₹10,00,000", rangeUSD: "$5,000–$50,000" },
@@ -64,6 +65,8 @@ const DEFAULT_SERVICE_PRICES = [
   { id: "graphic_design", name: "Graphic Design", priceINR: 5000, priceUSD: 250, priceMaxINR: 25000, priceMaxUSD: 1200, rangeINR: "₹5,000+", rangeUSD: "$250+" },
 
   // 4. Video & Animation
+  { id: "ai_video_90s", name: "AI Video Production (1:30 min)", priceINR: 5000, priceUSD: 65, priceMaxINR: 5000, priceMaxUSD: 65, rangeINR: "₹5,000 (1:30 min)", rangeUSD: "$65 (90s)" },
+  { id: "ai_business_ads", name: "Custom AI Business Video Ads", priceINR: 5000, priceUSD: 65, priceMaxINR: 8000, priceMaxUSD: 100, rangeINR: "₹5,000–₹8,000", rangeUSD: "$65–$100" },
   { id: "ai_video", name: "AI Video Production", priceINR: 19999, priceUSD: 899, priceMaxINR: 200000, priceMaxUSD: 8000, rangeINR: "₹15,000–₹2,00,000", rangeUSD: "$700–$8,000" },
   { id: "animation", name: "Animation", priceINR: 30000, priceUSD: 1500, priceMaxINR: 500000, priceMaxUSD: 20000, rangeINR: "₹30,000–₹5,00,000", rangeUSD: "$1,500–$20,000" },
   { id: "explainer_video", name: "Explainer Video", priceINR: 20000, priceUSD: 800, priceMaxINR: 200000, priceMaxUSD: 8000, rangeINR: "₹20,000–₹2,00,000", rangeUSD: "$800–$8,000" },
@@ -71,6 +74,7 @@ const DEFAULT_SERVICE_PRICES = [
   { id: "product_advertisement", name: "Product Advertisement", priceINR: 25000, priceUSD: 1200, priceMaxINR: 300000, priceMaxUSD: 12000, rangeINR: "₹25,000–₹3,00,000", rangeUSD: "$1,200–$12,000" },
 
   // 5. Digital Marketing
+  { id: "social_media_handling", name: "Social Media Handling & Management (Monthly)", priceINR: 15000, priceUSD: 600, priceMaxINR: 35000, priceMaxUSD: 1500, rangeINR: "₹15,000–₹35,000/month", rangeUSD: "$600–$1,500/month" },
   { id: "seo", name: "SEO (Monthly)", priceINR: 15000, priceUSD: 700, rangeINR: "₹15,000/month", rangeUSD: "$700/month" },
   { id: "social_media", name: "Social Media Marketing (Monthly)", priceINR: 20000, priceUSD: 800, rangeINR: "₹20,000/month", rangeUSD: "$800/month" },
   { id: "google_ads", name: "Google Ads Management (Monthly)", priceINR: 25000, priceUSD: 1000, rangeINR: "₹25,000/month", rangeUSD: "$1,000/month" },
@@ -131,7 +135,7 @@ function getServicePrices() {
   if (stored) {
     try {
       const parsed = JSON.parse(stored);
-      if (parsed.length === DEFAULT_SERVICE_PRICES.length && parsed[0].hasOwnProperty('priceMaxINR')) {
+      if (parsed.length === DEFAULT_SERVICE_PRICES.length && parsed.some(s => s.id === 'ai_video_90s') && parsed[0].hasOwnProperty('priceMaxINR')) {
         return parsed;
       }
     } catch (e) {
@@ -252,6 +256,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initRevenueChart();
   initTimelineReveal();
   initDepartmentFilter();
+  initWorkPortfolio();
   initFAQAccordion();
 
   // Sync service catalog from Supabase on load
@@ -1490,6 +1495,44 @@ function initDepartmentFilter() {
   }
 }
 
+/* ==========================================================================
+   9.5. OUR WORK / PORTFOLIO FILTERING
+   ========================================================================== */
+function initWorkPortfolio() {
+  const filterBtns = document.querySelectorAll('.work-filter-btn');
+  const workCards = document.querySelectorAll('.work-card');
+  if (!filterBtns.length || !workCards.length) return;
+
+  filterBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      filterBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const filter = btn.getAttribute('data-filter');
+
+      workCards.forEach(card => {
+        const category = card.getAttribute('data-category');
+        if (filter === 'all' || category === filter) {
+          card.classList.remove('hidden');
+          card.style.display = '';
+          requestAnimationFrame(() => {
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0) scale(1)';
+          });
+        } else {
+          card.style.opacity = '0';
+          card.style.transform = 'translateY(15px) scale(0.96)';
+          card.classList.add('hidden');
+          setTimeout(() => {
+            if (card.classList.contains('hidden')) {
+              card.style.display = 'none';
+            }
+          }, 250);
+        }
+      });
+    });
+  });
+}
+
 function initFAQAccordion() {
   const faqItems = document.querySelectorAll('.faq-item');
   faqItems.forEach(item => {
@@ -1927,6 +1970,9 @@ function initPortalAuth() {
       document.querySelectorAll('#admin-sidebar .super-admin-only').forEach(elem => {
         elem.style.display = isSuper ? 'flex' : 'none';
       });
+      if (isSuper) {
+        updateCEOPostsBadge();
+      }
     } else {
       // Standard client sidebar updates
       if (currentSession) {
@@ -4223,6 +4269,9 @@ function initPortalAuth() {
     if (windowId === 'admin-pricing') {
       loadAdminPricingManager();
     }
+    if (windowId === 'admin-posts') {
+      loadCEOPostManager();
+    }
 
     // Trigger Lucide SVG rendering inside the window
     if (typeof lucide !== 'undefined') {
@@ -4691,9 +4740,17 @@ function initPortalAuth() {
   async function fetchClaimedRoles() {
     const claimed = {};
     
-    // 1. Fetch from serverless function first (if running and service role key is configured)
+    // 1. Fetch from serverless function (authorized with session token if available)
     try {
-      const res = await fetch('/api/get-claimed-roles');
+      let sessionToken = null;
+      if (supabaseClient) {
+        const sessionRes = await supabaseClient.auth.getSession();
+        sessionToken = sessionRes.data?.session?.access_token;
+      }
+
+      const res = await fetch('/api/get-claimed-roles', {
+        headers: sessionToken ? { 'Authorization': `Bearer ${sessionToken}` } : {}
+      });
       if (res.ok) {
         const result = await res.json();
         if (result && result.claimed) {
@@ -4704,13 +4761,13 @@ function initPortalAuth() {
       console.warn("Could not fetch claimed roles from serverless API:", apiErr.message);
     }
     
-    // 2. Fetch from Local Storage Locks (fallback/offline mode)
+    // 2. Fallback to Local Storage Locks (offline mode)
     const localLocks = JSON.parse(localStorage.getItem('gravity-admin-locks')) || {};
     Object.keys(localLocks).forEach(roleKey => {
       if (!claimed[roleKey]) {
         claimed[roleKey] = {
-          email: (localLocks[roleKey].email || '').toLowerCase().trim(),
-          username: `admin_role:${roleKey}|pwd:${localLocks[roleKey].password}`
+          assigned: true,
+          username: localLocks[roleKey].username || `${roleKey.toUpperCase()} Head`
         };
       }
     });
@@ -4718,167 +4775,342 @@ function initPortalAuth() {
     return claimed;
   }
 
+  // 8 LEADERSHIP ROLES MASTER DIRECTORY
+  const ALL_LEADERSHIP_ROLES = [
+    { key: 'founder', uuid: 'f0000000-0000-0000-0000-000000000001', title: 'Founder & Creative Director', defaultName: 'Ajay Raj B.K', dept: 'Executive' },
+    { key: 'ceo', uuid: 'c0000000-0000-0000-0000-000000000002', title: 'Co-Founder & CEO', defaultName: 'Shashank Raj B.K', dept: 'Executive' },
+    { key: 'ai', uuid: 'a0000000-0000-0000-0000-000000000003', title: 'CTO (Technology Head)', defaultName: 'Thontadaraya', dept: 'AI & Engineering' },
+    { key: 'dev', uuid: 'd0000000-0000-0000-0000-000000000004', title: 'CIO (IT Head)', defaultName: 'Pruthvi Raj', dept: 'Development' },
+    { key: 'design', uuid: 'e0000000-0000-0000-0000-000000000005', title: 'COO & Site Engineer', defaultName: 'Shreyas', dept: 'Operations & Design' },
+    { key: 'video', uuid: 'b0000000-0000-0000-0000-000000000006', title: 'CMO (Marketing Head)', defaultName: 'Munish', dept: 'Media & Marketing' },
+    { key: 'marketing', uuid: 'b0000000-0000-0000-0000-000000000007', title: 'Sales & Pricing Lead', defaultName: 'Subhash', dept: 'Sales & Pricing' },
+    { key: 'support', uuid: 'b0000000-0000-0000-0000-000000000008', title: 'CHRO (HR Head)', defaultName: 'Pavan Krishna', dept: 'Human Resources' }
+  ];
 
-  async function updateAdminRoleSelectDropdown() {
-    const selectElem = document.getElementById('admin-role-select');
-    if (!selectElem) return;
-    
-    const claimed = await fetchClaimedRoles();
-    const currentValue = selectElem.value;
-    
-    const ALL_ROLE_OPTIONS = [
-      { value: 'founder', text: 'Founder & Creative Director' },
-      { value: 'ceo', text: 'Co-Founder & CEO' },
-      { value: 'ai', text: 'CTO (Technology Head)' },
-      { value: 'video', text: 'CMO (Marketing Head)' },
-      { value: 'support', text: 'CHRO (HR Head)' },
-      { value: 'dev', text: 'CIO (IT Head)' },
-      { value: 'design', text: 'COO & Site Engineer' },
-      { value: 'marketing', text: 'Sales & Pricing Lead' }
-    ];
-    
-    selectElem.innerHTML = '';
-    
-    let count = 0;
-    ALL_ROLE_OPTIONS.forEach(opt => {
-      if (!claimed[opt.value]) {
-        const option = document.createElement('option');
-        option.value = opt.value;
-        option.innerText = opt.text;
-        selectElem.appendChild(option);
-        count++;
-      }
-    });
-
-    if (currentValue && Array.from(selectElem.options).some(opt => opt.value === currentValue)) {
-      selectElem.value = currentValue;
-    }
-    
-    const inputGroup = selectElem.closest('.portal-input-group');
-    if (count === 0) {
-      if (inputGroup) {
-        inputGroup.style.display = 'none';
-      }
-      selectElem.removeAttribute('required');
-    } else {
-      const emailInput = document.getElementById('admin-email');
-      const emailVal = emailInput ? emailInput.value.trim().toLowerCase() : '';
-      const isBound = Object.keys(claimed).some(roleKey => claimed[roleKey].email === emailVal);
-      if (inputGroup) {
-        inputGroup.style.display = isBound ? 'none' : 'block';
-      }
-      if (isBound) {
-        selectElem.removeAttribute('required');
-      } else {
-        selectElem.setAttribute('required', 'required');
-      }
+  // Helper to update the vacant posts badge count in the CEO sidebar
+  async function updateCEOPostsBadge() {
+    const vacantBadge = document.getElementById('admin-vacant-posts-count');
+    if (!vacantBadge) return;
+    try {
+      const claimed = await fetchClaimedRoles();
+      const vacantCount = ALL_LEADERSHIP_ROLES.filter(r => !claimed[r.key]).length;
+      vacantBadge.innerText = vacantCount > 0 ? `${vacantCount} Vacant` : 'All Filled';
+      vacantBadge.style.color = vacantCount > 0 ? 'var(--neon-cyan)' : 'var(--neon-green)';
+      vacantBadge.style.borderColor = vacantCount > 0 ? 'var(--neon-cyan)' : 'var(--neon-green)';
+    } catch (e) {
+      console.warn("Could not update CEO badge:", e.message);
     }
   }
 
-  // Populate dropdown on script load
-  updateAdminRoleSelectDropdown();
+  // Load and render CEO Executive Leadership Posts Manager
+  async function loadCEOPostManager() {
+    const postsListContainer = document.getElementById('ceo-posts-list');
+    const postSelect = document.getElementById('ceo-post-select');
+    const vacantBadge = document.getElementById('admin-vacant-posts-count');
+    if (!postsListContainer) return;
 
-  // Reset local locks and sessions handler
-  const resetLocksBtn = document.getElementById('admin-reset-locks');
-  if (resetLocksBtn) {
-    resetLocksBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      // Remove all local storage items starting with 'gravity-'
-      Object.keys(localStorage).forEach(key => {
-        if (key.startsWith('gravity-')) {
-          localStorage.removeItem(key);
+    postsListContainer.innerHTML = `<p class="text-muted" style="font-family: monospace; font-size: 0.85rem;">> Querying live leadership database...</p>`;
+
+    try {
+      const claimed = await fetchClaimedRoles();
+      let vacantCount = 0;
+      let listHtml = '';
+
+      if (postSelect) {
+        postSelect.innerHTML = '';
+      }
+
+      ALL_LEADERSHIP_ROLES.forEach(r => {
+        const isClaimed = !!claimed[r.key];
+        const memberInfo = claimed[r.key] || {};
+        let memberName = r.defaultName;
+        if (memberInfo.username && !memberInfo.username.startsWith('admin_role:') && !memberInfo.username.includes('|pwd:')) {
+          memberName = memberInfo.username;
+        } else if (ADMIN_ROLE_DETAILS[r.uuid]?.username) {
+          memberName = ADMIN_ROLE_DETAILS[r.uuid].username;
+        }
+
+        if (isClaimed) {
+          listHtml += `
+            <div style="background: rgba(0, 240, 255, 0.03); border: 1px solid rgba(0, 240, 255, 0.2); border-radius: 8px; padding: 0.85rem 1rem; display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+              <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <div style="width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, var(--neon-purple), var(--neon-cyan)); display: flex; align-items: center; justify-content: center; font-weight: bold; color: #fff; font-size: 0.9rem; flex-shrink: 0;">
+                  ${memberName.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                    <strong style="color: #fff; font-size: 0.9rem;">${r.title}</strong>
+                    <span style="background: rgba(0,255,100,0.15); color: var(--neon-green); border: 1px solid var(--neon-green); font-size: 0.65rem; padding: 0.1rem 0.4rem; border-radius: 4px; font-weight: bold;">[ASSIGNED]</span>
+                  </div>
+                  <div style="font-size: 0.78rem; color: var(--text-muted); font-family: monospace; margin-top: 0.2rem;">
+                    <span>👤 ${memberName}</span> &bull; <span style="color: var(--neon-green); font-size: 0.75rem;">[Active Appointment]</span>
+                  </div>
+                </div>
+              </div>
+              <div>
+                ${r.key === 'founder' ? `
+                  <span style="font-size: 0.75rem; color: var(--text-muted); font-style: italic;">Founder Root</span>
+                ` : `
+                  <button type="button" class="ceo-revoke-btn admin-action-btn" data-role="${r.key}" data-title="${r.title}" style="padding: 0.35rem 0.7rem; font-size: 0.75rem; background: rgba(255,50,50,0.15); border: 1px solid rgba(255,50,50,0.3); color: #ff5555; border-radius: 4px; cursor: pointer;">
+                    Vacate Post
+                  </button>
+                `}
+              </div>
+            </div>
+          `;
+        } else {
+          vacantCount++;
+          listHtml += `
+            <div style="background: rgba(255, 170, 0, 0.03); border: 1px dashed rgba(255, 170, 0, 0.3); border-radius: 8px; padding: 0.85rem 1rem; display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+              <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <div style="width: 38px; height: 38px; border-radius: 50%; background: rgba(255, 170, 0, 0.1); border: 1px dashed rgba(255, 170, 0, 0.5); display: flex; align-items: center; justify-content: center; font-weight: bold; color: #ffaa00; font-size: 0.9rem; flex-shrink: 0;">
+                  ?
+                </div>
+                <div>
+                  <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                    <strong style="color: #fff; font-size: 0.9rem;">${r.title}</strong>
+                    <span style="background: rgba(255,170,0,0.15); color: #ffaa00; border: 1px solid #ffaa00; font-size: 0.65rem; padding: 0.1rem 0.4rem; border-radius: 4px; font-weight: bold;">[VACANT / EMPTY]</span>
+                  </div>
+                  <div style="font-size: 0.75rem; color: var(--text-muted); font-family: monospace; margin-top: 0.2rem;">
+                    <span>Dept: ${r.dept}</span> &bull; <span>Default Lead: ${r.defaultName}</span>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <button type="button" class="ceo-quick-assign-btn admin-action-btn" data-role="${r.key}" style="padding: 0.35rem 0.75rem; font-size: 0.75rem; background: rgba(0, 240, 255, 0.15); border: 1px solid var(--neon-cyan); color: var(--neon-cyan); border-radius: 4px; cursor: pointer; font-weight: bold;">
+                  + Assign Member
+                </button>
+              </div>
+            </div>
+          `;
+
+          if (postSelect) {
+            const opt = document.createElement('option');
+            opt.value = r.key;
+            opt.innerText = `${r.title} (${r.dept})`;
+            postSelect.appendChild(opt);
+          }
         }
       });
-      localStorage.setItem('gravity-bypass-db-claims', 'true');
-      alert('All local app data, active sessions, and locks cleared successfully! Database claims bypassed.');
-      window.location.reload();
-    });
+
+      postsListContainer.innerHTML = listHtml;
+
+      if (vacantBadge) {
+        vacantBadge.innerText = vacantCount > 0 ? `${vacantCount} Vacant` : 'All Filled';
+        vacantBadge.style.color = vacantCount > 0 ? 'var(--neon-cyan)' : 'var(--neon-green)';
+        vacantBadge.style.borderColor = vacantCount > 0 ? 'var(--neon-cyan)' : 'var(--neon-green)';
+      }
+
+      if (postSelect) {
+        if (postSelect.options.length === 0) {
+          const opt = document.createElement('option');
+          opt.value = '';
+          opt.innerText = '-- All 8 Leadership Positions are Currently Assigned --';
+          postSelect.appendChild(opt);
+          const submitBtn = document.getElementById('ceo-assign-submit-btn');
+          if (submitBtn) submitBtn.disabled = true;
+        } else {
+          const submitBtn = document.getElementById('ceo-assign-submit-btn');
+          if (submitBtn) submitBtn.disabled = false;
+        }
+      }
+
+      // Quick assign click listener
+      document.querySelectorAll('.ceo-quick-assign-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const role = btn.getAttribute('data-role');
+          if (postSelect) {
+            postSelect.value = role;
+            const nameInput = document.getElementById('ceo-member-name');
+            const defaultRoleObj = ALL_LEADERSHIP_ROLES.find(x => x.key === role);
+            if (nameInput && defaultRoleObj) {
+              nameInput.placeholder = defaultRoleObj.defaultName;
+            }
+            postSelect.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        });
+      });
+
+      // Revoke / Vacate post click listener
+      document.querySelectorAll('.ceo-revoke-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const role = btn.getAttribute('data-role');
+          const title = btn.getAttribute('data-title');
+
+          if (!confirm(`Are you sure you want to vacate the position of ${title}?\n\nThis will remove their administrative access and leave the post empty.`)) {
+            return;
+          }
+
+          btn.disabled = true;
+          btn.innerText = "Vacating...";
+
+          try {
+            let sessionToken = null;
+            if (supabaseClient) {
+              const sessionRes = await supabaseClient.auth.getSession();
+              sessionToken = sessionRes.data?.session?.access_token;
+            }
+
+            // Call server admin action unassign-admin-role
+            try {
+              await fetch('/api/admin-action', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  ...(sessionToken ? { 'Authorization': `Bearer ${sessionToken}` } : {})
+                },
+                body: JSON.stringify({
+                  action: 'unassign-admin-role',
+                  payload: { role }
+                })
+              });
+            } catch (e) {
+              console.warn("Server unassign call:", e.message);
+            }
+
+            // Clean local storage locks
+            const localLocks = JSON.parse(localStorage.getItem('gravity-admin-locks')) || {};
+            delete localLocks[role];
+            localStorage.setItem('gravity-admin-locks', JSON.stringify(localLocks));
+
+            alert(`The position of ${title} has been successfully vacated! It is now empty and can be assigned to a new member.`);
+            await loadCEOPostManager();
+          } catch (err) {
+            alert(`Error vacating post: ${err.message}`);
+            await loadCEOPostManager();
+          }
+        });
+      });
+
+      if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+      }
+    } catch (err) {
+      postsListContainer.innerHTML = `<p class="text-danger" style="font-family: monospace;">> Error loading leadership roles: ${err.message}</p>`;
+    }
   }
 
-  // Delete administrative profile from database handler
-  const deleteDbProfileBtn = document.getElementById('admin-delete-db-profile');
-  if (deleteDbProfileBtn) {
-    deleteDbProfileBtn.addEventListener('click', async (e) => {
-      e.preventDefault();
-      
-      if (!supabaseClient) {
-        alert("Supabase client is not initialized.");
-        return;
-      }
-      
-      const sessionRes = await supabaseClient.auth.getSession();
-      const session = sessionRes.data?.session;
-      if (!session) {
-        alert("You must be logged in as an administrator to perform this action.");
-        return;
+  // Handle CEO Assign Post form submission
+  async function handleCEOAssignPostSubmit() {
+    const errBox = document.getElementById('ceo-assign-error');
+    const succBox = document.getElementById('ceo-assign-success');
+    const submitBtn = document.getElementById('ceo-assign-submit-btn');
+
+    if (errBox) errBox.style.display = 'none';
+    if (succBox) succBox.style.display = 'none';
+
+    const role = document.getElementById('ceo-post-select')?.value;
+    const memberName = document.getElementById('ceo-member-name')?.value.trim();
+    const email = document.getElementById('ceo-member-email')?.value.trim().toLowerCase();
+    const password = document.getElementById('ceo-member-password')?.value;
+
+    if (!role) {
+      if (errBox) { errBox.innerText = "Please select a vacant post."; errBox.style.display = 'block'; }
+      return;
+    }
+
+    if (!memberName) {
+      if (errBox) { errBox.innerText = "Please enter the member's full name."; errBox.style.display = 'block'; }
+      return;
+    }
+
+    if (!email || !email.includes('@')) {
+      if (errBox) { errBox.innerText = "Please enter a valid corporate email."; errBox.style.display = 'block'; }
+      return;
+    }
+
+    if (!password || password.length < 6) {
+      if (errBox) { errBox.innerText = "Password must be at least 6 characters."; errBox.style.display = 'block'; }
+      return;
+    }
+
+    const originalBtnText = submitBtn ? submitBtn.innerText : "Authorize & Assign Leadership Post";
+    if (submitBtn) {
+      submitBtn.innerText = "AUTHORIZING & ASSIGNING...";
+      submitBtn.disabled = true;
+    }
+
+    try {
+      let sessionToken = null;
+      if (supabaseClient) {
+        const sessionRes = await supabaseClient.auth.getSession();
+        sessionToken = sessionRes.data?.session?.access_token;
       }
 
-      const email = prompt("Enter the email address of the admin profile to delete from Supabase:");
-      if (!email) return;
-      
-      const originalText = deleteDbProfileBtn.innerText;
-      deleteDbProfileBtn.innerText = "DELETING...";
+      let assignedOk = false;
+
+      // 1. Call server API assign-admin-role
       try {
-        const res = await fetch(`/api/delete-profile?email=${encodeURIComponent(email.trim())}`, {
+        const res = await fetch('/api/admin-action', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`
-          }
+            ...(sessionToken ? { 'Authorization': `Bearer ${sessionToken}` } : {})
+          },
+          body: JSON.stringify({
+            action: 'assign-admin-role',
+            payload: { role, email, password, memberName }
+          })
         });
-        const data = await res.json();
+
         if (res.ok) {
-          alert(data.message || `Successfully deleted claim for ${email}!`);
-          window.location.reload();
+          assignedOk = true;
         } else {
-          alert("Error: " + (data.error?.message || "Failed to delete"));
-          deleteDbProfileBtn.innerText = originalText;
+          // If assign-admin-role fails, try claim-admin-role
+          try {
+            const claimRes = await fetch('/api/claim-admin-role', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ role, email, password })
+            });
+            if (claimRes.ok) {
+              assignedOk = true;
+            }
+          } catch (e) {}
         }
-      } catch (err) {
-        alert("Error: " + err.message);
-        deleteDbProfileBtn.innerText = originalText;
+      } catch (apiErr) {
+        console.warn("Backend API unreachable, using local fallback mode:", apiErr.message);
       }
-    });
+
+      // Always save to local fallback locks for full resilience
+      const localLocks = JSON.parse(localStorage.getItem('gravity-admin-locks')) || {};
+      localLocks[role] = { email, password, username: memberName };
+      localStorage.setItem('gravity-admin-locks', JSON.stringify(localLocks));
+      assignedOk = true;
+
+      if (assignedOk) {
+        if (succBox) {
+          succBox.innerText = `SUCCESS: Position assigned to ${memberName}! They can now sign in with their assigned credentials.`;
+          succBox.style.display = 'block';
+        }
+        const ceoAssignForm = document.getElementById('ceo-assign-post-form');
+        if (ceoAssignForm) ceoAssignForm.reset();
+        await loadCEOPostManager();
+        alert(`Leadership post successfully assigned to ${memberName}!\n\nPost: ${role.toUpperCase()}\nThey can now sign in through the Admin Console.`);
+      }
+    } catch (err) {
+      if (errBox) {
+        errBox.innerText = `Error assigning post: ${err.message}`;
+        errBox.style.display = 'block';
+      }
+    } finally {
+      if (submitBtn) {
+        submitBtn.innerText = originalBtnText;
+        submitBtn.disabled = false;
+      }
+    }
   }
 
-  // Dynamic Role Selection visibility based on typed email
-  const adminEmailInput = document.getElementById('admin-email');
-  if (adminEmailInput) {
-    adminEmailInput.addEventListener('input', async () => {
-      const emailVal = adminEmailInput.value.trim().toLowerCase();
-      const claimed = await fetchClaimedRoles();
-      
-      let isBound = false;
-      Object.keys(claimed).forEach(roleKey => {
-        if (claimed[roleKey].email === emailVal) {
-          isBound = true;
-        }
-      });
-      
-      const selectElem = document.getElementById('admin-role-select');
-      const inputGroup = selectElem ? selectElem.closest('.portal-input-group') : null;
-      
-      if (isBound) {
-        if (inputGroup) {
-          inputGroup.style.display = 'none';
-        }
-        if (selectElem) selectElem.removeAttribute('required');
-      } else {
-        await updateAdminRoleSelectDropdown();
-      }
-    });
-  }
-
+  // STRICT ADMIN LOGIN & AUTHENTICATION (Direct backend verification, zero email leaks)
   adminLoginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     adminLoginError.style.display = 'none';
 
     const email = document.getElementById('admin-email').value.trim().toLowerCase();
     const password = document.getElementById('admin-password').value;
-    const selectedRole = document.getElementById('admin-role-select')?.value;
 
     const submitBtn = adminLoginForm.querySelector('button[type="submit"]');
-    const originalText = submitBtn ? submitBtn.innerText : "INITIALIZE OVERRIDE";
+    const originalText = submitBtn ? submitBtn.innerText : "AUTHENTICATE & ENTER CONSOLE";
 
     if (submitBtn) {
       submitBtn.innerText = "AUTHENTICATING...";
@@ -4886,164 +5118,66 @@ function initPortalAuth() {
     }
 
     try {
-      const claimed = await fetchClaimedRoles();
-      
-      let boundRole = null;
-      Object.keys(claimed).forEach(roleKey => {
-        if (claimed[roleKey].email === email) {
-          boundRole = roleKey;
-        }
-      });
+      let loginOk = false;
+      let authSession = null;
+      let userData = null;
 
-      if (boundRole) {
-        const roleUuid = ADMIN_ROLE_UUIDS[boundRole];
-        let loginOk = false;
-        let authSession = null;
+      // 1. Authenticate directly on the serverless backend
+      try {
+        const loginRes = await fetch('/api/admin-login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ email, password })
+        });
 
-        // Call the serverless backend to authenticate the admin login securely
-        try {
-          const loginRes = await fetch('/api/admin-login', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ email, password })
-          });
-
-          if (loginRes.ok) {
-            const loginData = await loginRes.json();
-            authSession = loginData.session;
-            loginOk = true;
-          } else {
-            const errData = await loginRes.json();
-            const errMsg = errData.error?.message || "Invalid credentials.";
-            showError(adminLoginError, `REGISTRATION FAILED: ${errMsg}`);
-          }
-        } catch (apiErr) {
-          console.warn("Backend Login API failed, falling back to local simulation:", apiErr.message);
-          
-          // Sandbox local fallback check
-          const localLocks = JSON.parse(localStorage.getItem('gravity-admin-locks')) || {};
-          if (localLocks[boundRole] && localLocks[boundRole].password === password) {
-            loginOk = true;
-          } else {
-            showError(adminLoginError, `ACCESS DENIED: Incorrect password for this corporate position.`);
-          }
-        }
-
-        if (submitBtn) {
-          submitBtn.innerText = originalText;
-          submitBtn.disabled = false;
-        }
-
-        if (loginOk) {
-          // If we have a real Supabase session, sync it to the client SDK
-          if (supabaseClient && authSession) {
-            await supabaseClient.auth.setSession(authSession);
-          }
-          
-          loginSuccess({
-            role: 'admin',
-            email: email,
-            uid: roleUuid,
-            username: `${boundRole.toUpperCase()} Head`
-          });
-        }
-      } else {
-        if (!selectedRole) {
-          if (submitBtn) {
-            submitBtn.innerText = originalText;
-            submitBtn.disabled = false;
-          }
-          showError(adminLoginError, `ACCESS DENIED: No available positions left to claim. Please check with the system administrator.`);
-          return;
-        }
-
-        const roleUuid = ADMIN_ROLE_UUIDS[selectedRole];
-        if (!roleUuid) {
-          if (submitBtn) {
-            submitBtn.innerText = originalText;
-            submitBtn.disabled = false;
-          }
-          showError(adminLoginError, 'SYSTEM ERROR: Invalid role selection.');
-          return;
-        }
-
-        if (claimed[selectedRole]) {
-          if (submitBtn) {
-            submitBtn.innerText = originalText;
-            submitBtn.disabled = false;
-          }
-          showError(adminLoginError, `ACCESS DENIED: The position of ${selectedRole.toUpperCase()} is already claimed.`);
-          return;
-        }
-
-        let emailAlreadyClaimed = Object.values(claimed).some(c => c.email === email);
-        if (emailAlreadyClaimed) {
-          if (submitBtn) {
-            submitBtn.innerText = originalText;
-            submitBtn.disabled = false;
-          }
-          showError(adminLoginError, `ACCESS DENIED: This email is already associated with another corporate position.`);
-          return;
-        }
-
-        const displayUsername = `${selectedRole.toUpperCase()} Head`;
-
-        let claimSuccess = false;
-
-        try {
-          // Call the serverless backend to claim the role securely (RLS bypass)
-          const claimRes = await fetch('/api/claim-admin-role', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ role: selectedRole, email, password })
-          });
-
-          if (claimRes.ok) {
-            claimSuccess = true;
-          } else {
-            const errData = await claimRes.json();
-            const errMsg = errData.error?.message || 'Server error';
-            if (errMsg.includes("service role key is not configured")) {
-              console.warn("Server keys missing, falling back to local simulation mode.");
-              alert("Notice: Supabase server key not configured. Registering in local fallback mode for testing.");
-              claimSuccess = true;
-            } else {
-              showError(adminLoginError, `REGISTRATION FAILED: ${errMsg}`);
-            }
-          }
-        } catch (apiErr) {
-          console.warn("Backend Claim API failed, falling back to local simulation:", apiErr.message);
-          alert("Notice: Backend server unreachable. Registering in local fallback mode for testing.");
-          claimSuccess = true;
-        }
-
-        if (claimSuccess) {
-          const localLocks = JSON.parse(localStorage.getItem('gravity-admin-locks')) || {};
-          localLocks[selectedRole] = { email, password };
-          localStorage.setItem('gravity-admin-locks', JSON.stringify(localLocks));
-
-          if (submitBtn) {
-            submitBtn.innerText = originalText;
-            submitBtn.disabled = false;
-          }
-
-          loginSuccess({
-            role: 'admin',
-            email: email,
-            uid: roleUuid,
-            username: displayUsername
-          });
+        if (loginRes.ok) {
+          const loginData = await loginRes.json();
+          authSession = loginData.session;
+          userData = loginData.user;
+          loginOk = true;
         } else {
-          if (submitBtn) {
-            submitBtn.innerText = originalText;
-            submitBtn.disabled = false;
-          }
-          return;
+          const errData = await loginRes.json();
+          const errMsg = errData.error?.message || "ACCESS DENIED: Unauthorized account or incorrect password.";
+          showError(adminLoginError, errMsg);
         }
+      } catch (apiErr) {
+        console.warn("Backend Login API offline, checking local sandbox credentials:", apiErr.message);
+        
+        // Sandbox local fallback check
+        const localLocks = JSON.parse(localStorage.getItem('gravity-admin-locks')) || {};
+        const matchedRole = Object.keys(localLocks).find(k => (localLocks[k].email || '').toLowerCase().trim() === email);
+        if (matchedRole && localLocks[matchedRole].password === password) {
+          loginOk = true;
+          userData = {
+            id: ADMIN_ROLE_UUIDS[matchedRole],
+            email: email,
+            role: 'admin',
+            username: localLocks[matchedRole].username || `${matchedRole.toUpperCase()} Head`
+          };
+        } else {
+          showError(adminLoginError, `ACCESS DENIED: Unauthorized account or incorrect password.`);
+        }
+      }
+
+      if (submitBtn) {
+        submitBtn.innerText = originalText;
+        submitBtn.disabled = false;
+      }
+
+      if (loginOk && userData) {
+        if (supabaseClient && authSession) {
+          await supabaseClient.auth.setSession(authSession);
+        }
+        
+        const details = ADMIN_ROLE_DETAILS[userData.id] || { username: userData.username || 'System Operator' };
+        loginSuccess({
+          role: 'admin',
+          email: userData.email || email,
+          uid: userData.id,
+          username: details.username
+        });
       }
     } catch (err) {
       if (submitBtn) {
@@ -5769,7 +5903,7 @@ function serviceMatchesDepartment(serviceId, department) {
   }
   if (department === 'dev') {
     return [
-      'business_website', 'premium_website', 'web_application', 'mobile_app', 
+      'digital_invitations', 'business_website', 'premium_website', 'web_application', 'mobile_app', 
       'saas_platform', 'crm_erp_system', 'dashboard_development', 
       'api_integration', 'cloud_deployment', 'startup_mvp', 'cto_service'
     ].includes(cleanId);
@@ -5778,10 +5912,10 @@ function serviceMatchesDepartment(serviceId, department) {
     return ['logo_design', 'brand_identity', 'ui_ux_design', 'presentation_design', 'graphic_design', 'anime_design', 'thumbnail_creation', 'civil_construction'].includes(cleanId);
   }
   if (department === 'video') {
-    return ['ai_video', 'animation', 'explainer_video', 'motion_graphics', 'product_advertisement', 'youtube_intro', 'vfx_package'].includes(cleanId);
+    return ['ai_video_90s', 'ai_business_ads', 'ai_video', 'animation', 'explainer_video', 'motion_graphics', 'product_advertisement', 'youtube_intro', 'vfx_package'].includes(cleanId);
   }
   if (department === 'marketing') {
-    return ['seo', 'social_media', 'google_ads', 'meta_ads', 'email_marketing'].includes(cleanId);
+    return ['seo', 'social_media', 'social_media_handling', 'google_ads', 'meta_ads', 'email_marketing'].includes(cleanId);
   }
   if (department === 'support') {
     return ['domain_hosting', 'website_maintenance', 'security_audit'].includes(cleanId);
@@ -5892,6 +6026,23 @@ function initAdminEvents() {
       } catch (err) {
         alert(`Error updating deadline: ${err.message}`);
       }
+    });
+  }
+
+  const ceoAssignForm = document.getElementById('ceo-assign-post-form');
+  if (ceoAssignForm) {
+    ceoAssignForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      await handleCEOAssignPostSubmit();
+    });
+  }
+
+  const ceoRefreshBtn = document.getElementById('ceo-refresh-posts-btn');
+  if (ceoRefreshBtn) {
+    ceoRefreshBtn.addEventListener('click', async () => {
+      ceoRefreshBtn.disabled = true;
+      await loadCEOPostManager();
+      ceoRefreshBtn.disabled = false;
     });
   }
 

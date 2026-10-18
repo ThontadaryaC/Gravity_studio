@@ -344,6 +344,153 @@ module.exports = async (req, res) => {
       // Admin Action: Logged sandbox toggle status change
       console.log(`SANDBOX TOGGLE: Logged by ${user.email}`);
     }
+    else if (action === "assign-admin-role") {
+      // Complete authority for CEO or Founder
+      if (user.id !== 'c0000000-0000-0000-0000-000000000002' && user.id !== 'f0000000-0000-0000-0000-000000000001') {
+        return res.status(403).json({ error: { message: "Access Denied: Only the CEO or Founder has authority to assign leadership positions." } });
+      }
+
+      const { role, email: memberEmail, password: memberPassword, memberName } = payload || {};
+      if (!role || !memberEmail || !memberPassword) {
+        return res.status(400).json({ error: { message: "Missing required fields: role, email, password" } });
+      }
+
+      const ROLE_UUIDS = {
+        'founder': 'f0000000-0000-0000-0000-000000000001',
+        'ceo': 'c0000000-0000-0000-0000-000000000002',
+        'ai': 'a0000000-0000-0000-0000-000000000003',
+        'dev': 'd0000000-0000-0000-0000-000000000004',
+        'design': 'e0000000-0000-0000-0000-000000000005',
+        'video': 'b0000000-0000-0000-0000-000000000006',
+        'marketing': 'b0000000-0000-0000-0000-000000000007',
+        'support': 'b0000000-0000-0000-0000-000000000008'
+      };
+
+      const roleUuid = ROLE_UUIDS[role];
+      if (!roleUuid) {
+        return res.status(400).json({ error: { message: "Invalid role specified." } });
+      }
+
+      const cleanRole = sanitizeInput(role);
+      const cleanEmail = sanitizeInput(memberEmail).toLowerCase().trim();
+      const cleanPassword = memberPassword;
+      const cleanName = sanitizeInput(memberName || `${cleanRole.toUpperCase()} Head`);
+
+      // 1. Check if role is already claimed in database
+      const checkProfileRes = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${roleUuid}`, {
+        headers: { "Authorization": `Bearer ${serviceRoleKey}`, "apikey": serviceRoleKey }
+      });
+      if (checkProfileRes.ok) {
+        const existing = await checkProfileRes.json();
+        if (existing && existing.length > 0) {
+          return res.status(400).json({ error: { message: "This post is already claimed. Revoke or delete it first." } });
+        }
+      }
+
+      // 2. Remove any existing auth user with this roleUuid or email to ensure clean assignment
+      try {
+        await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${roleUuid}`, {
+          method: "DELETE",
+          headers: { "Authorization": `Bearer ${serviceRoleKey}`, "apikey": serviceRoleKey }
+        });
+      } catch (e) {}
+
+      // 3. Create GoTrue Auth user
+      const createUserRes = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${serviceRoleKey}`,
+          "apikey": serviceRoleKey,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          id: roleUuid,
+          email: cleanEmail,
+          password: cleanPassword,
+          email_confirm: true,
+          user_metadata: {
+            username: cleanName,
+            role: 'admin'
+          }
+        })
+      });
+
+      if (!createUserRes.ok) {
+        const errText = await createUserRes.text();
+        console.warn("GoTrue user create warning:", errText);
+      }
+
+      // 4. Create/Upsert profile in public.profiles
+      await fetch(`${SUPABASE_URL}/rest/v1/profiles`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${serviceRoleKey}`,
+          "apikey": serviceRoleKey,
+          "Content-Type": "application/json",
+          "Prefer": "resolution=merge-duplicates"
+        },
+        body: JSON.stringify({
+          id: roleUuid,
+          email: cleanEmail,
+          username: cleanName,
+          role: 'admin'
+        })
+      });
+
+      // 5. Update admin_codes so code hash matches password
+      const submittedHash = crypto.createHash("sha256").update(cleanPassword).digest("hex");
+      try {
+        await fetch(`${SUPABASE_URL}/rest/v1/admin_codes`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${serviceRoleKey}`,
+            "apikey": serviceRoleKey,
+            "Content-Type": "application/json",
+            "Prefer": "resolution=merge-duplicates"
+          },
+          body: JSON.stringify({
+            role: cleanRole,
+            code_hash: submittedHash
+          })
+        });
+      } catch (e) {
+        console.warn("admin_codes upsert notice:", e.message);
+      }
+    }
+    else if (action === "unassign-admin-role") {
+      if (user.id !== 'c0000000-0000-0000-0000-000000000002' && user.id !== 'f0000000-0000-0000-0000-000000000001') {
+        return res.status(403).json({ error: { message: "Access Denied: Only the CEO or Founder has authority to vacate leadership positions." } });
+      }
+
+      const { role } = payload || {};
+      const ROLE_UUIDS = {
+        'founder': 'f0000000-0000-0000-0000-000000000001',
+        'ceo': 'c0000000-0000-0000-0000-000000000002',
+        'ai': 'a0000000-0000-0000-0000-000000000003',
+        'dev': 'd0000000-0000-0000-0000-000000000004',
+        'design': 'e0000000-0000-0000-0000-000000000005',
+        'video': 'b0000000-0000-0000-0000-000000000006',
+        'marketing': 'b0000000-0000-0000-0000-000000000007',
+        'support': 'b0000000-0000-0000-0000-000000000008'
+      };
+
+      const roleUuid = ROLE_UUIDS[role];
+      if (!roleUuid) {
+        return res.status(400).json({ error: { message: "Invalid role specified." } });
+      }
+
+      // Delete from profiles
+      await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${roleUuid}`, {
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${serviceRoleKey}`, "apikey": serviceRoleKey }
+      });
+
+      // Delete from auth.users
+      await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${roleUuid}`, {
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${serviceRoleKey}`, "apikey": serviceRoleKey }
+      });
+    }
     else {
       return res.status(400).json({ error: { message: `Unknown admin action: ${action}` } });
     }
