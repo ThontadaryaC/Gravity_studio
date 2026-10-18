@@ -1253,8 +1253,6 @@ body.dark-theme .gallery-card {
   transform: translateY(0);
 }
 
-}
-
 /* --- 3D BOOK PORTFOLIO --- */
 .book-showcase-wrapper {
   margin: 3rem auto;
@@ -5507,16 +5505,15 @@ body.dark-theme .startup-india-badge-text {
 
 .services-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 2rem;
   width: 100%;
 }
 
 .service-card {
-  background: var(--glass-bg);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--glass-border);
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.09);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05), 0 2px 6px rgba(0, 0, 0, 0.02);
   border-radius: 16px;
   padding: 2.25rem 2rem;
   display: flex;
@@ -5527,8 +5524,9 @@ body.dark-theme .startup-india-badge-text {
 }
 
 body.dark-theme .service-card {
-  background: rgba(14, 12, 24, 0.75);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  background: rgba(14, 12, 24, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
 }
 
 /* Color theme mappings */
@@ -5867,10 +5865,9 @@ body.dark-theme .work-filter-bar {
 }
 
 .work-card {
-  background: var(--glass-bg);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--glass-border);
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.09);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05), 0 2px 6px rgba(0, 0, 0, 0.02);
   border-radius: 16px;
   overflow: hidden;
   display: flex;
@@ -5880,7 +5877,9 @@ body.dark-theme .work-filter-bar {
 }
 
 body.dark-theme .work-card {
-  background: rgba(14, 12, 24, 0.75);
+  background: rgba(14, 12, 24, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
 }
 
 .work-card:hover {
