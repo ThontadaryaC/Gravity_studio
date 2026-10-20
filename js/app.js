@@ -246,6 +246,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initThemeToggle();
   initMobileMenu();
   initNavDropdown();
+  initDigitalProductsModal();
   initPortalAuth();
   initIntroLoader();
   initNavbarScroll();
@@ -306,38 +307,46 @@ function initMobileMenu() {
   const openIcon = mobileMenuBtn.querySelector('.menu-open-icon');
   const closeIcon = mobileMenuBtn.querySelector('.menu-close-icon');
 
+  function openMobileNav() {
+    navLinks.classList.add('mobile-open');
+    document.body.classList.add('mobile-nav-lock');
+    if (openIcon && closeIcon) {
+      openIcon.style.display = 'none';
+      closeIcon.style.display = 'block';
+    }
+  }
+
+  function closeMobileNav() {
+    navLinks.classList.remove('mobile-open');
+    document.body.classList.remove('mobile-nav-lock');
+    const dropdownItem = document.querySelector('.nav-dropdown-item');
+    if (dropdownItem) dropdownItem.classList.remove('is-open');
+    if (openIcon && closeIcon) {
+      openIcon.style.display = 'block';
+      closeIcon.style.display = 'none';
+    }
+  }
+
   mobileMenuBtn.addEventListener('click', (e) => {
     e.stopPropagation();
-    const isOpen = navLinks.classList.toggle('mobile-open');
-    if (openIcon && closeIcon) {
-      openIcon.style.display = isOpen ? 'none' : 'block';
-      closeIcon.style.display = isOpen ? 'block' : 'none';
+    if (navLinks.classList.contains('mobile-open')) {
+      closeMobileNav();
+    } else {
+      openMobileNav();
     }
   });
 
   // Close menu when clicking on any link
   navLinks.querySelectorAll('a').forEach(link => {
     link.addEventListener('click', () => {
-      navLinks.classList.remove('mobile-open');
-      const dropdownItem = document.querySelector('.nav-dropdown-item');
-      if (dropdownItem) dropdownItem.classList.remove('is-open');
-      if (openIcon && closeIcon) {
-        openIcon.style.display = 'block';
-        closeIcon.style.display = 'none';
-      }
+      closeMobileNav();
     });
   });
 
   // Close menu when clicking outside
   document.addEventListener('click', (e) => {
     if (!navLinks.contains(e.target) && !mobileMenuBtn.contains(e.target)) {
-      navLinks.classList.remove('mobile-open');
-      const dropdownItem = document.querySelector('.nav-dropdown-item');
-      if (dropdownItem) dropdownItem.classList.remove('is-open');
-      if (openIcon && closeIcon) {
-        openIcon.style.display = 'block';
-        closeIcon.style.display = 'none';
-      }
+      closeMobileNav();
     }
   });
 }
@@ -534,6 +543,13 @@ function initNavbarScroll() {
       header.classList.add('scrolled');
     } else {
       header.classList.remove('scrolled');
+    }
+
+    // If mobile navigation drawer is open, NEVER hide the header!
+    const navLinksEl = document.querySelector('.nav-links');
+    if (navLinksEl && navLinksEl.classList.contains('mobile-open')) {
+      header.classList.remove('header-hidden');
+      return;
     }
 
     // Hide header on scroll down, show on scroll up. Keep hidden if a sidebar is open.
@@ -1825,6 +1841,7 @@ function initPortalAuth() {
       e.preventDefault();
       const navLinksEl = document.querySelector('.nav-links');
       if (navLinksEl) navLinksEl.classList.remove('mobile-open');
+      document.body.classList.remove('mobile-nav-lock');
       const mobileBtnEl = document.getElementById('mobile-menu-btn');
       if (mobileBtnEl) {
         const oIcon = mobileBtnEl.querySelector('.menu-open-icon');
@@ -6834,3 +6851,51 @@ async function publishTargetedNotification(title, desc, targetUserId) {
 }
 }
 
+
+/* ==========================================================================
+   DIGITAL PRODUCTS UNDER CONSTRUCTION MODAL
+   ========================================================================== */
+function initDigitalProductsModal() {
+  const btn = document.getElementById('btn-digital-products-website');
+  const modal = document.getElementById('construction-modal-overlay');
+  const closeBtn = document.getElementById('construction-modal-close-btn');
+  const okBtn = document.getElementById('construction-modal-ok-btn');
+
+  if (!btn || !modal) return;
+
+  function openModal(e) {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    modal.style.display = 'flex';
+    requestAnimationFrame(() => {
+      modal.classList.add('visible');
+    });
+    document.body.classList.add('mobile-nav-lock');
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function closeModal() {
+    modal.classList.remove('visible');
+    setTimeout(() => {
+      modal.style.display = 'none';
+      document.body.classList.remove('mobile-nav-lock');
+    }, 280);
+  }
+
+  btn.addEventListener('click', openModal);
+
+  if (closeBtn) closeBtn.addEventListener('click', closeModal);
+  if (okBtn) okBtn.addEventListener('click', closeModal);
+
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) closeModal();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && modal.classList.contains('visible')) {
+      closeModal();
+    }
+  });
+}
