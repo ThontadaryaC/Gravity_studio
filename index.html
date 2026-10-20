@@ -326,15 +326,92 @@
           <li><a href="#hero" class="active">Home</a></li>
           <li><a href="#services">Services</a></li>
           <li><a href="#work">Our Work</a></li>
-          <li><a href="#digital-products">Digital Products</a></li>
-          <li><a href="#leadership">Leadership</a></li>
-          <li><a href="#gallery">Media Showcase</a></li>
-          <li><a href="#revenue">Revenue & Growth</a></li>
-          <li><a href="#hierarchy">Org Chart</a></li>
-          <li><a href="#timeline">Timeline</a></li>
-          <li><a href="#departments">Departments</a></li>
-          <li><a href="#testimonials">Reviews</a></li>
-          <li><a href="#faq">FAQ</a></li>
+          <li><a href="#digital-products">Products</a></li>
+          <li class="nav-dropdown-item">
+            <button class="nav-dropdown-trigger" id="more-dropdown-btn" aria-haspopup="true" aria-expanded="false" aria-label="More Navigation Options">
+              <span>More</span>
+              <span class="mobile-dropdown-badge">8</span>
+              <i data-lucide="chevron-down" class="dropdown-chevron-icon"></i>
+            </button>
+            <div class="nav-dropdown-menu" id="more-dropdown-menu" role="menu" aria-label="Secondary navigation">
+              <div class="dropdown-category">
+                <span class="dropdown-category-title">Company & Vision</span>
+                <a href="#leadership" class="dropdown-link" role="menuitem">
+                  <i data-lucide="users" class="dropdown-link-icon"></i>
+                  <div class="dropdown-link-text">
+                    <span class="dropdown-link-name">Leadership</span>
+                    <span class="dropdown-link-desc">Executive Team & Founders</span>
+                  </div>
+                </a>
+                <a href="#hierarchy" class="dropdown-link" role="menuitem">
+                  <i data-lucide="git-branch" class="dropdown-link-icon"></i>
+                  <div class="dropdown-link-text">
+                    <span class="dropdown-link-name">Org Chart</span>
+                    <span class="dropdown-link-desc">Organizational Hierarchy</span>
+                  </div>
+                </a>
+                <a href="#timeline" class="dropdown-link" role="menuitem">
+                  <i data-lucide="milestone" class="dropdown-link-icon"></i>
+                  <div class="dropdown-link-text">
+                    <span class="dropdown-link-name">Timeline</span>
+                    <span class="dropdown-link-desc">Studio Journey & Milestones</span>
+                  </div>
+                </a>
+                <a href="#departments" class="dropdown-link" role="menuitem">
+                  <i data-lucide="building-2" class="dropdown-link-icon"></i>
+                  <div class="dropdown-link-text">
+                    <span class="dropdown-link-name">Departments</span>
+                    <span class="dropdown-link-desc">Specialized Production Units</span>
+                  </div>
+                </a>
+              </div>
+              <div class="dropdown-category">
+                <span class="dropdown-category-title">Showcase & Proof</span>
+                <a href="#gallery" class="dropdown-link" role="menuitem">
+                  <i data-lucide="film" class="dropdown-link-icon"></i>
+                  <div class="dropdown-link-text">
+                    <span class="dropdown-link-name">Media Showcase</span>
+                    <span class="dropdown-link-desc">Promos, Videos & Campaigns</span>
+                  </div>
+                </a>
+                <a href="#revenue" class="dropdown-link" role="menuitem">
+                  <i data-lucide="trending-up" class="dropdown-link-icon"></i>
+                  <div class="dropdown-link-text">
+                    <span class="dropdown-link-name">Revenue & Growth</span>
+                    <span class="dropdown-link-desc">Commercial Scaling & Directives</span>
+                  </div>
+                </a>
+                <a href="#testimonials" class="dropdown-link" role="menuitem">
+                  <i data-lucide="star" class="dropdown-link-icon"></i>
+                  <div class="dropdown-link-text">
+                    <span class="dropdown-link-name">Client Reviews</span>
+                    <span class="dropdown-link-desc">Client Feedback & Ratings</span>
+                  </div>
+                </a>
+                <a href="#faq" class="dropdown-link" role="menuitem">
+                  <i data-lucide="help-circle" class="dropdown-link-icon"></i>
+                  <div class="dropdown-link-text">
+                    <span class="dropdown-link-name">FAQ</span>
+                    <span class="dropdown-link-desc">Help & Questions</span>
+                  </div>
+                </a>
+              </div>
+            </div>
+          </li>
+          <li class="mobile-only-portal-item">
+            <button class="mobile-portal-action-btn" id="mobile-portal-drawer-btn" type="button" aria-label="Open User Portal">
+              <div class="mobile-portal-btn-content">
+                <div class="mobile-portal-icon-wrap">
+                  <i data-lucide="user-check" class="mobile-portal-icon"></i>
+                </div>
+                <div class="mobile-portal-text">
+                  <span class="mobile-portal-title">Client & Member Portal</span>
+                  <span class="mobile-portal-desc">Sign in, view bookings & track progress</span>
+                </div>
+              </div>
+              <i data-lucide="chevron-right" class="mobile-portal-arrow"></i>
+            </button>
+          </li>
         </ul>
       </nav>
 
@@ -343,14 +420,14 @@
           <i data-lucide="sun" class="icon-sun"></i>
           <i data-lucide="moon" class="icon-moon"></i>
         </button>
-        <button class="control-btn mobile-menu-toggle" id="mobile-menu-btn" data-tooltip="Open Menu" aria-label="Toggle Navigation Menu">
-          <i data-lucide="menu" class="menu-open-icon"></i>
-          <i data-lucide="x" class="menu-close-icon" style="display: none;"></i>
-        </button>
-        <button class="control-btn" id="portal-login-btn" data-action="login-portal" data-tooltip="Portal Sign-In" aria-label="Open Login Portal">
+        <button class="control-btn portal-profile-btn" id="portal-login-btn" data-action="login-portal" data-tooltip="Profile Portal" aria-label="Open Profile Portal">
           <i data-lucide="user" class="portal-user-icon"></i>
           <i data-lucide="shield" class="portal-admin-icon"></i>
           <span class="login-status-dot" aria-hidden="true"></span>
+        </button>
+        <button class="control-btn mobile-menu-toggle" id="mobile-menu-btn" data-tooltip="Open Menu" aria-label="Toggle Navigation Menu">
+          <i data-lucide="menu" class="menu-open-icon"></i>
+          <i data-lucide="x" class="menu-close-icon" style="display: none;"></i>
         </button>
       </div>
     </div>
