@@ -14,9 +14,8 @@ const CONFIG = {
   // IMPORTANT: Set this to "" when deploying to production to keep it secure!
   apiKey: "", 
   
-  // Set proxy endpoint here if hosting a serverless function to hide the key.
-  // Automatically defaults to Vercel serverless endpoint in production, and empty (direct API) on localhost.
-  apiProxyUrl: window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" ? "" : "/api/chat", 
+  // Set proxy endpoint to the serverless function /api/chat so secrets remain hidden
+  apiProxyUrl: "/api/chat", 
   
   // Directory where PDF files are stored (relative to index.html or remote bucket)
   get pdfDirectory() {
@@ -566,53 +565,87 @@ ${pdfContext}`;
     }
   }
 
-  // Call Google Gemini API or Proxy Endpoint
+  // Call Multi-Provider FreeLLMAPI / Gemini via Proxy Endpoint or Direct API
   async function callGeminiOrProxy(apiKey, proxyUrl, systemPrompt, chatHistory, userMessage) {
-    const url = proxyUrl ? proxyUrl : `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const url = proxyUrl ? proxyUrl : (apiKey ? `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}` : "/api/chat");
     
-    // Format message history for Gemini (alternate user/model roles)
-    const contents = [];
+    // Format message history for standard OpenAI messages
+    const messages = [
+      { role: "system", content: systemPrompt }
+    ];
     const recent = chatHistory.slice(-8); // Limit history depth
     
+    recent.forEach(msg => {
+      messages.push({
+        role: msg.sender === "user" ? "user" : "assistant",
+        content: msg.text
+      });
+    });
+
+    messages.push({
+      role: "user",
+      content: userMessage
+    });
+
+    // Also build Gemini contents for direct Gemini fallback
+    const contents = [];
     recent.forEach(msg => {
       contents.push({
         role: msg.sender === "user" ? "user" : "model",
         parts: [{ text: msg.text }]
       });
     });
-
-    // Add current user prompt
     contents.push({
       role: "user",
       parts: [{ text: userMessage }]
     });
 
     const body = {
+      messages: messages,
       contents: contents,
+      userMessage: userMessage,
       systemInstruction: {
         parts: [{ text: systemPrompt }]
       },
       generationConfig: {
         temperature: 0.7,
-        maxOutputTokens: 600
+        maxOutputTokens: 700
       }
     };
 
+    const headers = {
+      "Content-Type": "application/json"
+    };
+    if (apiKey && !url.includes("googleapis.com")) {
+      headers["Authorization"] = `Bearer ${apiKey}`;
+    }
+
     const res = await fetch(url, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: headers,
       body: JSON.stringify(body)
     });
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(err.error?.message || `HTTP ${res.status}`);
+      throw new Error(err.error?.message || `AI Service HTTP ${res.status}`);
     }
 
     const data = await res.json();
-    return data.candidates[0].content.parts[0].text;
+
+    if (data.reply) {
+      return data.reply;
+    }
+    if (data.choices && data.choices[0] && data.choices[0].message) {
+      return data.choices[0].message.content;
+    }
+    if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+      return data.candidates[0].content.parts[0].text;
+    }
+    if (typeof data === "string") {
+      return data;
+    }
+    throw new Error("Unable to parse reply from AI response");
   }
 
   // Append a message bubble to the chat container

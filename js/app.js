@@ -248,6 +248,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initNavDropdown();
   initDigitalProductsModal();
   initPortalAuth();
+  renderMainLeadershipGrid();
   initIntroLoader();
   initNavbarScroll();
   initAccessibilityControls();
@@ -4883,312 +4884,669 @@ function initPortalAuth() {
     const vacantBadge = document.getElementById('admin-vacant-posts-count');
     if (!vacantBadge) return;
     try {
-      const claimed = await fetchClaimedRoles();
-      const vacantCount = ALL_LEADERSHIP_ROLES.filter(r => !claimed[r.key]).length;
-      vacantBadge.innerText = vacantCount > 0 ? `${vacantCount} Vacant` : 'All Filled';
-      vacantBadge.style.color = vacantCount > 0 ? 'var(--neon-cyan)' : 'var(--neon-green)';
-      vacantBadge.style.borderColor = vacantCount > 0 ? 'var(--neon-cyan)' : 'var(--neon-green)';
+      if (typeof isFounderSession === 'function' && isFounderSession()) {
+        const team = getTeamDirectory();
+        vacantBadge.innerText = `${team.length} Active`;
+        vacantBadge.style.color = '#e9d5ff';
+        vacantBadge.style.borderColor = 'var(--neon-purple)';
+      } else {
+        vacantBadge.innerText = 'Founder Only';
+        vacantBadge.style.color = '#ffaa00';
+        vacantBadge.style.borderColor = 'rgba(255,170,0,0.5)';
+      }
     } catch (e) {
       console.warn("Could not update CEO badge:", e.message);
     }
   }
 
-  // Load and render CEO Executive Leadership Posts Manager
-  async function loadCEOPostManager() {
-    const postsListContainer = document.getElementById('ceo-posts-list');
-    const postSelect = document.getElementById('ceo-post-select');
-    const vacantBadge = document.getElementById('admin-vacant-posts-count');
-    if (!postsListContainer) return;
+  // ==========================================================================
+  // FOUNDER AJAY RAJ B.K - EXCLUSIVE TEAM, PHOTO & ROLE MANAGEMENT
+  // ==========================================================================
 
-    postsListContainer.innerHTML = `<p class="text-muted" style="font-family: monospace; font-size: 0.85rem;">> Querying live leadership database...</p>`;
+  const DEFAULT_TEAM_DIRECTORY = [
+    {
+      id: 'founder_ajay',
+      name: 'Ajay Raj B.K',
+      role: 'Founder & Creative Director',
+      dept: 'Executive Leadership',
+      glow: 'glow-purple',
+      photo: 'https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/ajay.jpeg',
+      fallbackPhoto: 'assets/images/ajay.jpeg',
+      responsibilities: [
+        'Vision & Strategy',
+        'Creative Direction',
+        'Brand Development',
+        'Business Growth',
+        'Innovation Leadership'
+      ],
+      socials: {
+        linkedin: 'https://www.linkedin.com/in/ajay-raj-b-k-940a3b285?utm_source=share_via&utm_content=profile&utm_medium=member_android',
+        twitter: 'https://x.com/AjayRajBK1'
+      },
+      isFounder: true
+    },
+    {
+      id: 'ceo_shashank',
+      name: 'Shashank Raj B.K',
+      role: 'Co-Founder & CEO',
+      dept: 'Executive & Operations',
+      glow: 'glow-amber',
+      photo: 'https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/shashank.jpeg',
+      fallbackPhoto: 'assets/images/shashank.jpeg',
+      responsibilities: [
+        'Business Operations',
+        'Company Management',
+        'Partnerships',
+        'Client Relations',
+        'Company Expansion'
+      ],
+      socials: {
+        linkedin: 'https://www.linkedin.com/in/shashank-raj-b-k-a9747b21b?utm_source=share_via&utm_content=profile&utm_medium=member_android',
+        twitter: 'https://twitter.com'
+      }
+    },
+    {
+      id: 'cto_thontadaraya',
+      name: 'Thontadaraya',
+      role: 'CTO (Technology Head)',
+      dept: 'AI & Engineering',
+      glow: 'glow-cyan',
+      photo: 'https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/thontadarya.jpeg',
+      fallbackPhoto: 'assets/images/thontadarya.jpeg',
+      responsibilities: [
+        'Software Development',
+        'AI Systems',
+        'Technical Architecture',
+        'Product Development',
+        'Innovation'
+      ],
+      socials: {
+        linkedin: 'https://www.linkedin.com/in/thontadarya-c-06a670251/',
+        twitter: 'https://twitter.com'
+      }
+    },
+    {
+      id: 'cmo_munish',
+      name: 'Munish',
+      role: 'CMO (Marketing Head)',
+      dept: 'Marketing & Media',
+      glow: 'glow-pink',
+      photo: 'https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/munish.jpeg',
+      fallbackPhoto: 'assets/images/munish.png',
+      responsibilities: [
+        'Marketing Strategy',
+        'Social Media',
+        'Advertising',
+        'Content Marketing',
+        'Brand Awareness'
+      ],
+      socials: {
+        linkedin: 'https://www.linkedin.com/in/munish-r-62a500253?utm_source=share_via&utm_content=profile&utm_medium=member_android',
+        twitter: 'https://twitter.com'
+      }
+    },
+    {
+      id: 'chro_pavan',
+      name: 'Pavan Krishna',
+      role: 'CHRO (HR Head)',
+      dept: 'Human Resources',
+      glow: 'glow-green',
+      photo: 'https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/pavan.jpeg',
+      fallbackPhoto: 'assets/images/pavan.png',
+      responsibilities: [
+        'Recruitment',
+        'Talent Management',
+        'Team Building',
+        'Employee Development',
+        'Company Culture'
+      ],
+      socials: {
+        linkedin: 'https://www.linkedin.com/in/pavan-krishna-k-r-61136a2a4?utm_source=share_via&utm_content=profile&utm_medium=member_android',
+        twitter: 'https://twitter.com'
+      }
+    },
+    {
+      id: 'cio_pruthvi',
+      name: 'Pruthvi Raj',
+      role: 'CIO (IT Head)',
+      dept: 'IT & Infrastructure',
+      glow: 'glow-cyan',
+      photo: '',
+      fallbackPhoto: 'assets/images/pruthvi.png',
+      responsibilities: [
+        'IT Infrastructure',
+        'Security Systems',
+        'Data Management',
+        'Network Operations',
+        'Technology Support'
+      ],
+      socials: {
+        linkedin: 'https://linkedin.com',
+        twitter: 'https://twitter.com'
+      }
+    },
+    {
+      id: 'coo_shreyas',
+      name: 'Shreyas',
+      role: 'COO & Site Engineer',
+      dept: 'Operations & Engineering',
+      glow: 'glow-purple',
+      photo: '',
+      fallbackPhoto: 'assets/images/shreyas.png',
+      responsibilities: [
+        'Operations Management',
+        'Project Coordination',
+        'Site Supervision',
+        'Quality Control',
+        'Construction Management'
+      ],
+      socials: {
+        linkedin: 'https://linkedin.com',
+        twitter: 'https://twitter.com'
+      }
+    },
+    {
+      id: 'sales_subhash',
+      name: 'Subhash',
+      role: 'Sales & Pricing Lead',
+      dept: 'Sales & Growth',
+      glow: 'glow-amber',
+      photo: '',
+      fallbackPhoto: 'assets/images/subhash.png',
+      responsibilities: [
+        'Sales Management',
+        'Pricing Strategy',
+        'Client Acquisition',
+        'Revenue Generation',
+        'Business Deals'
+      ],
+      socials: {
+        linkedin: 'https://linkedin.com',
+        twitter: 'https://twitter.com'
+      }
+    }
+  ];
 
+  const TEAM_STORAGE_KEY = 'antigravity_team_directory';
+
+  function getTeamDirectory() {
     try {
-      const claimed = await fetchClaimedRoles();
-      let vacantCount = 0;
-      let listHtml = '';
-
-      if (postSelect) {
-        postSelect.innerHTML = '';
-      }
-
-      ALL_LEADERSHIP_ROLES.forEach(r => {
-        const isClaimed = !!claimed[r.key];
-        const memberInfo = claimed[r.key] || {};
-        let memberName = r.defaultName;
-        if (memberInfo.username && !memberInfo.username.startsWith('admin_role:') && !memberInfo.username.includes('|pwd:')) {
-          memberName = memberInfo.username;
-        } else if (ADMIN_ROLE_DETAILS[r.uuid]?.username) {
-          memberName = ADMIN_ROLE_DETAILS[r.uuid].username;
-        }
-
-        if (isClaimed) {
-          listHtml += `
-            <div style="background: rgba(0, 240, 255, 0.03); border: 1px solid rgba(0, 240, 255, 0.2); border-radius: 8px; padding: 0.85rem 1rem; display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
-              <div style="display: flex; align-items: center; gap: 0.75rem;">
-                <div style="width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, var(--neon-purple), var(--neon-cyan)); display: flex; align-items: center; justify-content: center; font-weight: bold; color: #fff; font-size: 0.9rem; flex-shrink: 0;">
-                  ${memberName.charAt(0).toUpperCase()}
-                </div>
-                <div>
-                  <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-                    <strong style="color: #fff; font-size: 0.9rem;">${r.title}</strong>
-                    <span style="background: rgba(0,255,100,0.15); color: var(--neon-green); border: 1px solid var(--neon-green); font-size: 0.65rem; padding: 0.1rem 0.4rem; border-radius: 4px; font-weight: bold;">[ASSIGNED]</span>
-                  </div>
-                  <div style="font-size: 0.78rem; color: var(--text-muted); font-family: monospace; margin-top: 0.2rem;">
-                    <span>👤 ${memberName}</span> &bull; <span style="color: var(--neon-green); font-size: 0.75rem;">[Active Appointment]</span>
-                  </div>
-                </div>
-              </div>
-              <div>
-                ${r.key === 'founder' ? `
-                  <span style="font-size: 0.75rem; color: var(--text-muted); font-style: italic;">Founder Root</span>
-                ` : `
-                  <button type="button" class="ceo-revoke-btn admin-action-btn" data-role="${r.key}" data-title="${r.title}" style="padding: 0.35rem 0.7rem; font-size: 0.75rem; background: rgba(255,50,50,0.15); border: 1px solid rgba(255,50,50,0.3); color: #ff5555; border-radius: 4px; cursor: pointer;">
-                    Vacate Post
-                  </button>
-                `}
-              </div>
-            </div>
-          `;
-        } else {
-          vacantCount++;
-          listHtml += `
-            <div style="background: rgba(255, 170, 0, 0.03); border: 1px dashed rgba(255, 170, 0, 0.3); border-radius: 8px; padding: 0.85rem 1rem; display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
-              <div style="display: flex; align-items: center; gap: 0.75rem;">
-                <div style="width: 38px; height: 38px; border-radius: 50%; background: rgba(255, 170, 0, 0.1); border: 1px dashed rgba(255, 170, 0, 0.5); display: flex; align-items: center; justify-content: center; font-weight: bold; color: #ffaa00; font-size: 0.9rem; flex-shrink: 0;">
-                  ?
-                </div>
-                <div>
-                  <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-                    <strong style="color: #fff; font-size: 0.9rem;">${r.title}</strong>
-                    <span style="background: rgba(255,170,0,0.15); color: #ffaa00; border: 1px solid #ffaa00; font-size: 0.65rem; padding: 0.1rem 0.4rem; border-radius: 4px; font-weight: bold;">[VACANT / EMPTY]</span>
-                  </div>
-                  <div style="font-size: 0.75rem; color: var(--text-muted); font-family: monospace; margin-top: 0.2rem;">
-                    <span>Dept: ${r.dept}</span> &bull; <span>Default Lead: ${r.defaultName}</span>
-                  </div>
-                </div>
-              </div>
-              <div>
-                <button type="button" class="ceo-quick-assign-btn admin-action-btn" data-role="${r.key}" style="padding: 0.35rem 0.75rem; font-size: 0.75rem; background: rgba(0, 240, 255, 0.15); border: 1px solid var(--neon-cyan); color: var(--neon-cyan); border-radius: 4px; cursor: pointer; font-weight: bold;">
-                  + Assign Member
-                </button>
-              </div>
-            </div>
-          `;
-
-          if (postSelect) {
-            const opt = document.createElement('option');
-            opt.value = r.key;
-            opt.innerText = `${r.title} (${r.dept})`;
-            postSelect.appendChild(opt);
-          }
-        }
-      });
-
-      postsListContainer.innerHTML = listHtml;
-
-      if (vacantBadge) {
-        vacantBadge.innerText = vacantCount > 0 ? `${vacantCount} Vacant` : 'All Filled';
-        vacantBadge.style.color = vacantCount > 0 ? 'var(--neon-cyan)' : 'var(--neon-green)';
-        vacantBadge.style.borderColor = vacantCount > 0 ? 'var(--neon-cyan)' : 'var(--neon-green)';
-      }
-
-      if (postSelect) {
-        if (postSelect.options.length === 0) {
-          const opt = document.createElement('option');
-          opt.value = '';
-          opt.innerText = '-- All 8 Leadership Positions are Currently Assigned --';
-          postSelect.appendChild(opt);
-          const submitBtn = document.getElementById('ceo-assign-submit-btn');
-          if (submitBtn) submitBtn.disabled = true;
-        } else {
-          const submitBtn = document.getElementById('ceo-assign-submit-btn');
-          if (submitBtn) submitBtn.disabled = false;
+      const raw = localStorage.getItem(TEAM_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
         }
       }
+    } catch (e) {
+      console.warn('Failed to parse saved team directory:', e);
+    }
+    return JSON.parse(JSON.stringify(DEFAULT_TEAM_DIRECTORY));
+  }
 
-      // Quick assign click listener
-      document.querySelectorAll('.ceo-quick-assign-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const role = btn.getAttribute('data-role');
-          if (postSelect) {
-            postSelect.value = role;
-            const nameInput = document.getElementById('ceo-member-name');
-            const defaultRoleObj = ALL_LEADERSHIP_ROLES.find(x => x.key === role);
-            if (nameInput && defaultRoleObj) {
-              nameInput.placeholder = defaultRoleObj.defaultName;
-            }
-            postSelect.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }
-        });
-      });
-
-      // Revoke / Vacate post click listener
-      document.querySelectorAll('.ceo-revoke-btn').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          const role = btn.getAttribute('data-role');
-          const title = btn.getAttribute('data-title');
-
-          if (!confirm(`Are you sure you want to vacate the position of ${title}?\n\nThis will remove their administrative access and leave the post empty.`)) {
-            return;
-          }
-
-          btn.disabled = true;
-          btn.innerText = "Vacating...";
-
-          try {
-            let sessionToken = null;
-            if (supabaseClient) {
-              const sessionRes = await supabaseClient.auth.getSession();
-              sessionToken = sessionRes.data?.session?.access_token;
-            }
-
-            // Call server admin action unassign-admin-role
-            try {
-              await fetch('/api/admin-action', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  ...(sessionToken ? { 'Authorization': `Bearer ${sessionToken}` } : {})
-                },
-                body: JSON.stringify({
-                  action: 'unassign-admin-role',
-                  payload: { role }
-                })
-              });
-            } catch (e) {
-              console.warn("Server unassign call:", e.message);
-            }
-
-            // Clean local storage locks
-            const localLocks = JSON.parse(localStorage.getItem('gravity-admin-locks')) || {};
-            delete localLocks[role];
-            localStorage.setItem('gravity-admin-locks', JSON.stringify(localLocks));
-
-            alert(`The position of ${title} has been successfully vacated! It is now empty and can be assigned to a new member.`);
-            await loadCEOPostManager();
-          } catch (err) {
-            alert(`Error vacating post: ${err.message}`);
-            await loadCEOPostManager();
-          }
-        });
-      });
-
-      if (typeof lucide !== 'undefined') {
-        lucide.createIcons();
-      }
-    } catch (err) {
-      postsListContainer.innerHTML = `<p class="text-danger" style="font-family: monospace;">> Error loading leadership roles: ${err.message}</p>`;
+  function saveTeamDirectory(team) {
+    try {
+      localStorage.setItem(TEAM_STORAGE_KEY, JSON.stringify(team));
+    } catch (e) {
+      console.error('Failed to save team directory to localStorage:', e);
     }
   }
 
-  // Handle CEO Assign Post form submission
-  async function handleCEOAssignPostSubmit() {
-    const errBox = document.getElementById('ceo-assign-error');
-    const succBox = document.getElementById('ceo-assign-success');
-    const submitBtn = document.getElementById('ceo-assign-submit-btn');
+  // PUBLIC MAIN WEBSITE HYDRATION - Live instant reflection
+  function renderMainLeadershipGrid() {
+    const container = document.getElementById('main-leadership-grid');
+    if (!container) return;
 
-    if (errBox) errBox.style.display = 'none';
-    if (succBox) succBox.style.display = 'none';
+    const team = getTeamDirectory();
+    let html = '';
 
-    const role = document.getElementById('ceo-post-select')?.value;
-    const memberName = document.getElementById('ceo-member-name')?.value.trim();
-    const email = document.getElementById('ceo-member-email')?.value.trim().toLowerCase();
-    const password = document.getElementById('ceo-member-password')?.value;
+    team.forEach((member) => {
+      const glowClass = member.glow || 'glow-purple';
+      const photoSrc = member.photo || member.fallbackPhoto || '';
+      const name = member.name || 'Team Member';
+      const role = member.role || 'Executive';
+      const resps = Array.isArray(member.responsibilities) ? member.responsibilities : [];
+      const linkedin = member.socials?.linkedin || '';
+      const twitter = member.socials?.twitter || '';
 
-    if (!role) {
-      if (errBox) { errBox.innerText = "Please select a vacant post."; errBox.style.display = 'block'; }
-      return;
+      const photoHtml = photoSrc
+        ? `<img src="${photoSrc}" alt="${name}" class="exec-photo" onerror="this.onerror=null; this.src='${member.fallbackPhoto || ''}'; if(!this.src) this.style.display='none';">`
+        : '';
+
+      html += `
+        <article class="exec-card ${glowClass}" id="card-${member.id || 'exec'}">
+          <div class="exec-avatar-container">
+            <div class="exec-avatar">
+              ${photoHtml}
+              <div class="exec-avatar-fallback"><i data-lucide="user"></i></div>
+            </div>
+          </div>
+          <h3 class="exec-name">${name}</h3>
+          <p class="exec-role">${role}</p>
+          <ul class="exec-responsibilities">
+            ${resps.map(r => `<li>${r}</li>`).join('')}
+          </ul>
+          <div class="exec-socials">
+            ${linkedin ? `<a href="${linkedin}" target="_blank" rel="noopener" class="social-link" aria-label="${name} LinkedIn"><i data-lucide="linkedin"></i></a>` : ''}
+            ${twitter ? `<a href="${twitter}" target="_blank" rel="noopener" class="social-link" aria-label="${name} Twitter"><i data-lucide="twitter"></i></a>` : ''}
+          </div>
+        </article>
+      `;
+    });
+
+    container.innerHTML = html;
+    if (typeof lucide !== 'undefined' && lucide.createIcons) {
+      lucide.createIcons();
     }
+  }
 
-    if (!memberName) {
-      if (errBox) { errBox.innerText = "Please enter the member's full name."; errBox.style.display = 'block'; }
-      return;
-    }
+  // Strict check: ONLY Founder Ajay Raj B.K has authority
+  function isFounderSession() {
+    if (!currentSession || currentSession.role !== 'admin') return false;
+    const uid = currentSession.uid;
+    const email = (currentSession.email || '').toLowerCase().trim();
+    const username = (currentSession.username || '').toLowerCase().trim();
 
-    if (!email || !email.includes('@')) {
-      if (errBox) { errBox.innerText = "Please enter a valid corporate email."; errBox.style.display = 'block'; }
-      return;
-    }
+    return uid === 'f0000000-0000-0000-0000-000000000001' ||
+           email === 'antigravitystudios1@gmail.com' ||
+           username === 'ajay raj b.k' ||
+           username === 'ajay raj';
+  }
 
-    if (!password || password.length < 6) {
-      if (errBox) { errBox.innerText = "Password must be at least 6 characters."; errBox.style.display = 'block'; }
-      return;
-    }
+  // Load and render Founder Executive Team & Role Manager
+  async function loadCEOPostManager() {
+    const gateDenied = document.getElementById('founder-gate-denied');
+    const gateAllowed = document.getElementById('founder-gate-allowed');
+    const rosterList = document.getElementById('founder-roster-list');
+    const rosterCount = document.getElementById('founder-roster-count');
+    const sidebarBadge = document.getElementById('admin-vacant-posts-count');
 
-    const originalBtnText = submitBtn ? submitBtn.innerText : "Authorize & Assign Leadership Post";
-    if (submitBtn) {
-      submitBtn.innerText = "AUTHORIZING & ASSIGNING...";
-      submitBtn.disabled = true;
-    }
+    // Strict access gate check
+    const isFounder = isFounderSession();
 
-    try {
-      let sessionToken = null;
-      if (supabaseClient) {
-        const sessionRes = await supabaseClient.auth.getSession();
-        sessionToken = sessionRes.data?.session?.access_token;
+    if (!isFounder) {
+      if (gateDenied) gateDenied.style.display = 'block';
+      if (gateAllowed) gateAllowed.style.display = 'none';
+      if (sidebarBadge) {
+        sidebarBadge.innerText = 'Restricted';
+        sidebarBadge.style.color = '#ff5555';
+        sidebarBadge.style.borderColor = '#ff5555';
       }
+      return;
+    }
 
-      let assignedOk = false;
+    if (gateDenied) gateDenied.style.display = 'none';
+    if (gateAllowed) gateAllowed.style.display = 'block';
 
-      // 1. Call server API assign-admin-role
-      try {
-        const res = await fetch('/api/admin-action', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(sessionToken ? { 'Authorization': `Bearer ${sessionToken}` } : {})
-          },
-          body: JSON.stringify({
-            action: 'assign-admin-role',
-            payload: { role, email, password, memberName }
-          })
-        });
+    const team = getTeamDirectory();
+    if (rosterCount) rosterCount.innerText = team.length;
+    if (sidebarBadge) {
+      sidebarBadge.innerText = `${team.length} Active`;
+      sidebarBadge.style.color = '#e9d5ff';
+      sidebarBadge.style.borderColor = 'var(--neon-purple)';
+    }
 
-        if (res.ok) {
-          assignedOk = true;
-        } else {
-          // If assign-admin-role fails, try claim-admin-role
-          try {
-            const claimRes = await fetch('/api/claim-admin-role', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ role, email, password })
-            });
-            if (claimRes.ok) {
-              assignedOk = true;
+    // Setup tab navigation
+    const tabRosterBtn = document.getElementById('founder-tab-roster-btn');
+    const tabAddBtn = document.getElementById('founder-tab-add-btn');
+    const tabRosterView = document.getElementById('founder-tab-roster-view');
+    const tabFormView = document.getElementById('founder-tab-form-view');
+    const formTitle = document.getElementById('founder-form-title');
+    const formCancelBtn = document.getElementById('founder-form-cancel-btn');
+    const manageForm = document.getElementById('founder-manage-employee-form');
+    const formFeedback = document.getElementById('founder-form-feedback');
+
+    function showRosterTab() {
+      if (tabRosterView) tabRosterView.style.display = 'block';
+      if (tabFormView) tabFormView.style.display = 'none';
+      if (tabRosterBtn) {
+        tabRosterBtn.style.background = 'rgba(138,43,226,0.3)';
+        tabRosterBtn.style.borderColor = 'var(--neon-purple)';
+        tabRosterBtn.style.color = '#fff';
+      }
+      if (tabAddBtn) {
+        tabAddBtn.style.background = 'rgba(255,255,255,0.05)';
+        tabAddBtn.style.borderColor = 'var(--glass-border)';
+        tabAddBtn.style.color = 'var(--text-muted)';
+      }
+    }
+
+    function showFormTab(isEdit = false, memberName = '') {
+      if (tabRosterView) tabRosterView.style.display = 'none';
+      if (tabFormView) tabFormView.style.display = 'block';
+      if (tabAddBtn) {
+        tabAddBtn.style.background = 'rgba(138,43,226,0.3)';
+        tabAddBtn.style.borderColor = 'var(--neon-purple)';
+        tabAddBtn.style.color = '#fff';
+      }
+      if (tabRosterBtn) {
+        tabRosterBtn.style.background = 'rgba(255,255,255,0.05)';
+        tabRosterBtn.style.borderColor = 'var(--glass-border)';
+        tabRosterBtn.style.color = 'var(--text-muted)';
+      }
+      if (formTitle) {
+        formTitle.innerHTML = isEdit 
+          ? `<i data-lucide="edit-3" style="color: #ffd700; width: 16px; height: 16px;"></i> Edit Role & Member: ${memberName}`
+          : `<i data-lucide="user-plus" style="color: var(--neon-cyan); width: 16px; height: 16px;"></i> Appoint New Role / Employee`;
+      }
+      if (formCancelBtn) {
+        formCancelBtn.style.display = isEdit ? 'inline-block' : 'none';
+      }
+      if (formFeedback) formFeedback.style.display = 'none';
+      if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+    }
+
+    if (tabRosterBtn) tabRosterBtn.onclick = () => showRosterTab();
+    if (tabAddBtn) {
+      tabAddBtn.onclick = () => {
+        if (manageForm) manageForm.reset();
+        document.getElementById('founder-edit-member-id').value = '';
+        const previewImg = document.getElementById('founder-photo-preview-img');
+        const previewHolder = document.getElementById('founder-photo-preview-placeholder');
+        if (previewImg) { previewImg.src = ''; previewImg.style.display = 'none'; }
+        if (previewHolder) previewHolder.style.display = 'block';
+        showFormTab(false);
+      };
+    }
+    if (formCancelBtn) {
+      formCancelBtn.onclick = () => {
+        if (manageForm) manageForm.reset();
+        document.getElementById('founder-edit-member-id').value = '';
+        showRosterTab();
+      };
+    }
+
+    // Refresh button
+    const refreshBtn = document.getElementById('founder-refresh-roster-btn');
+    if (refreshBtn) {
+      refreshBtn.onclick = () => {
+        renderMainLeadershipGrid();
+        loadCEOPostManager();
+      };
+    }
+
+    // Photo input live preview
+    const photoFileInput = document.getElementById('founder-member-photo-file');
+    const photoUrlInput = document.getElementById('founder-member-photo-url');
+    const previewImg = document.getElementById('founder-photo-preview-img');
+    const previewHolder = document.getElementById('founder-photo-preview-placeholder');
+
+    if (photoFileInput) {
+      photoFileInput.onchange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (re) => {
+            if (previewImg) {
+              previewImg.src = re.target.result;
+              previewImg.style.display = 'block';
             }
-          } catch (e) {}
+            if (previewHolder) previewHolder.style.display = 'none';
+          };
+          reader.readAsDataURL(file);
         }
-      } catch (apiErr) {
-        console.warn("Backend API unreachable, using local fallback mode:", apiErr.message);
-      }
+      };
+    }
 
-      // Always save to local fallback locks for full resilience
-      const localLocks = JSON.parse(localStorage.getItem('gravity-admin-locks')) || {};
-      localLocks[role] = { email, password, username: memberName };
-      localStorage.setItem('gravity-admin-locks', JSON.stringify(localLocks));
-      assignedOk = true;
-
-      if (assignedOk) {
-        if (succBox) {
-          succBox.innerText = `SUCCESS: Position assigned to ${memberName}! They can now sign in with their assigned credentials.`;
-          succBox.style.display = 'block';
+    if (photoUrlInput) {
+      photoUrlInput.oninput = (e) => {
+        const url = e.target.value.trim();
+        if (url) {
+          if (previewImg) {
+            previewImg.src = url;
+            previewImg.style.display = 'block';
+          }
+          if (previewHolder) previewHolder.style.display = 'none';
         }
-        const ceoAssignForm = document.getElementById('ceo-assign-post-form');
-        if (ceoAssignForm) ceoAssignForm.reset();
-        await loadCEOPostManager();
-        alert(`Leadership post successfully assigned to ${memberName}!\n\nPost: ${role.toUpperCase()}\nThey can now sign in through the Admin Console.`);
-      }
-    } catch (err) {
-      if (errBox) {
-        errBox.innerText = `Error assigning post: ${err.message}`;
-        errBox.style.display = 'block';
-      }
-    } finally {
-      if (submitBtn) {
-        submitBtn.innerText = originalBtnText;
-        submitBtn.disabled = false;
-      }
+      };
+    }
+
+    // Render roster list
+    if (rosterList) {
+      let rosterHtml = '';
+      team.forEach((member, idx) => {
+        const photoSrc = member.photo || member.fallbackPhoto || '';
+        const glowName = (member.glow || 'glow-purple').replace('glow-', '').toUpperCase();
+        const glowColorHex = member.glow === 'glow-amber' ? '#ffaa00'
+                           : member.glow === 'glow-cyan' ? '#00f0ff'
+                           : member.glow === 'glow-pink' ? '#ff007f'
+                           : member.glow === 'glow-green' ? '#00ff66'
+                           : '#8a2be2';
+
+        rosterHtml += `
+          <div class="founder-roster-card" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 0.9rem 1rem; display: flex; justify-content: space-between; align-items: center; gap: 0.85rem; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 0.85rem; min-width: 220px; flex: 1;">
+              <!-- Photo Thumbnail with quick upload overlay -->
+              <div style="position: relative; width: 48px; height: 48px; border-radius: 50%; border: 2px solid ${glowColorHex}; overflow: hidden; background: #121024; flex-shrink: 0;">
+                ${photoSrc ? `<img src="${photoSrc}" alt="${member.name}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none';">` : ''}
+                <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #fff; font-size: 1rem; position: absolute; top: 0; left: 0; z-index: -1;">
+                  ${(member.name || 'M').charAt(0).toUpperCase()}
+                </div>
+              </div>
+
+              <div>
+                <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                  <strong style="color: #fff; font-size: 0.95rem;">${member.name}</strong>
+                  <span style="background: rgba(138,43,226,0.15); color: ${glowColorHex}; border: 1px solid ${glowColorHex}; font-size: 0.65rem; padding: 0.1rem 0.45rem; border-radius: 4px; font-weight: bold;">${glowName}</span>
+                  ${member.isFounder ? `<span style="background: rgba(255,215,0,0.15); color: #ffd700; border: 1px solid #ffd700; font-size: 0.65rem; padding: 0.1rem 0.45rem; border-radius: 4px; font-weight: bold;">FOUNDER ROOT</span>` : ''}
+                </div>
+                <div style="color: var(--neon-cyan); font-size: 0.82rem; margin-top: 0.15rem; font-family: monospace;">
+                  ${member.role}
+                </div>
+                <div style="color: var(--text-muted); font-size: 0.72rem; margin-top: 0.2rem;">
+                  ${member.dept || 'Department Head'} &bull; ${(member.responsibilities || []).length} Responsibilities
+                </div>
+              </div>
+            </div>
+
+            <!-- Action Buttons: Change Photo, Edit Details, Remove Role -->
+            <div style="display: flex; gap: 0.45rem; align-items: center; flex-wrap: wrap;">
+              <!-- Quick Photo Upload button -->
+              <label class="admin-action-btn" style="padding: 0.35rem 0.65rem; font-size: 0.75rem; background: rgba(0, 240, 255, 0.1); border: 1px solid var(--neon-cyan); color: var(--neon-cyan); border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 0.3rem;" title="Upload or change portrait">
+                <i data-lucide="camera" style="width: 12px; height: 12px;"></i> Photo
+                <input type="file" accept="image/*" class="founder-quick-photo-input" data-id="${member.id}" style="display: none;">
+              </label>
+
+              <!-- Edit Details -->
+              <button type="button" class="admin-action-btn founder-edit-btn" data-id="${member.id}" style="padding: 0.35rem 0.65rem; font-size: 0.75rem; background: rgba(255,255,255,0.08); border: 1px solid var(--glass-border); color: #fff; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 0.3rem;">
+                <i data-lucide="edit-2" style="width: 12px; height: 12px;"></i> Edit
+              </button>
+
+              <!-- Remove Role / Member -->
+              ${member.isFounder ? `
+                <button type="button" disabled style="padding: 0.35rem 0.65rem; font-size: 0.75rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); color: var(--text-muted); border-radius: 4px; cursor: not-allowed;" title="Founder root cannot be deleted">
+                  Locked
+                </button>
+              ` : `
+                <button type="button" class="admin-action-btn founder-delete-btn" data-id="${member.id}" data-name="${member.name}" data-role="${member.role}" style="padding: 0.35rem 0.65rem; font-size: 0.75rem; background: rgba(255,50,50,0.15); border: 1px solid rgba(255,50,50,0.3); color: #ff5555; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 0.3rem;">
+                  <i data-lucide="trash-2" style="width: 12px; height: 12px;"></i> Remove
+                </button>
+              `}
+            </div>
+          </div>
+        `;
+      });
+
+      rosterList.innerHTML = rosterHtml;
+
+      // Bind Quick Photo Upload listeners
+      document.querySelectorAll('.founder-quick-photo-input').forEach(input => {
+        input.onchange = (e) => {
+          const file = e.target.files[0];
+          const memberId = input.getAttribute('data-id');
+          if (file && memberId) {
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+              const currentTeam = getTeamDirectory();
+              const targetIdx = currentTeam.findIndex(m => m.id === memberId);
+              if (targetIdx !== -1) {
+                currentTeam[targetIdx].photo = ev.target.result;
+                saveTeamDirectory(currentTeam);
+                renderMainLeadershipGrid();
+                loadCEOPostManager();
+                alert(`Updated portrait for ${currentTeam[targetIdx].name}! Reflected live on public website.`);
+              }
+            };
+            reader.readAsDataURL(file);
+          }
+        };
+      });
+
+      // Bind Edit listeners
+      document.querySelectorAll('.founder-edit-btn').forEach(btn => {
+        btn.onclick = () => {
+          const memberId = btn.getAttribute('data-id');
+          const currentTeam = getTeamDirectory();
+          const member = currentTeam.find(m => m.id === memberId);
+          if (!member) return;
+
+          document.getElementById('founder-edit-member-id').value = member.id;
+          document.getElementById('founder-member-name').value = member.name || '';
+          document.getElementById('founder-member-role').value = member.role || '';
+          document.getElementById('founder-member-dept').value = member.dept || '';
+          document.getElementById('founder-member-glow').value = member.glow || 'glow-purple';
+          document.getElementById('founder-member-responsibilities').value = (member.responsibilities || []).join('\n');
+          document.getElementById('founder-member-linkedin').value = member.socials?.linkedin || '';
+          document.getElementById('founder-member-twitter').value = member.socials?.twitter || '';
+          document.getElementById('founder-member-photo-url').value = member.photo && !member.photo.startsWith('data:') ? member.photo : '';
+
+          const previewImgElem = document.getElementById('founder-photo-preview-img');
+          const previewHolderElem = document.getElementById('founder-photo-preview-placeholder');
+          const photoSrc = member.photo || member.fallbackPhoto || '';
+          if (photoSrc && previewImgElem) {
+            previewImgElem.src = photoSrc;
+            previewImgElem.style.display = 'block';
+            if (previewHolderElem) previewHolderElem.style.display = 'none';
+          }
+
+          showFormTab(true, member.name);
+          tabFormView?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        };
+      });
+
+      // Bind Delete / Remove listeners
+      document.querySelectorAll('.founder-delete-btn').forEach(btn => {
+        btn.onclick = () => {
+          const memberId = btn.getAttribute('data-id');
+          const memberName = btn.getAttribute('data-name');
+          const memberRole = btn.getAttribute('data-role');
+
+          if (!confirm(`Are you sure you want to remove ${memberName} (${memberRole}) from the company roster?\n\nThis will immediately remove them from the public website.`)) {
+            return;
+          }
+
+          let currentTeam = getTeamDirectory();
+          currentTeam = currentTeam.filter(m => m.id !== memberId);
+          saveTeamDirectory(currentTeam);
+          renderMainLeadershipGrid();
+          loadCEOPostManager();
+          alert(`Successfully removed ${memberName} from the executive roster and public website.`);
+        };
+      });
+    }
+
+    // Form Submit Handler
+    if (manageForm) {
+      manageForm.onsubmit = async (e) => {
+        e.preventDefault();
+
+        const submitBtn = document.getElementById('founder-form-submit-btn');
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.innerText = 'Publishing to Website...';
+        }
+
+        const editId = document.getElementById('founder-edit-member-id').value;
+        const name = document.getElementById('founder-member-name').value.trim();
+        const role = document.getElementById('founder-member-role').value.trim();
+        const dept = document.getElementById('founder-member-dept').value.trim() || 'Leadership';
+        const glow = document.getElementById('founder-member-glow').value;
+        const respsRaw = document.getElementById('founder-member-responsibilities').value;
+        const resps = respsRaw.split('\n').map(s => s.trim()).filter(Boolean);
+        const linkedin = document.getElementById('founder-member-linkedin').value.trim();
+        const twitter = document.getElementById('founder-member-twitter').value.trim();
+        let photoUrl = document.getElementById('founder-member-photo-url').value.trim();
+
+        // Handle photo file if uploaded
+        const photoFile = photoFileInput?.files?.[0];
+        if (photoFile) {
+          try {
+            photoUrl = await new Promise((resolve) => {
+              const reader = new FileReader();
+              reader.onload = (ev) => resolve(ev.target.result);
+              reader.onerror = () => resolve('');
+              reader.readAsDataURL(photoFile);
+            });
+          } catch (err) {
+            console.warn('Photo file read error:', err);
+          }
+        }
+
+        let currentTeam = getTeamDirectory();
+
+        if (editId) {
+          // Editing existing member
+          const targetIdx = currentTeam.findIndex(m => m.id === editId);
+          if (targetIdx !== -1) {
+            const existing = currentTeam[targetIdx];
+            currentTeam[targetIdx] = {
+              ...existing,
+              name,
+              role,
+              dept,
+              glow,
+              responsibilities: resps.length > 0 ? resps : existing.responsibilities,
+              photo: photoUrl || existing.photo,
+              socials: {
+                linkedin: linkedin || existing.socials?.linkedin || '',
+                twitter: twitter || existing.socials?.twitter || ''
+              }
+            };
+          }
+        } else {
+          // Appointing new member / role
+          const newId = 'member_' + Date.now();
+          currentTeam.push({
+            id: newId,
+            name,
+            role,
+            dept,
+            glow,
+            photo: photoUrl,
+            responsibilities: resps.length > 0 ? resps : ['Strategic Delivery', 'Client Excellence', 'Project Leadership'],
+            socials: {
+              linkedin,
+              twitter
+            }
+          });
+        }
+
+        saveTeamDirectory(currentTeam);
+        renderMainLeadershipGrid();
+
+        if (formFeedback) {
+          formFeedback.style.background = 'rgba(0,255,100,0.15)';
+          formFeedback.style.border = '1px solid var(--neon-green)';
+          formFeedback.style.color = 'var(--neon-green)';
+          formFeedback.innerText = `SUCCESS: ${editId ? 'Updated' : 'Appointed'} ${name} (${role})! Published live to the main website.`;
+          formFeedback.style.display = 'block';
+        }
+
+        setTimeout(() => {
+          if (manageForm) manageForm.reset();
+          document.getElementById('founder-edit-member-id').value = '';
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerText = 'Save & Publish to Main Website';
+          }
+          showRosterTab();
+          loadCEOPostManager();
+        }, 800);
+      };
+    }
+
+    if (typeof lucide !== 'undefined' && lucide.createIcons) {
+      lucide.createIcons();
     }
   }
 
