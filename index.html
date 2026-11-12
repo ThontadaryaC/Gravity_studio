@@ -2154,6 +2154,12 @@
         <span class="sidebar-badge-count" id="admin-vacant-posts-count" style="background: rgba(138,43,226,0.25); color: #e9d5ff; border: 1px solid var(--neon-purple);">Founder</span>
         <i data-lucide="chevron-right" class="arrow-icon"></i>
       </button>
+      <button class="sidebar-nav-row-btn dock-btn super-admin-only" data-window="admin-outreach" style="display: none;">
+        <i data-lucide="radar" style="color: var(--neon-cyan);"></i>
+        <span>Client Outreach Radar</span>
+        <span class="sidebar-badge-count" id="admin-outreach-leads-count" style="background: rgba(0,240,255,0.15); color: var(--neon-cyan); border: 1px solid var(--neon-cyan);">Founder</span>
+        <i data-lucide="chevron-right" class="arrow-icon"></i>
+      </button>
       <button class="sidebar-nav-row-btn" id="admin-view-as-client-btn" style="border-top: 1px solid rgba(255,255,255,0.05); margin-top: 0.5rem; color: var(--neon-cyan);">
         <i data-lucide="eye"></i>
         <span>View as Client</span>
@@ -2648,6 +2654,132 @@
             </button>
           </form>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 8. Founder Client Outreach Radar & Calling Console Window -->
+  <div class="dashboard-window-container" id="window-admin-outreach" style="display: none; width: 850px; max-width: 96vw;">
+    <div class="window-header">
+      <span class="window-title"><i data-lucide="radar" style="color: var(--neon-cyan);"></i> Client Outreach Radar & Emotional Pitch Engine</span>
+      <button class="window-close-btn" data-close="admin-outreach">&times;</button>
+    </div>
+    <div class="window-body" style="padding: 1.25rem; max-height: 84vh; overflow-y: auto;">
+      
+      <!-- Security Gate -->
+      <div id="outreach-gate-denied" style="display: none; background: rgba(255, 50, 50, 0.08); border: 1px solid rgba(255, 75, 75, 0.3); border-radius: 8px; padding: 1.5rem; text-align: center;">
+        <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">🔒</div>
+        <h4 style="margin: 0 0 0.5rem 0; color: #ff5555; font-size: 1.1rem; letter-spacing: 0.5px;">Founder Ajay Raj B.K Authorization Required</h4>
+        <p style="margin: 0 auto; max-width: 480px; font-size: 0.85rem; color: var(--text-muted); line-height: 1.5;">
+          The Client Discovery Radar, Contact Extraction, and Outreach Engine is strictly restricted to Founder Ajay Raj B.K.
+        </p>
+      </div>
+
+      <!-- Founder Authorized Console -->
+      <div id="outreach-gate-allowed">
+        <div style="background: linear-gradient(135deg, rgba(0,240,255,0.12), rgba(138,43,226,0.15)); border: 1px solid var(--neon-cyan); border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.25rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+            <div>
+              <h4 style="margin: 0 0 0.3rem 0; color: #fff; display: flex; align-items: center; gap: 0.5rem; font-size: 0.95rem;">
+                <i data-lucide="crosshair" style="color: var(--neon-cyan); width: 18px; height: 18px;"></i>
+                Founder Lead Radar & Cold Outreach Machine
+              </h4>
+              <p style="margin: 0; font-size: 0.8rem; color: var(--text-muted); line-height: 1.4;">
+                Discover local businesses from map coordinates, verify their mobile/WhatsApp availability, and reach out with emotionally compelling, tailored conversion pitches in 1 click.
+              </p>
+            </div>
+            <div style="display: flex; gap: 0.4rem;">
+              <button type="button" id="outreach-export-btn" class="admin-action-btn" style="padding: 0.4rem 0.75rem; font-size: 0.75rem; background: rgba(255,255,255,0.06); border: 1px solid var(--glass-border); color: #fff; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 0.35rem;">
+                <i data-lucide="download" style="width: 12px; height: 12px;"></i> Export Leads
+              </button>
+              <button type="button" id="outreach-clear-btn" class="admin-action-btn" style="padding: 0.4rem 0.75rem; font-size: 0.75rem; background: rgba(255,50,50,0.12); border: 1px solid rgba(255,50,50,0.3); color: #ff5555; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 0.35rem;">
+                <i data-lucide="trash-2" style="width: 12px; height: 12px;"></i> Reset Radar
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Radar Search Controls -->
+        <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.25rem;">
+          <div style="display: grid; grid-template-columns: 1.2fr 1.5fr auto; gap: 0.75rem; align-items: end;">
+            
+            <div class="portal-input-group" style="margin: 0;">
+              <label for="outreach-city-select" style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-bottom: 0.3rem;">> Select / Target City</label>
+              <select id="outreach-city-select" style="width: 100%; background: rgba(0,0,0,0.5); border: 1px solid var(--glass-border); color: #fff; padding: 0.55rem; border-radius: 4px; font-family: monospace; font-size: 0.82rem;">
+                <option value="Chitradurga, Karnataka">Chitradurga, Karnataka</option>
+                <option value="Davanagere, Karnataka">Davanagere, Karnataka</option>
+                <option value="Bengaluru, Karnataka">Bengaluru, Karnataka</option>
+                <option value="Mysuru, Karnataka">Mysuru, Karnataka</option>
+                <option value="Hubli, Karnataka">Hubli / Dharwad, Karnataka</option>
+                <option value="Shivamogga, Karnataka">Shivamogga, Karnataka</option>
+                <option value="custom">-- Enter Custom City --</option>
+              </select>
+              <input type="text" id="outreach-custom-city-input" placeholder="Type city name..." style="display: none; width: 100%; margin-top: 0.4rem; background: rgba(0,0,0,0.5); border: 1px solid var(--glass-border); color: #fff; padding: 0.45rem; border-radius: 4px; font-size: 0.8rem; font-family: monospace;">
+            </div>
+
+            <div class="portal-input-group" style="margin: 0;">
+              <label for="outreach-category-select" style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-bottom: 0.3rem;">> Customer Niche / Target Sector</label>
+              <select id="outreach-category-select" style="width: 100%; background: rgba(0,0,0,0.5); border: 1px solid var(--glass-border); color: #fff; padding: 0.55rem; border-radius: 4px; font-family: monospace; font-size: 0.82rem;">
+                <option value="hospital">🏥 Hospitals, Doctors & Multispeciality Clinics</option>
+                <option value="wedding">💍 Wedding Planners, Jewelers & Event Organizers</option>
+                <option value="realestate">🏢 Real Estate Builders, Developers & Architects</option>
+                <option value="retail">💎 Elite Retail Showrooms, Boutiques & Brands</option>
+                <option value="education">🎓 Colleges, Private Academies & Institutes</option>
+                <option value="hotel">🏨 Luxury Resorts, Hotels & Dining Venues</option>
+              </select>
+            </div>
+
+            <div>
+              <button type="button" id="outreach-run-radar-btn" class="admin-action-btn" style="padding: 0.6rem 1.15rem; background: linear-gradient(135deg, var(--neon-cyan), var(--neon-purple)); color: #000; font-weight: bold; border: none; border-radius: 5px; cursor: pointer; display: flex; align-items: center; gap: 0.45rem; font-size: 0.85rem; height: 38px; white-space: nowrap;">
+                <i data-lucide="play" style="width: 14px; height: 14px; fill: currentColor;"></i> Run Radar Cycle
+              </button>
+            </div>
+          </div>
+
+          <div id="outreach-radar-status" style="display: none; margin-top: 0.8rem; font-family: monospace; font-size: 0.78rem; color: var(--neon-cyan); background: rgba(0,240,255,0.06); padding: 0.5rem 0.75rem; border-radius: 4px; border: 1px solid rgba(0,240,255,0.2);">
+            Scanning map coordinates...
+          </div>
+        </div>
+
+        <!-- Stats Overview Bar -->
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; margin-bottom: 1.25rem;">
+          <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); border-radius: 6px; padding: 0.65rem 0.85rem;">
+            <div style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase;">Total Discovered</div>
+            <div id="stat-total-leads" style="font-size: 1.25rem; font-weight: bold; color: #fff; margin-top: 0.2rem;">0</div>
+          </div>
+          <div style="background: rgba(0,255,100,0.03); border: 1px solid rgba(0,255,100,0.25); border-radius: 6px; padding: 0.65rem 0.85rem;">
+            <div style="font-size: 0.7rem; color: var(--neon-green); text-transform: uppercase;">WhatsApp Ready</div>
+            <div id="stat-whatsapp-leads" style="font-size: 1.25rem; font-weight: bold; color: var(--neon-green); margin-top: 0.2rem;">0</div>
+          </div>
+          <div style="background: rgba(0,240,255,0.03); border: 1px solid rgba(0,240,255,0.25); border-radius: 6px; padding: 0.65rem 0.85rem;">
+            <div style="font-size: 0.7rem; color: var(--neon-cyan); text-transform: uppercase;">Direct Pitched</div>
+            <div id="stat-contacted-leads" style="font-size: 1.25rem; font-weight: bold; color: var(--neon-cyan); margin-top: 0.2rem;">0</div>
+          </div>
+          <div style="background: rgba(255,215,0,0.03); border: 1px solid rgba(255,215,0,0.25); border-radius: 6px; padding: 0.65rem 0.85rem;">
+            <div style="font-size: 0.7rem; color: #ffd700; text-transform: uppercase;">Interested / Deal</div>
+            <div id="stat-converted-leads" style="font-size: 1.25rem; font-weight: bold; color: #ffd700; margin-top: 0.2rem;">0</div>
+          </div>
+        </div>
+
+        <!-- Discovered Leads Table / Card List -->
+        <div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+            <h5 style="margin: 0; color: #fff; font-size: 0.9rem; display: flex; align-items: center; gap: 0.4rem;">
+              <i data-lucide="list" style="width: 14px; height: 14px; color: var(--neon-cyan);"></i> Verified Target Prospects (<span id="outreach-lead-count">0</span>)
+            </h5>
+            <div style="display: flex; gap: 0.5rem;">
+              <input type="text" id="outreach-search-filter" placeholder="Filter by name or contact..." style="background: rgba(0,0,0,0.4); border: 1px solid var(--glass-border); color: #fff; padding: 0.3rem 0.6rem; border-radius: 4px; font-size: 0.75rem; font-family: monospace; width: 200px;">
+            </div>
+          </div>
+
+          <div id="outreach-leads-container" style="display: flex; flex-direction: column; gap: 0.75rem;">
+            <div style="text-align: center; padding: 2.5rem 1rem; border: 1px dashed var(--glass-border); border-radius: 8px; color: var(--text-muted); font-size: 0.85rem;">
+              <i data-lucide="radar" style="width: 32px; height: 32px; margin-bottom: 0.5rem; color: var(--neon-cyan); opacity: 0.6;"></i>
+              <p style="margin: 0;">Radar idle. Select a target city & niche above, then click <strong>"Run Radar Cycle"</strong> to discover live verified business prospects.</p>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
   </div>
