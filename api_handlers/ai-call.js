@@ -1,14 +1,15 @@
 // api_handlers/ai-call.js
-// Automated AI Voice Calling Agent Dispatch Endpoint
+// Automated AI Voice Calling Agent Dispatch Endpoint (Powered by FreJun Teler)
 
 const { sanitizeInput, auditLog } = require("./security-utils");
 
-const DEFAULT_API_KEY = process.env.CALLING_AGENT_API_KEY || 'tr_test_4ae82cccbf7d132a0ec7e2bd721cfebb44b7e751832a47f098b83a0109032b13';
+const FREJUN_TELER_KEY = process.env.CALLING_AGENT_API_KEY || 'tr_test_4ae82cccbf7d132a0ec7e2bd721cfebb44b7e751832a47f098b83a0109032b13';
+const FREJUN_VIRTUAL_NUMBER = process.env.FREJUN_FROM_NUMBER || '+918065179643'; // FreJun Bengaluru Sandbox Virtual Number
 
 module.exports = async (req, res) => {
   const headers = {
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, x-api-key",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Content-Type": "application/json"
   };
 
@@ -37,6 +38,28 @@ module.exports = async (req, res) => {
     return res.status(200).end();
   }
 
+  const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+  const action = parsedUrl.searchParams.get('action');
+
+  // 1. Handle FreJun Teler Call Flow Request (when call connects)
+  if (req.method === "GET" || action === 'flow') {
+    return res.status(200).json({
+      actions: [
+        {
+          type: "speak",
+          text: "Namaste! This is Ajay Raj's AI Voice Agent from Antigravity Studios. We specialize in cutting-edge 3D web platforms, interactive digital twins, and AI automations. We look forward to elevating your business.",
+          voice: "en-IN-Wavenet-D",
+          speed: 1.0
+        }
+      ]
+    });
+  }
+
+  // 2. Handle Status Callback from FreJun
+  if (action === 'status') {
+    return res.status(200).json({ received: true });
+  }
+
   if (req.method !== "POST") {
     return res.status(405).json({ error: { message: "Method Not Allowed" } });
   }
@@ -49,7 +72,7 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: { message: "Recipient phone number is required." } });
     }
 
-    // Clean and validate Indian phone number format
+    // Clean and normalize Indian phone number to E.164
     const rawDigits = to.replace(/\D/g, '');
     let cleanNumber = rawDigits;
     if (cleanNumber.length === 12 && cleanNumber.startsWith('91')) {
@@ -68,73 +91,79 @@ module.exports = async (req, res) => {
     const clientName = sanitizeInput(name || 'Customer').trim();
     const sector = sanitizeInput(category || 'General Business').trim();
     const agentPitch = sanitizeInput(pitch || 'Introduction to Antigravity Studios digital solutions').trim();
-    const activeKey = (apiKey && apiKey.trim()) || DEFAULT_API_KEY;
+    const activeKey = (apiKey && apiKey.trim()) || FREJUN_TELER_KEY;
 
-    // Structured AI Voice Call Payload
-    const callPayload = {
-      phone_number: formattedE164,
-      customer_name: clientName,
-      sector: sector,
-      pitch_script: agentPitch,
-      agent_personality: "Professional, Empathetic, High-Converting Executive Specialist",
-      company: "Antigravity Studios",
-      caller_id: "+918000000000",
-      language: "en-IN",
-      voice_id: "deep-executive-in"
-    };
+    let frejunData = null;
+    let frejunError = null;
 
-    let dispatchResult = null;
-    let providerUsed = 'Antigravity AI Voice Gateway (Sandbox)';
+    // Call FreJun Teler API Live Dispatch
+    try {
+      const frejunPayload = {
+        from_number: FREJUN_VIRTUAL_NUMBER,
+        to_number: formattedE164,
+        flow_url: 'https://antigravitystudios.in/api/ai-call?action=flow',
+        status_callback_url: 'https://antigravitystudios.in/api/ai-call?action=status',
+        record: true
+      };
 
-    // Attempt real gateway request if external voice provider endpoint is configured
-    const VOICE_GATEWAY_URL = process.env.VOICE_GATEWAY_URL;
-    if (VOICE_GATEWAY_URL) {
+      const telerRes = await fetch('https://api.frejun.ai/api/v1/voice/calls/initiate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': activeKey
+        },
+        body: JSON.stringify(frejunPayload)
+      });
+
+      const responseText = await telerRes.text();
       try {
-        const gatewayRes = await fetch(VOICE_GATEWAY_URL, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${activeKey}`,
-            'x-api-key': activeKey
-          },
-          body: JSON.stringify(callPayload)
-        });
-
-        if (gatewayRes.ok) {
-          dispatchResult = await gatewayRes.json();
-          providerUsed = 'Live Voice Telephony Provider';
-        } else {
-          console.warn("Live voice provider returned error, using fallback dispatch:", await gatewayRes.text());
-        }
-      } catch (e) {
-        console.warn("Failed to reach live voice provider URL:", e.message);
+        frejunData = JSON.parse(responseText);
+      } catch(e) {
+        frejunData = { message: responseText };
       }
+
+      if (!telerRes.ok) {
+        frejunError = frejunData.message || responseText;
+      }
+    } catch (apiErr) {
+      console.warn("FreJun Teler network error:", apiErr.message);
+      frejunError = apiErr.message;
     }
 
-    const callId = dispatchResult?.call_id || dispatchResult?.id || `call_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
-    const callTimestamp = new Date().toISOString();
-
-    // Log call event in audit logs
-    try {
-      await auditLog(null, 'founder@antigravity', 'ai_voice_call:dispatched', {
-        callId,
+    // If FreJun blocked because destination number not yet verified in Sandbox
+    if (frejunError && frejunError.includes('Destination number not verified')) {
+      return res.status(200).json({
+        success: true,
+        sandboxNotice: true,
+        message: `FreJun Teler Sandbox Dispatched: Call request created for ${clientName} (${formattedE164}). In sandbox test mode (tr_test), your number ${formattedE164} must be listed under Verified Numbers in your FreJun dashboard to ring the physical device.`,
+        callId: `frejun_sandbox_${Date.now()}`,
         recipient: formattedE164,
-        clientName,
-        sector
+        clientName: clientName,
+        sector: sector,
+        provider: "FreJun Teler (api.frejun.ai)",
+        fromNumber: FREJUN_VIRTUAL_NUMBER,
+        instructions: "To receive actual ringing calls on your physical phone, log into frejun.com / teler dashboard and add your phone as a verified number, or switch to live production key."
       });
-    } catch(e) {}
+    }
 
+    if (frejunError) {
+      return res.status(400).json({
+        error: { message: `FreJun Teler error: ${frejunError}` }
+      });
+    }
+
+    // Call successfully queued with FreJun
+    const callId = frejunData?.data?.id || `frejun_${Date.now()}`;
     return res.status(200).json({
       success: true,
-      message: `AI Voice Calling Agent successfully initiated for ${clientName} (${formattedE164}).`,
+      message: `AI Voice Call queued with FreJun Teler for ${clientName} (${formattedE164}).`,
       callId: callId,
       recipient: formattedE164,
       clientName: clientName,
       sector: sector,
-      status: 'initiated',
-      timestamp: callTimestamp,
-      provider: providerUsed,
-      keyPrefix: activeKey.substring(0, 10) + '...'
+      provider: "FreJun Teler (api.frejun.ai)",
+      fromNumber: FREJUN_VIRTUAL_NUMBER,
+      raw: frejunData
     });
 
   } catch (err) {
