@@ -249,8 +249,8 @@
   </script>
   
   <!-- Style Sheets -->
-  <link rel="stylesheet" href="/css/style.css?v=5.0.0">
-  <link rel="stylesheet" href="/css/chatbot.css?v=5.0.0">
+  <link rel="stylesheet" href="/css/style.css?v=5.1.0">
+  <link rel="stylesheet" href="/css/chatbot.css?v=5.1.0">
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <!-- Razorpay Checkout SDK -->
   <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
@@ -310,7 +310,7 @@
       </div>
       <div class="intro-timer">GRAVITATIONAL SYNC... 10S</div>
       
-      <button class="skip-intro-btn" id="skip-intro" aria-label="Skip introduction animation">Skip Intro</button>
+      <button class="skip-intro-btn" id="skip-intro" onclick="if(window.skipIntroAnimation){window.skipIntroAnimation();}else{var l=document.getElementById('intro-loader'),v=document.getElementById('intro-video');if(v){try{v.pause();}catch(e){}}if(l){l.style.opacity='0';l.style.pointerEvents='none';setTimeout(function(){l.style.display='none';document.body.style.overflow='auto';},200);}}" aria-label="Skip introduction animation">Skip Intro</button>
     </div>
   </div>
 
@@ -2865,9 +2865,9 @@
   <!-- Supabase Client SDK (CDN) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.7/dist/umd/supabase.js" integrity="sha384-hazsLVND17GNLVdtV19te6qbFT2YuLgl8SamcF+QR5eIOC+W4dGKrUNMxU1jH1zD" crossorigin="anonymous"></script>
   <!-- Custom Application Scripts -->
-  <script src="/js/three-scene.js?v=5.0.0"></script>
-  <script src="/js/app.js?v=5.0.0"></script>
-  <script src="/js/chatbot.js?v=5.0.0"></script>
+  <script src="/js/three-scene.js?v=5.1.0"></script>
+  <script src="/js/app.js?v=5.1.0"></script>
+  <script src="/js/chatbot.js?v=5.1.0"></script>
 
   <!-- DIGITAL PRODUCTS UNDER CONSTRUCTION MODAL -->
   <div id="construction-modal-overlay" class="construction-modal-overlay" aria-modal="true" role="dialog" aria-labelledby="construction-modal-title" style="display: none;">

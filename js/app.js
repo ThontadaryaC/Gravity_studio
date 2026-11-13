@@ -448,16 +448,24 @@ function initIntroLoader() {
   function completeIntro() {
     clearInterval(interval);
     if (animFrameId) cancelAnimationFrame(animFrameId);
+    if (introVideo) {
+      try { introVideo.pause(); } catch(e) {}
+    }
     
     if (loader) {
       loader.classList.add('fade-out');
+      loader.style.pointerEvents = 'none';
+      loader.style.opacity = '0';
+      loader.style.transition = 'opacity 0.25s ease, transform 0.25s ease';
       setTimeout(() => {
         loader.style.display = 'none';
         document.body.style.overflow = 'auto';
-        checkTimelineInView();
-      }, 1000);
+        if (typeof checkTimelineInView === 'function') checkTimelineInView();
+      }, 250);
     }
   }
+
+  window.skipIntroAnimation = completeIntro;
 
   // Draw colorful particle fallbacks for kids during intro
   function startFallbackAnimation() {
