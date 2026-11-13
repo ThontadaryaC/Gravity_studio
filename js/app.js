@@ -6131,6 +6131,13 @@ function initPortalAuth() {
                 </button>
               ` : ''}
 
+              <!-- AI Voice Calling Agent Dispatch Button -->
+              ${cleanNumber ? `
+                <button type="button" class="admin-action-btn outreach-ai-call-btn" data-id="${lead.id}" data-phone="${cleanNumber}" data-name="${encodeURIComponent(lead.name)}" data-city="${encodeURIComponent(lead.city)}" data-cat="${lead.category}" style="padding: 0.5rem 0.8rem; font-size: 0.78rem; background: rgba(0, 240, 255, 0.16); border: 1px solid var(--neon-cyan); color: var(--neon-cyan); border-radius: 5px; cursor: pointer; display: flex; align-items: center; gap: 0.35rem; font-weight: bold;" title="Auto-cache lead details and initiate AI Voice Calling Agent">
+                  <i data-lucide="bot" style="width: 14px; height: 14px;"></i> AI Call
+                </button>
+              ` : ''}
+
               <!-- Direct Call Trigger -->
               ${cleanNumber ? `
                 <a href="tel:+91${cleanNumber}" class="admin-action-btn outreach-call-btn" data-id="${lead.id}" style="padding: 0.5rem 0.8rem; font-size: 0.78rem; background: rgba(0, 240, 255, 0.12); border: 1px solid var(--neon-cyan); color: var(--neon-cyan); border-radius: 5px; text-decoration: none; display: flex; align-items: center; gap: 0.35rem; font-weight: bold;" title="Trigger direct call">
@@ -6234,6 +6241,35 @@ function initPortalAuth() {
 
           const waUrl = `https://wa.me/91${phone}?text=${encodeURIComponent(messageText)}`;
           window.open(waUrl, '_blank');
+        };
+      });
+
+      // 3.5 AI Voice Calling Agent Pre-fill & Cache Handler
+      document.querySelectorAll('.outreach-ai-call-btn').forEach(btn => {
+        btn.onclick = () => {
+          const phone = btn.getAttribute('data-phone');
+          const name = decodeURIComponent(btn.getAttribute('data-name') || '');
+          const city = decodeURIComponent(btn.getAttribute('data-city') || '');
+          const category = btn.getAttribute('data-cat') || 'hospital';
+
+          const phoneInput = document.getElementById('ai-call-phone-input');
+          const nameInput = document.getElementById('ai-call-name-input');
+          const sectorSelect = document.getElementById('ai-call-sector-select');
+          const pitchInput = document.getElementById('ai-call-pitch-input');
+          const station = document.getElementById('ai-call-agent-station');
+
+          if (phoneInput) phoneInput.value = `+91 ${phone.slice(0, 5)} ${phone.slice(5)}`;
+          if (nameInput) nameInput.value = name;
+          if (sectorSelect) sectorSelect.value = category;
+
+          const pitchGen = EMOTIONAL_PITCHES[category] || EMOTIONAL_PITCHES.hospital;
+          if (pitchInput) pitchInput.value = pitchGen(name, city);
+
+          if (station) {
+            station.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            station.style.boxShadow = '0 0 25px rgba(0, 240, 255, 0.7)';
+            setTimeout(() => { station.style.boxShadow = ''; }, 2000);
+          }
         };
       });
 
@@ -6343,6 +6379,76 @@ function initPortalAuth() {
         a.href = url;
         a.download = `Antigravity_Outreach_Leads_${Date.now()}.csv`;
         a.click();
+      };
+    }
+
+    // AI Outbound Voice Call Dispatch Button Handler
+    const aiDispatchBtn = document.getElementById('ai-call-dispatch-btn');
+    const aiFeedback = document.getElementById('ai-call-feedback');
+
+    if (aiDispatchBtn) {
+      aiDispatchBtn.onclick = async () => {
+        const phone = (document.getElementById('ai-call-phone-input')?.value || '').trim();
+        const name = (document.getElementById('ai-call-name-input')?.value || '').trim() || 'Valued Customer';
+        const category = document.getElementById('ai-call-sector-select')?.value || 'hospital';
+        const pitch = (document.getElementById('ai-call-pitch-input')?.value || '').trim();
+
+        if (!phone) {
+          alert('Please enter or select a customer phone number to initiate the AI call.');
+          return;
+        }
+
+        aiDispatchBtn.disabled = true;
+        const originalBtnHtml = aiDispatchBtn.innerHTML;
+        aiDispatchBtn.innerHTML = '<i data-lucide="loader" style="width: 14px; height: 14px; animation: spin 1s linear infinite;"></i> Connecting AI Calling Agent...';
+        try { if (window.lucide && lucide.createIcons) lucide.createIcons(); } catch(e) {}
+
+        if (aiFeedback) {
+          aiFeedback.style.display = 'block';
+          aiFeedback.style.background = 'rgba(0, 240, 255, 0.12)';
+          aiFeedback.style.border = '1px solid var(--neon-cyan)';
+          aiFeedback.style.color = 'var(--neon-cyan)';
+          aiFeedback.innerHTML = `Dialing <strong>${phone}</strong> via AI Voice Agent...`;
+        }
+
+        try {
+          const res = await fetch('/api/ai-call', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              to: phone,
+              name,
+              category,
+              pitch,
+              apiKey: 'tr_test_4ae82cccbf7d132a0ec7e2bd721cfebb44b7e751832a47f098b83a0109032b13'
+            })
+          });
+
+          const data = await res.json();
+          if (res.ok && data.success) {
+            if (aiFeedback) {
+              aiFeedback.style.background = 'rgba(0, 255, 100, 0.15)';
+              aiFeedback.style.border = '1px solid var(--neon-green)';
+              aiFeedback.style.color = 'var(--neon-green)';
+              aiFeedback.innerHTML = `✓ AI Call Dispatched! Call ID: <code>${data.callId}</code> to <strong>${data.recipient}</strong>.`;
+            }
+            alert(`✓ AI Voice Calling Agent successfully dispatched call to ${name} (${data.recipient})!\n\nCall Reference ID: ${data.callId}\nStatus: Dispatched\nAPI Key: tr_test_...`);
+          } else {
+            throw new Error(data.error?.message || 'Failed to dispatch call.');
+          }
+        } catch (err) {
+          if (aiFeedback) {
+            aiFeedback.style.background = 'rgba(255, 50, 50, 0.15)';
+            aiFeedback.style.border = '1px solid #ff3355';
+            aiFeedback.style.color = '#ff5566';
+            aiFeedback.innerText = `Call Error: ${err.message}`;
+          }
+          alert(`AI Calling Agent Error: ${err.message}`);
+        } finally {
+          aiDispatchBtn.disabled = false;
+          aiDispatchBtn.innerHTML = originalBtnHtml;
+          try { if (window.lucide && lucide.createIcons) lucide.createIcons(); } catch(e) {}
+        }
       };
     }
 

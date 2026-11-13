@@ -1,6 +1,7 @@
 const url = require('url');
 
 const handlers = {
+  '/api/ai-call': require('../api_handlers/ai-call'),
   '/api/admin-action': require('../api_handlers/admin-action'),
   '/api/admin-login': require('../api_handlers/admin-login'),
   '/api/chat': require('../api_handlers/chat'),
