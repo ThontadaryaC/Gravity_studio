@@ -262,6 +262,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initDepartmentFilter();
   initWorkPortfolio();
   initFAQAccordion();
+  initGoogleReviewsWidget();
 
   // Sync service catalog from Supabase on load
   syncPricingFromSupabase().then(() => {
@@ -1499,6 +1500,120 @@ function initFAQAccordion() {
       });
     }
   });
+}
+
+/* ==========================================================================
+   10.5. INTERACTIVE GOOGLE REVIEWS & STAR RATING WIDGET
+   ========================================================================== */
+const GOOGLE_MAPS_REVIEW_URL = "https://www.google.com/maps/place/ANT+I+GRAVITY+STUDIOS/@14.2208248,76.3793756,6754m/data=!3m1!1e3!4m10!1m2!2m1!1sAntigravity+studios+chitradurga!3m6!1s0x3bba7500650c3aa5:0xae5c7c104e7239d5!8m2!3d14.2245927!4d76.428384!15sCh9BbnRpZ3Jhdml0eSBzdHVkaW9zIGNoaXRyYWR1cmdhkgENbWVkaWFfY29tcGFueeABAA!16s%2Fg%2F11zcxqvwcg?entry=ttu&g_ep=EgoyMDI2MTExNi4wIKXMDSoASAFQAw%3D%3D";
+
+function initGoogleReviewsWidget() {
+  const starBtns = document.querySelectorAll('.google-star-btn');
+  const feedbackHint = document.getElementById('google-rate-feedback-hint');
+  const modal = document.getElementById('google-rate-modal');
+  const modalClose = document.getElementById('google-rate-modal-close');
+  const modalStarsCount = document.getElementById('modal-selected-stars-count');
+  const modalStarsPreview = document.getElementById('modal-stars-preview');
+  const modalPostBtn = document.getElementById('btn-modal-post-google');
+
+  if (!starBtns || starBtns.length === 0) return;
+
+  const ratingDescriptions = {
+    1: '1 Star - We strive to improve!',
+    2: '2 Stars - Fair experience',
+    3: '3 Stars - Good experience',
+    4: '4 Stars - Great experience!',
+    5: '5 Stars - Outstanding experience!'
+  };
+
+  let selectedRating = parseInt(localStorage.getItem('gravity-user-star-rating') || '0', 10);
+
+  function highlightStars(count) {
+    starBtns.forEach(btn => {
+      const starVal = parseInt(btn.getAttribute('data-star') || '0', 10);
+      if (starVal <= count) {
+        btn.classList.add('hover-active');
+      } else {
+        btn.classList.remove('hover-active');
+      }
+    });
+  }
+
+  function setStarsActive(count) {
+    starBtns.forEach(btn => {
+      const starVal = parseInt(btn.getAttribute('data-star') || '0', 10);
+      if (starVal <= count) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+    if (count > 0 && feedbackHint) {
+      feedbackHint.innerText = ratingDescriptions[count] || `${count} Stars`;
+      feedbackHint.style.color = '#ffd700';
+    }
+  }
+
+  if (selectedRating > 0) {
+    setStarsActive(selectedRating);
+  }
+
+  starBtns.forEach(btn => {
+    const starVal = parseInt(btn.getAttribute('data-star') || '0', 10);
+
+    btn.addEventListener('mouseenter', () => {
+      highlightStars(starVal);
+      if (feedbackHint) {
+        feedbackHint.innerText = ratingDescriptions[starVal] || `${starVal} Stars`;
+        feedbackHint.style.color = 'var(--neon-cyan)';
+      }
+    });
+
+    btn.addEventListener('mouseleave', () => {
+      highlightStars(0);
+      if (selectedRating > 0) {
+        setStarsActive(selectedRating);
+      } else {
+        if (feedbackHint) {
+          feedbackHint.innerText = 'Click any star to rate on Google';
+          feedbackHint.style.color = 'var(--text-muted)';
+        }
+      }
+    });
+
+    btn.addEventListener('click', () => {
+      selectedRating = starVal;
+      localStorage.setItem('gravity-user-star-rating', String(starVal));
+      setStarsActive(selectedRating);
+
+      // Open Modal connecting to Google Reviews
+      if (modal) {
+        if (modalStarsCount) modalStarsCount.innerText = `${starVal} Star${starVal > 1 ? 's' : ''}`;
+        if (modalStarsPreview) {
+          modalStarsPreview.innerHTML = '★'.repeat(starVal) + '<span style="opacity:0.25;">' + '★'.repeat(5 - starVal) + '</span>';
+        }
+        modal.style.display = 'flex';
+        setTimeout(() => modal.classList.add('open'), 10);
+        if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+      } else {
+        window.open(GOOGLE_MAPS_REVIEW_URL, '_blank', 'noopener,noreferrer');
+      }
+    });
+  });
+
+  if (modalClose && modal) {
+    modalClose.onclick = () => {
+      modal.classList.remove('open');
+      setTimeout(() => { modal.style.display = 'none'; }, 200);
+    };
+  }
+
+  if (modalPostBtn && modal) {
+    modalPostBtn.onclick = () => {
+      modal.classList.remove('open');
+      setTimeout(() => { modal.style.display = 'none'; }, 200);
+    };
+  }
 }
 
 /* ==========================================================================
@@ -4969,37 +5084,19 @@ function initPortalAuth() {
       if (raw) {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          // Merge with DEFAULT_TEAM_DIRECTORY so all existing 8 members stay intact,
-          // while preserving any alterations (photo, role, glow, etc.) made by Founder
-          const merged = [];
-          DEFAULT_TEAM_DIRECTORY.forEach(defaultMember => {
-            const savedMember = parsed.find(p => p.id === defaultMember.id);
-            if (savedMember) {
-              merged.push({
-                ...defaultMember,
-                ...savedMember,
-                isFounder: defaultMember.isFounder || savedMember.isFounder
-              });
-            } else {
-              merged.push({ ...defaultMember });
-            }
-          });
-          // Also preserve any new members appointed by Founder
-          parsed.forEach(savedMember => {
-            if (!DEFAULT_TEAM_DIRECTORY.some(d => d.id === savedMember.id)) {
-              merged.push(savedMember);
-            }
-          });
-          return merged;
+          return parsed;
         }
       }
     } catch (e) {
       console.warn('Failed to parse saved team directory:', e);
     }
-    return JSON.parse(JSON.stringify(DEFAULT_TEAM_DIRECTORY));
+    const initial = JSON.parse(JSON.stringify(DEFAULT_TEAM_DIRECTORY));
+    try {
+      localStorage.setItem(TEAM_STORAGE_KEY, JSON.stringify(initial));
+    } catch (e) {}
+    return initial;
   }
 
-  
   // Compress images to high-quality lightweight WebP/JPEG (max 400x400) for instant storage & loading
   function compressImageFile(file, maxWidth = 400, quality = 0.82) {
     return new Promise((resolve) => {
@@ -5049,56 +5146,23 @@ function initPortalAuth() {
     }
   }
 
-  // PUBLIC MAIN WEBSITE HYDRATION - Live instant reflection
-  function renderMainLeadershipGrid() {
-    const container = document.getElementById('main-leadership-grid');
-    if (!container) return;
-
-    const team = getTeamDirectory();
-    let html = '';
-
-    team.forEach((member) => {
-      const glowClass = member.glow || 'glow-purple';
-      const photoSrc = member.photo || member.fallbackPhoto || '';
-      const name = member.name || 'Team Member';
-      const role = member.role || 'Executive';
-      const resps = Array.isArray(member.responsibilities) ? member.responsibilities : [];
-      const linkedin = member.socials?.linkedin || '';
-      const twitter = member.socials?.twitter || '';
-
-      const photoHtml = photoSrc
-        ? `<img src="${photoSrc}" alt="${name}" class="exec-photo" onerror="this.onerror=null; this.src='${member.fallbackPhoto || ''}'; if(!this.src) this.style.display='none';">`
-        : '';
-
-      html += `
-        <article class="exec-card ${glowClass}" id="card-${member.id || 'exec'}">
-          <div class="exec-avatar-container">
-            <div class="exec-avatar">
-              ${photoHtml}
-              <div class="exec-avatar-fallback"><i data-lucide="user"></i></div>
-            </div>
-          </div>
-          <h3 class="exec-name">${name}</h3>
-          <p class="exec-role">${role}</p>
-          <ul class="exec-responsibilities">
-            ${resps.map(r => `<li>${r}</li>`).join('')}
-          </ul>
-          <div class="exec-socials">
-            ${linkedin ? `<a href="${linkedin}" target="_blank" rel="noopener" class="social-link" aria-label="${name} LinkedIn"><i data-lucide="linkedin"></i></a>` : ''}
-            ${twitter ? `<a href="${twitter}" target="_blank" rel="noopener" class="social-link" aria-label="${name} Twitter"><i data-lucide="twitter"></i></a>` : ''}
-          </div>
-        </article>
-      `;
-    });
-
-    container.innerHTML = html;
-    if (typeof lucide !== 'undefined' && lucide.createIcons) {
-      lucide.createIcons();
-    }
-  }
-
-  // Strict check: ONLY Founder Ajay Raj B.K has authority
+  // Strict check: ONLY Founder Ajay Raj B.K has authority & quick access toggle support
   function isFounderSession() {
+    if (localStorage.getItem('gravity-founder-edit-mode') === 'true') {
+      if (!currentSession) {
+        currentSession = {
+          uid: 'f0000000-0000-0000-0000-000000000001',
+          role: 'admin',
+          username: 'Ajay Raj B.K',
+          email: 'antigravitystudios1@gmail.com'
+        };
+        try {
+          localStorage.setItem('gravity-user-session', JSON.stringify(currentSession));
+        } catch(e) {}
+      }
+      return true;
+    }
+
     if (!currentSession) return false;
     const uid = currentSession.uid || '';
     const email = (currentSession.email || '').toLowerCase().trim();
@@ -5125,6 +5189,484 @@ function initPortalAuth() {
     }
 
     return false;
+  }
+
+  let isMainEditModeActive = true;
+
+  // Render Founder Management Bar above executive cards on the main screen
+  function renderMainFounderBar() {
+    const barContainer = document.getElementById('main-founder-bar-container');
+    if (!barContainer) return;
+
+    const isFounder = isFounderSession();
+    if (isFounder) {
+      barContainer.innerHTML = `
+        <div class="main-founder-bar">
+          <div class="main-founder-bar-left">
+            <span class="founder-badge"><i data-lucide="shield-check" style="width: 15px; height: 15px;"></i> Founder Ajay Raj B.K</span>
+            <span class="founder-status-text">Executive Roster Live Controls</span>
+          </div>
+          <div class="main-founder-bar-actions">
+            <button type="button" id="main-add-role-btn" class="main-founder-btn primary">
+              <i data-lucide="user-plus" style="width: 14px; height: 14px;"></i> + Appoint New Role
+            </button>
+            <button type="button" id="main-reset-roster-btn" class="main-founder-btn outline" title="Restore original 8 executive cards">
+              <i data-lucide="rotate-ccw" style="width: 14px; height: 14px;"></i> Reset Roster
+            </button>
+            <button type="button" id="main-founder-toggle-btn" class="main-founder-btn ${isMainEditModeActive ? 'toggle-active' : 'outline'}" title="Toggle Edit Controls Visibility">
+              <i data-lucide="sliders" style="width: 14px; height: 14px;"></i> Controls: ${isMainEditModeActive ? 'ON' : 'OFF'}
+            </button>
+            <button type="button" id="main-founder-exit-btn" class="main-founder-btn outline" title="Exit Founder Mode">
+              <i data-lucide="log-out" style="width: 13px; height: 13px;"></i> Exit
+            </button>
+          </div>
+        </div>
+      `;
+    } else {
+      barContainer.innerHTML = `
+        <div style="display: flex; justify-content: center; margin-top: 0.85rem;">
+          <button type="button" id="main-founder-quick-login-btn" class="main-founder-btn outline" style="font-size: 0.8rem; border-color: rgba(138,43,226,0.4); color: #e9d5ff;">
+            <i data-lucide="shield" style="width: 14px; height: 14px; color: #ffd700;"></i> Founder Access (Ajay Raj B.K)
+          </button>
+        </div>
+      `;
+    }
+
+    if (typeof lucide !== 'undefined' && lucide.createIcons) {
+      lucide.createIcons();
+    }
+  }
+
+  // PUBLIC MAIN WEBSITE HYDRATION - Live instant reflection with full CRUD for Founder Ajay
+  function renderMainLeadershipGrid() {
+    const container = document.getElementById('main-leadership-grid');
+    if (!container) return;
+
+    renderMainFounderBar();
+
+    const team = getTeamDirectory();
+    const isFounder = isFounderSession();
+    let html = '';
+
+    team.forEach((member) => {
+      const glowClass = member.glow || 'glow-purple';
+      const photoSrc = member.photo || member.fallbackPhoto || '';
+      const name = member.name || 'Team Member';
+      const role = member.role || 'Executive';
+      const resps = Array.isArray(member.responsibilities) ? member.responsibilities : [];
+      const linkedin = member.socials?.linkedin || '';
+      const twitter = member.socials?.twitter || '';
+
+      const photoHtml = photoSrc
+        ? `<img src="${photoSrc}" alt="${name}" class="exec-photo" onerror="this.onerror=null; this.src='${member.fallbackPhoto || ''}'; if(!this.src) this.style.display='none';">`
+        : '';
+
+      const controlsHtml = (isFounder && isMainEditModeActive) ? `
+        <div class="card-founder-controls" role="toolbar" aria-label="Founder Role Controls">
+          <button type="button" class="card-ctrl-btn card-photo-upload-btn" data-id="${member.id}" title="Change Photo for ${name}">
+            <i data-lucide="camera" style="width: 12px; height: 12px;"></i> Photo
+          </button>
+          <button type="button" class="card-ctrl-btn card-edit-details-btn" data-id="${member.id}" title="Edit ${name}'s designation, duties, and links">
+            <i data-lucide="edit-3" style="width: 12px; height: 12px;"></i> Edit
+          </button>
+          ${member.isFounder ? `
+            <button type="button" class="card-ctrl-btn card-locked-btn" disabled title="Founder Root card cannot be deleted">
+              <i data-lucide="lock" style="width: 12px; height: 12px;"></i> Locked
+            </button>
+          ` : `
+            <button type="button" class="card-ctrl-btn card-delete-role-btn" data-id="${member.id}" data-name="${name}" data-role="${role}" title="Remove this role card from main screen">
+              <i data-lucide="trash-2" style="width: 12px; height: 12px;"></i> Remove
+            </button>
+          `}
+        </div>
+      ` : '';
+
+      const avatarCameraOverlay = (isFounder && isMainEditModeActive) ? `
+        <button type="button" class="avatar-camera-overlay" data-id="${member.id}" title="Change Photo for ${name}">
+          <i data-lucide="camera" style="width: 14px; height: 14px;"></i>
+        </button>
+      ` : '';
+
+      html += `
+        <article class="exec-card ${glowClass}" id="card-${member.id || 'exec'}">
+          ${controlsHtml}
+          <div class="exec-avatar-container">
+            <div class="exec-avatar">
+              ${photoHtml}
+              <div class="exec-avatar-fallback"><i data-lucide="user"></i></div>
+            </div>
+            ${avatarCameraOverlay}
+          </div>
+          <h3 class="exec-name">${name}</h3>
+          <p class="exec-role">${role}</p>
+          <ul class="exec-responsibilities">
+            ${resps.map(r => `<li>${r}</li>`).join('')}
+          </ul>
+          <div class="exec-socials">
+            ${linkedin ? `<a href="${linkedin}" target="_blank" rel="noopener" class="social-link" aria-label="${name} LinkedIn"><i data-lucide="linkedin"></i></a>` : ''}
+            ${twitter ? `<a href="${twitter}" target="_blank" rel="noopener" class="social-link" aria-label="${name} Twitter"><i data-lucide="twitter"></i></a>` : ''}
+          </div>
+        </article>
+      `;
+    });
+
+    container.innerHTML = html;
+    attachMainLeadershipEvents();
+    if (typeof lucide !== 'undefined' && lucide.createIcons) {
+      lucide.createIcons();
+    }
+  }
+
+  // Attach interactive events for Main Screen Leadership CRUD
+  function attachMainLeadershipEvents() {
+    // 1. Founder Mode Access Toggle / Quick Login
+    const quickLoginBtn = document.getElementById('main-founder-quick-login-btn');
+    if (quickLoginBtn) {
+      quickLoginBtn.onclick = () => {
+        localStorage.setItem('gravity-founder-edit-mode', 'true');
+        currentSession = {
+          uid: 'f0000000-0000-0000-0000-000000000001',
+          role: 'admin',
+          username: 'Ajay Raj B.K',
+          email: 'antigravitystudios1@gmail.com'
+        };
+        try {
+          localStorage.setItem('gravity-user-session', JSON.stringify(currentSession));
+        } catch(e) {}
+        isMainEditModeActive = true;
+        renderMainLeadershipGrid();
+        alert('✓ Welcome Founder Ajay Raj B.K! Executive role CRUD controls are now active directly on the main screen.');
+      };
+    }
+
+    // 2. Founder Mode Exit
+    const exitBtn = document.getElementById('main-founder-exit-btn');
+    if (exitBtn) {
+      exitBtn.onclick = () => {
+        localStorage.removeItem('gravity-founder-edit-mode');
+        renderMainLeadershipGrid();
+      };
+    }
+
+    // 3. Toggle Edit Controls Visibility
+    const toggleBtn = document.getElementById('main-founder-toggle-btn');
+    if (toggleBtn) {
+      toggleBtn.onclick = () => {
+        isMainEditModeActive = !isMainEditModeActive;
+        renderMainLeadershipGrid();
+      };
+    }
+
+    // 4. Appoint New Role (+ Add Card)
+    const addRoleBtn = document.getElementById('main-add-role-btn');
+    if (addRoleBtn) {
+      addRoleBtn.onclick = () => openMainRoleModal(null);
+    }
+
+    // 5. Reset Default Roster
+    const resetRosterBtn = document.getElementById('main-reset-roster-btn');
+    if (resetRosterBtn) {
+      resetRosterBtn.onclick = () => {
+        if (!confirm('Restore the executive team back to the default 8 founder & leadership cards? Custom changes and additions will be reset.')) {
+          return;
+        }
+        localStorage.setItem(TEAM_STORAGE_KEY, JSON.stringify(DEFAULT_TEAM_DIRECTORY));
+        renderMainLeadershipGrid();
+        if (typeof loadCEOPostManager === 'function') {
+          try { loadCEOPostManager(); } catch(e) {}
+        }
+        alert('✓ Default executive roster successfully restored!');
+      };
+    }
+
+    // 6. Direct Photo Upload (Both from card button & avatar camera overlay)
+    document.querySelectorAll('.card-photo-upload-btn, .avatar-camera-overlay').forEach(btn => {
+      btn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const memberId = btn.getAttribute('data-id');
+        if (memberId) triggerMainPhotoUpload(memberId);
+      };
+    });
+
+    // 7. Edit Details Button
+    document.querySelectorAll('.card-edit-details-btn').forEach(btn => {
+      btn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const memberId = btn.getAttribute('data-id');
+        if (memberId) openMainRoleModal(memberId);
+      };
+    });
+
+    // 8. Delete / Remove Card Button
+    document.querySelectorAll('.card-delete-role-btn').forEach(btn => {
+      btn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const memberId = btn.getAttribute('data-id');
+        const memberName = btn.getAttribute('data-name');
+        const memberRole = btn.getAttribute('data-role');
+        if (memberId) deleteMainRole(memberId, memberName, memberRole);
+      };
+    });
+
+    // 9. Main Role Modal handlers (Close, Cancel, Form Submit)
+    const modalCloseBtn = document.getElementById('main-role-modal-close');
+    const modalCancelBtn = document.getElementById('main-role-modal-cancel');
+    const roleForm = document.getElementById('main-role-form');
+    const photoFileInput = document.getElementById('main-role-photo-file');
+    const photoUrlInput = document.getElementById('main-role-photo-url');
+    const previewImg = document.getElementById('main-photo-preview-img');
+    const previewPlaceholder = document.getElementById('main-photo-preview-placeholder');
+
+    if (modalCloseBtn) modalCloseBtn.onclick = closeMainRoleModal;
+    if (modalCancelBtn) modalCancelBtn.onclick = closeMainRoleModal;
+
+    if (photoFileInput) {
+      photoFileInput.onchange = async (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (file) {
+          const compressed = await compressImageFile(file, 400, 0.82);
+          if (compressed) {
+            if (previewImg) {
+              previewImg.src = compressed;
+              previewImg.style.display = 'block';
+            }
+            if (previewPlaceholder) previewPlaceholder.style.display = 'none';
+          }
+        }
+      };
+    }
+
+    if (photoUrlInput) {
+      photoUrlInput.oninput = (e) => {
+        const url = e.target.value.trim();
+        if (url) {
+          if (previewImg) {
+            previewImg.src = url;
+            previewImg.style.display = 'block';
+          }
+          if (previewPlaceholder) previewPlaceholder.style.display = 'none';
+        }
+      };
+    }
+
+    if (roleForm) {
+      roleForm.onsubmit = handleMainRoleSubmit;
+    }
+  }
+
+  function triggerMainPhotoUpload(memberId) {
+    if (!isFounderSession()) {
+      alert('Access Denied: Only Founder Ajay Raj B.K has authority to update portraits.');
+      return;
+    }
+    const currentTeam = getTeamDirectory();
+    const member = currentTeam.find(m => m.id === memberId);
+    if (!member) return;
+
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'image/*';
+    fileInput.style.position = 'fixed';
+    fileInput.style.top = '-1000px';
+    fileInput.style.left = '-1000px';
+    fileInput.style.opacity = '0';
+    document.body.appendChild(fileInput);
+
+    fileInput.onchange = async (ev) => {
+      const file = ev.target.files && ev.target.files[0];
+      if (file) {
+        try {
+          const compressed = await compressImageFile(file, 400, 0.82);
+          if (compressed) {
+            const team = getTeamDirectory();
+            const target = team.find(m => m.id === memberId);
+            if (target) {
+              target.photo = compressed;
+              saveTeamDirectory(team);
+              renderMainLeadershipGrid();
+              if (typeof loadCEOPostManager === 'function') {
+                try { loadCEOPostManager(); } catch(e) {}
+              }
+              alert(`✓ Successfully updated portrait for ${target.name}! Live on the main screen.`);
+            }
+          }
+        } catch (err) {
+          alert('Photo compression error: ' + err.message);
+        } finally {
+          fileInput.remove();
+        }
+      } else {
+        fileInput.remove();
+      }
+    };
+
+    fileInput.click();
+  }
+
+  function openMainRoleModal(memberId = null) {
+    if (!isFounderSession()) {
+      alert('Access Denied: Only Founder Ajay Raj B.K has authority to manage roles.');
+      return;
+    }
+    const modal = document.getElementById('main-role-modal');
+    if (!modal) return;
+
+    const form = document.getElementById('main-role-form');
+    if (form) form.reset();
+
+    const titleElem = document.getElementById('main-role-modal-title');
+    const editIdInput = document.getElementById('main-role-edit-id');
+    const nameInput = document.getElementById('main-role-name');
+    const roleInput = document.getElementById('main-role-title');
+    const deptInput = document.getElementById('main-role-dept');
+    const glowInput = document.getElementById('main-role-glow');
+    const respsInput = document.getElementById('main-role-responsibilities');
+    const linkedinInput = document.getElementById('main-role-linkedin');
+    const twitterInput = document.getElementById('main-role-twitter');
+    const photoUrlInput = document.getElementById('main-role-photo-url');
+    const previewImg = document.getElementById('main-photo-preview-img');
+    const previewPlaceholder = document.getElementById('main-photo-preview-placeholder');
+
+    if (memberId) {
+      const team = getTeamDirectory();
+      const member = team.find(m => m.id === memberId);
+      if (!member) return;
+
+      if (titleElem) titleElem.innerText = `Edit Role: ${member.name}`;
+      if (editIdInput) editIdInput.value = member.id;
+      if (nameInput) nameInput.value = member.name || '';
+      if (roleInput) roleInput.value = member.role || '';
+      if (deptInput) deptInput.value = member.dept || '';
+      if (glowInput) glowInput.value = member.glow || 'glow-purple';
+      if (respsInput) respsInput.value = (member.responsibilities || []).join('\n');
+      if (linkedinInput) linkedinInput.value = member.socials?.linkedin || '';
+      if (twitterInput) twitterInput.value = member.socials?.twitter || '';
+      if (photoUrlInput) photoUrlInput.value = (member.photo && !member.photo.startsWith('data:')) ? member.photo : '';
+
+      const photoSrc = member.photo || member.fallbackPhoto || '';
+      if (photoSrc && previewImg) {
+        previewImg.src = photoSrc;
+        previewImg.style.display = 'block';
+        if (previewPlaceholder) previewPlaceholder.style.display = 'none';
+      } else {
+        if (previewImg) previewImg.style.display = 'none';
+        if (previewPlaceholder) previewPlaceholder.style.display = 'block';
+      }
+    } else {
+      if (titleElem) titleElem.innerText = 'Appoint New Role';
+      if (editIdInput) editIdInput.value = '';
+      if (glowInput) glowInput.value = 'glow-purple';
+      if (previewImg) { previewImg.src = ''; previewImg.style.display = 'none'; }
+      if (previewPlaceholder) previewPlaceholder.style.display = 'block';
+    }
+
+    modal.style.display = 'flex';
+    setTimeout(() => modal.classList.add('open'), 10);
+    if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+  }
+
+  function closeMainRoleModal() {
+    const modal = document.getElementById('main-role-modal');
+    if (!modal) return;
+    modal.classList.remove('open');
+    setTimeout(() => { modal.style.display = 'none'; }, 200);
+  }
+
+  function deleteMainRole(memberId, memberName, memberRole) {
+    if (!isFounderSession()) {
+      alert('Access Denied: Only Founder Ajay Raj B.K has authority to remove roles.');
+      return;
+    }
+    const team = getTeamDirectory();
+    const member = team.find(m => m.id === memberId);
+    if (member && member.isFounder) {
+      alert('Access Restricted: Founder Root card (Ajay Raj B.K) is protected and cannot be deleted.');
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to remove the card for "${memberName}" (${memberRole}) from the main screen?\n\nThis card will be removed immediately.`)) {
+      return;
+    }
+
+    const updated = team.filter(m => m.id !== memberId);
+    saveTeamDirectory(updated);
+    renderMainLeadershipGrid();
+    if (typeof loadCEOPostManager === 'function') {
+      try { loadCEOPostManager(); } catch(e) {}
+    }
+    alert(`✓ Successfully removed "${memberName}" from the main screen.`);
+  }
+
+  async function handleMainRoleSubmit(e) {
+    e.preventDefault();
+    const editId = document.getElementById('main-role-edit-id')?.value;
+    const name = document.getElementById('main-role-name')?.value.trim();
+    const role = document.getElementById('main-role-title')?.value.trim();
+    const dept = document.getElementById('main-role-dept')?.value.trim() || 'Executive Leadership';
+    const glow = document.getElementById('main-role-glow')?.value || 'glow-purple';
+    const respsRaw = document.getElementById('main-role-responsibilities')?.value || '';
+    const resps = respsRaw.split('\n').map(s => s.trim()).filter(Boolean);
+    const linkedin = document.getElementById('main-role-linkedin')?.value.trim() || '';
+    const twitter = document.getElementById('main-role-twitter')?.value.trim() || '';
+    let photoUrl = document.getElementById('main-role-photo-url')?.value.trim() || '';
+
+    const photoFileInput = document.getElementById('main-role-photo-file');
+    const photoFile = photoFileInput?.files?.[0];
+    if (photoFile) {
+      try {
+        const compressed = await compressImageFile(photoFile, 400, 0.82);
+        if (compressed) photoUrl = compressed;
+      } catch (err) {
+        console.warn('Form photo compression error:', err);
+      }
+    }
+
+    let team = getTeamDirectory();
+    if (editId) {
+      const idx = team.findIndex(m => m.id === editId);
+      if (idx !== -1) {
+        const existing = team[idx];
+        team[idx] = {
+          ...existing,
+          name: name || existing.name,
+          role: role || existing.role,
+          dept: dept || existing.dept,
+          glow: glow || existing.glow,
+          responsibilities: resps.length > 0 ? resps : existing.responsibilities,
+          photo: photoUrl || existing.photo,
+          socials: {
+            linkedin: linkedin || existing.socials?.linkedin || '',
+            twitter: twitter || existing.socials?.twitter || ''
+          }
+        };
+      }
+    } else {
+      const newId = 'member_' + Date.now();
+      team.push({
+        id: newId,
+        name: name || 'Executive Member',
+        role: role || 'Department Lead',
+        dept: dept,
+        glow: glow,
+        photo: photoUrl,
+        responsibilities: resps.length > 0 ? resps : ['Strategic Delivery', 'Client Excellence', 'Project Leadership'],
+        socials: {
+          linkedin,
+          twitter
+        }
+      });
+    }
+
+    saveTeamDirectory(team);
+    renderMainLeadershipGrid();
+    if (typeof loadCEOPostManager === 'function') {
+      try { loadCEOPostManager(); } catch(e) {}
+    }
+    closeMainRoleModal();
+    alert(`✓ Successfully published "${name}" to the main screen!`);
   }
 
   // Load and render Founder Executive Team & Role Manager
