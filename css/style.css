@@ -1287,6 +1287,22 @@ body.dark-theme .social-link {
   background: rgba(138, 43, 226, 0.4);
 }
 
+/* Founder Zero-Trust Cryptographic Auth Modal Styles */
+.founder-auth-container {
+  box-shadow: 0 0 45px rgba(138, 43, 226, 0.35), 0 0 90px rgba(0, 240, 255, 0.15) !important;
+}
+
+.founder-auth-shake {
+  animation: founderAuthShake 0.45s cubic-bezier(.36,.07,.19,.97) both;
+}
+
+@keyframes founderAuthShake {
+  10%, 90% { transform: scale(1) translate3d(-3px, 0, 0); }
+  20%, 80% { transform: scale(1) translate3d(5px, 0, 0); }
+  30%, 50%, 70% { transform: scale(1) translate3d(-7px, 0, 0); }
+  40%, 60% { transform: scale(1) translate3d(7px, 0, 0); }
+}
+
 /* Card Founder Action Controls (Top of Exec Card) */
 .card-founder-controls {
   position: absolute;
