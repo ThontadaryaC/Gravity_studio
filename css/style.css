@@ -5836,10 +5836,10 @@ body.dark-theme .google-reviews-hub-card {
 /* --- COMPACT REVIEWS GRID (Small Small Parts) --- */
 .compact-reviews-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 1.5rem;
   width: 100%;
-  max-width: 1100px;
+  max-width: 860px;
   margin: 0 auto;
   position: relative;
   z-index: 5;
