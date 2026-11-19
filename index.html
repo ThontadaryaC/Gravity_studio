@@ -269,50 +269,6 @@
   <!-- Kids Playful drawing canvas (Active when toggled in header) -->
   <canvas id="magic-paint-canvas" aria-hidden="true"></canvas>
 
-  <!-- 10-SECOND INTRO LOADER OVERLAY -->
-  <div id="intro-loader" role="dialog" aria-modal="true" aria-label="Gravity Studios Loading Screen">
-    <video class="intro-video-container" id="intro-video" autoplay preload="auto" muted playsinline></video>
-    <script>
-      (function() {
-        var isDark = localStorage.getItem('gravity-theme') === 'dark';
-        var isMobile = window.innerWidth < 768 || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
-        var videoEl = document.getElementById('intro-video');
-        
-        var primarySrc, fallbackSrc;
-        if (isDark) {
-          primarySrc = isMobile ? 'assets/video/gallery/Intro_dark_theme_mobile.mp4' : 'assets/video/gallery/Intro_dark_theme.mp4';
-          fallbackSrc = 'https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/Intro_dark_theme.mp4';
-        } else {
-          primarySrc = isMobile ? 'assets/video/gallery/intro_mobile.mp4' : 'assets/video/gallery/intro.mp4';
-          fallbackSrc = 'https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/intro.mp4';
-        }
-        
-        videoEl.src = primarySrc;
-        
-        // If local video fails to load, fallback to Supabase URL
-        videoEl.addEventListener('error', function() {
-          if (videoEl.src !== fallbackSrc) {
-            videoEl.src = fallbackSrc;
-            videoEl.load();
-            videoEl.play().catch(function() {});
-          }
-        }, true);
-      })();
-    </script>
-    <canvas id="intro-canvas-fallback" class="intro-canvas-fallback"></canvas>
-    
-    <div class="intro-content">
-      <img src="/logo.png" onerror="this.onerror=null; this.src='https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/logo.png';" alt="Antigravity Studios Logo" class="intro-logo-image" id="intro-logo">
-      <p class="intro-subtitle">Defying limits, defining futures</p>
-      
-      <div class="intro-progress-container">
-        <div class="intro-progress-bar" id="intro-progress"></div>
-      </div>
-      <div class="intro-timer">GRAVITATIONAL SYNC... 10S</div>
-      
-      <button class="skip-intro-btn" id="skip-intro" onclick="if(window.skipIntroAnimation){window.skipIntroAnimation();}else{var l=document.getElementById('intro-loader'),v=document.getElementById('intro-video');if(v){try{v.pause();}catch(e){}}if(l){l.style.opacity='0';l.style.pointerEvents='none';setTimeout(function(){l.style.display='none';document.body.style.overflow='auto';},200);}}" aria-label="Skip introduction animation">Skip Intro</button>
-    </div>
-  </div>
 
   <!-- HEADER & NAVIGATION -->
   <header>
