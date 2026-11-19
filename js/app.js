@@ -244,32 +244,53 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
   initEmailObfuscation();
 
-  initThemeToggle();
-  initMobileMenu();
-  initNavDropdown();
-  initDigitalProductsModal();
-  initPortalAuth();
-  renderMainLeadershipGrid();
-  initIntroLoader();
-  initNavbarScroll();
-  initAccessibilityControls();
-  initMagicPaint();
-  initMediaGallery();
-  initOrgChart();
-  initOrgCarousel();
-  initRevenueChart();
-  initTimelineReveal();
-  initDepartmentFilter();
-  initWorkPortfolio();
-  initFAQAccordion();
-  initGoogleReviewsWidget();
+  // Safe executor so no individual component error can halt site initialization
+  const safeInit = (name, fn) => {
+    try {
+      if (typeof fn === 'function') fn();
+    } catch (err) {
+      console.warn(`[GravityApp] Error initializing ${name}:`, err);
+    }
+  };
 
-  // Sync service catalog from Supabase on load
-  syncPricingFromSupabase().then(() => {
-    if (typeof renderPayments === 'function') {
-      renderPayments();
+  safeInit('ThemeToggle', initThemeToggle);
+  safeInit('MobileMenu', initMobileMenu);
+  safeInit('NavDropdown', initNavDropdown);
+  safeInit('DigitalProductsModal', initDigitalProductsModal);
+  safeInit('PortalAuth', initPortalAuth);
+  safeInit('MainLeadershipGrid', () => {
+    if (typeof window.renderMainLeadershipGrid === 'function') {
+      window.renderMainLeadershipGrid();
     }
   });
+  safeInit('IntroLoader', initIntroLoader);
+  safeInit('NavbarScroll', initNavbarScroll);
+  safeInit('AccessibilityControls', initAccessibilityControls);
+  safeInit('MagicPaint', initMagicPaint);
+  safeInit('MediaGallery', initMediaGallery);
+  safeInit('OrgChart', initOrgChart);
+  safeInit('OrgCarousel', initOrgCarousel);
+  safeInit('RevenueChart', initRevenueChart);
+  safeInit('TimelineReveal', initTimelineReveal);
+  safeInit('DepartmentFilter', initDepartmentFilter);
+  safeInit('WorkPortfolio', initWorkPortfolio);
+  safeInit('FAQAccordion', initFAQAccordion);
+  safeInit('GoogleReviewsWidget', initGoogleReviewsWidget);
+
+  // Sync service catalog from Supabase on load
+  try {
+    if (typeof syncPricingFromSupabase === 'function') {
+      syncPricingFromSupabase().then(() => {
+        if (typeof renderPayments === 'function') {
+          renderPayments();
+        }
+      }).catch(err => {
+        console.warn('Pricing sync non-critical warning:', err);
+      });
+    }
+  } catch (err) {
+    console.warn('Pricing sync exception:', err);
+  }
 });
 
 /* ==========================================================================
@@ -647,6 +668,20 @@ function renderFlipbook() {
   const book = document.getElementById('portfolio-book');
   if (!book) return;
 
+  const defaultAssets = [
+    { title: 'Main Poster', desc: 'Gravity Studios main launch and creative ecosystem showcase.', src: 'https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/MainPoster.jpeg', fallbackColor: '#00f0ff' },
+    { title: 'Smarter Solutions', desc: 'Empowering modern enterprise architecture and strategic operations.', src: 'https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/Smarter%20solutions_stronger%20Business.jpeg', fallbackColor: '#b026ff' },
+    { title: 'AI Brand Vibe', desc: 'Revolutionizing brand pipelines with futuristic neural aesthetics.', src: 'https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/AIBrandvibe.jpeg', fallbackColor: '#ff0055' },
+    { title: 'Real Estate Showcases', desc: 'High-fidelity architectural rendering and interactive spatial designs.', src: 'https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/realestate.jpeg', fallbackColor: '#39ff14' },
+    { title: 'Limitless Innovation', desc: 'Next-gen animation, CGI capabilities, and cinematic VFX development.', src: 'https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/limitless.jpeg', fallbackColor: '#ffaa00' }
+  ];
+
+  const a0 = (galleryAssets && galleryAssets[0]) || defaultAssets[0];
+  const a1 = (galleryAssets && galleryAssets[1]) || defaultAssets[1];
+  const a2 = (galleryAssets && galleryAssets[2]) || defaultAssets[2];
+  const a3 = (galleryAssets && galleryAssets[3]) || defaultAssets[3];
+  const a4 = (galleryAssets && galleryAssets[4]) || defaultAssets[4];
+
   let leavesHTML = '';
 
   // Leaf 0: Cover (Image 0: MainPoster.jpeg) -> Back (Info 1: Smarter Solutions)
@@ -654,12 +689,12 @@ function renderFlipbook() {
     <div class="book-page" data-page="0">
       <div class="page-face front cover-face">
         <div class="cover-pattern"></div>
-        <img src="${galleryAssets[0].src}" alt="${galleryAssets[0].title}" class="cover-image" onerror="this.style.display='none';">
-        <div class="gallery-placeholder" style="background: radial-gradient(circle, ${galleryAssets[0].fallbackColor}33 0%, #0a0814 100%)">
-          <div class="gallery-placeholder-icon" style="color:${galleryAssets[0].fallbackColor}; border-color:${galleryAssets[0].fallbackColor}; background:${galleryAssets[0].fallbackColor}15">
+        <img src="${a0.src}" alt="${a0.title}" class="cover-image" onerror="this.style.display='none';">
+        <div class="gallery-placeholder" style="background: radial-gradient(circle, ${a0.fallbackColor}33 0%, #0a0814 100%)">
+          <div class="gallery-placeholder-icon" style="color:${a0.fallbackColor}; border-color:${a0.fallbackColor}; background:${a0.fallbackColor}15">
             <i data-lucide="book-open"></i>
           </div>
-          <h4 class="gallery-placeholder-title">${galleryAssets[0].title}</h4>
+          <h4 class="gallery-placeholder-title">${a0.title}</h4>
         </div>
         <div class="cover-info">
           <span class="cover-badge">PORTFOLIO SHOWCASE</span>
@@ -676,9 +711,9 @@ function renderFlipbook() {
         </div>
         <div class="book-page-text">
           <span class="page-number">01</span>
-          <h3 class="page-title">${galleryAssets[1].title}</h3>
+          <h3 class="page-title">${a1.title}</h3>
           <div class="page-divider"></div>
-          <p class="page-desc">${galleryAssets[1].desc}</p>
+          <p class="page-desc">${a1.desc}</p>
           <div class="page-details">
             <div class="detail-row"><span>PILLAR</span><strong>TECHNOLOGY & PLATFORMS</strong></div>
             <div class="detail-row"><span>STATUS</span><strong>ACTIVE PIPELINES</strong></div>
@@ -692,9 +727,9 @@ function renderFlipbook() {
   leavesHTML += `
     <div class="book-page" data-page="1">
       <div class="page-face front image-face">
-        <img src="${galleryAssets[1].src}" alt="${galleryAssets[1].title}" onerror="this.style.display='none';">
-        <div class="gallery-placeholder" style="background: radial-gradient(circle, ${galleryAssets[1].fallbackColor}33 0%, #0a0814 100%)">
-          <h4 class="gallery-placeholder-title">${galleryAssets[1].title}</h4>
+        <img src="${a1.src}" alt="${a1.title}" onerror="this.style.display='none';">
+        <div class="gallery-placeholder" style="background: radial-gradient(circle, ${a1.fallbackColor}33 0%, #0a0814 100%)">
+          <h4 class="gallery-placeholder-title">${a1.title}</h4>
         </div>
         <div class="page-img-overlay">
           <button class="page-zoom-btn lightbox-trigger" data-index="1" title="View Fullscreen" aria-label="Open Fullscreen View">
@@ -708,9 +743,9 @@ function renderFlipbook() {
         </div>
         <div class="book-page-text">
           <span class="page-number">02</span>
-          <h3 class="page-title">${galleryAssets[2].title}</h3>
+          <h3 class="page-title">${a2.title}</h3>
           <div class="page-divider"></div>
-          <p class="page-desc">${galleryAssets[2].desc}</p>
+          <p class="page-desc">${a2.desc}</p>
           <div class="page-details">
             <div class="detail-row"><span>PILLAR</span><strong>NEURAL BRANDING</strong></div>
             <div class="detail-row"><span>STATUS</span><strong>AI GRAPHICS</strong></div>
@@ -724,9 +759,9 @@ function renderFlipbook() {
   leavesHTML += `
     <div class="book-page" data-page="2">
       <div class="page-face front image-face">
-        <img src="${galleryAssets[2].src}" alt="${galleryAssets[2].title}" onerror="this.style.display='none';">
-        <div class="gallery-placeholder" style="background: radial-gradient(circle, ${galleryAssets[2].fallbackColor}33 0%, #0a0814 100%)">
-          <h4 class="gallery-placeholder-title">${galleryAssets[2].title}</h4>
+        <img src="${a2.src}" alt="${a2.title}" onerror="this.style.display='none';">
+        <div class="gallery-placeholder" style="background: radial-gradient(circle, ${a2.fallbackColor}33 0%, #0a0814 100%)">
+          <h4 class="gallery-placeholder-title">${a2.title}</h4>
         </div>
         <div class="page-img-overlay">
           <button class="page-zoom-btn lightbox-trigger" data-index="2" title="View Fullscreen" aria-label="Open Fullscreen View">
@@ -740,9 +775,9 @@ function renderFlipbook() {
         </div>
         <div class="book-page-text">
           <span class="page-number">03</span>
-          <h3 class="page-title">${galleryAssets[3].title}</h3>
+          <h3 class="page-title">${a3.title}</h3>
           <div class="page-divider"></div>
-          <p class="page-desc">${galleryAssets[3].desc}</p>
+          <p class="page-desc">${a3.desc}</p>
           <div class="page-details">
             <div class="detail-row"><span>PILLAR</span><strong>SPATIAL & REAL ESTATE</strong></div>
             <div class="detail-row"><span>STATUS</span><strong>3D TWINS</strong></div>
@@ -756,9 +791,9 @@ function renderFlipbook() {
   leavesHTML += `
     <div class="book-page" data-page="3">
       <div class="page-face front image-face">
-        <img src="${galleryAssets[3].src}" alt="${galleryAssets[3].title}" onerror="this.style.display='none';">
-        <div class="gallery-placeholder" style="background: radial-gradient(circle, ${galleryAssets[3].fallbackColor}33 0%, #0a0814 100%)">
-          <h4 class="gallery-placeholder-title">${galleryAssets[3].title}</h4>
+        <img src="${a3.src}" alt="${a3.title}" onerror="this.style.display='none';">
+        <div class="gallery-placeholder" style="background: radial-gradient(circle, ${a3.fallbackColor}33 0%, #0a0814 100%)">
+          <h4 class="gallery-placeholder-title">${a3.title}</h4>
         </div>
         <div class="page-img-overlay">
           <button class="page-zoom-btn lightbox-trigger" data-index="3" title="View Fullscreen" aria-label="Open Fullscreen View">
@@ -772,9 +807,9 @@ function renderFlipbook() {
         </div>
         <div class="book-page-text">
           <span class="page-number">04</span>
-          <h3 class="page-title">${galleryAssets[4].title}</h3>
+          <h3 class="page-title">${a4.title}</h3>
           <div class="page-divider"></div>
-          <p class="page-desc">${galleryAssets[4].desc}</p>
+          <p class="page-desc">${a4.desc}</p>
           <div class="page-details">
             <div class="detail-row"><span>PILLAR</span><strong>CGI & VFX PRODUCTION</strong></div>
             <div class="detail-row"><span>STATUS</span><strong>ACTIVE PIPELINES</strong></div>
@@ -788,9 +823,9 @@ function renderFlipbook() {
   leavesHTML += `
     <div class="book-page" data-page="4">
       <div class="page-face front image-face">
-        <img src="${galleryAssets[4].src}" alt="${galleryAssets[4].title}" onerror="this.style.display='none';">
-        <div class="gallery-placeholder" style="background: radial-gradient(circle, ${galleryAssets[4].fallbackColor}33 0%, #0a0814 100%)">
-          <h4 class="gallery-placeholder-title">${galleryAssets[4].title}</h4>
+        <img src="${a4.src}" alt="${a4.title}" onerror="this.style.display='none';">
+        <div class="gallery-placeholder" style="background: radial-gradient(circle, ${a4.fallbackColor}33 0%, #0a0814 100%)">
+          <h4 class="gallery-placeholder-title">${a4.title}</h4>
         </div>
         <div class="page-img-overlay">
           <button class="page-zoom-btn lightbox-trigger" data-index="4" title="View Fullscreen" aria-label="Open Fullscreen View">
@@ -1234,51 +1269,81 @@ function initOrgChart() {
   const panelList = document.querySelector('.node-details-list');
   const panelSkills = document.querySelector('.node-details-skills');
 
-  nodes.forEach(node => {
-    node.addEventListener('click', () => {
-      const memberId = node.getAttribute('data-member');
-      const data = memberDetails[memberId];
+  function openMemberDetails(memberId, clickedNode) {
+    const data = memberDetails[memberId];
+    if (!data || !detailsPanel) return;
 
-      if (!data) return;
+    nodes.forEach(n => n.classList.remove('active'));
+    if (clickedNode) clickedNode.classList.add('active');
 
-      nodes.forEach(n => n.classList.remove('active'));
-      node.classList.add('active');
+    // Set dynamic colored variables on details panel
+    detailsPanel.style.setProperty('--panel-glow-color', data.glowColor);
+    detailsPanel.style.setProperty('--panel-glow-shadow', data.glowShadow);
 
-      // Set dynamic colored variables on details panel
-      detailsPanel.style.setProperty('--panel-glow-color', data.glowColor);
-      detailsPanel.style.setProperty('--panel-glow-shadow', data.glowShadow);
-
-      panelName.textContent = data.name;
-      panelRole.textContent = data.role;
-      
+    if (panelName) panelName.textContent = data.name;
+    if (panelRole) panelRole.textContent = data.role;
+    
+    if (panelList) {
       panelList.innerHTML = '';
-      data.responsibilities.forEach(resp => {
+      (data.responsibilities || []).forEach(resp => {
         const li = document.createElement('li');
         li.style.marginBottom = '0.5rem';
         li.style.fontSize = '0.9rem';
         li.innerHTML = `<span style="color:${data.glowColor}; margin-right:8px;">▪</span>${resp}`;
         panelList.appendChild(li);
       });
+    }
 
+    if (panelSkills) {
       panelSkills.innerHTML = '';
-      data.skills.forEach(skill => {
+      (data.skills || []).forEach(skill => {
         const span = document.createElement('span');
         span.className = 'skill-badge';
         span.textContent = skill;
         span.style.borderColor = data.glowColor;
         panelSkills.appendChild(span);
       });
+    }
 
-      detailsPanel.classList.add('visible');
+    detailsPanel.classList.add('visible');
+
+    // On smaller screens, scroll details panel into view smoothly
+    if (window.innerWidth <= 768) {
+      detailsPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }
+
+  window.openOrgMemberDetails = openMemberDetails;
+
+  nodes.forEach(node => {
+    node.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const memberId = node.getAttribute('data-member');
+      
+      const spinner = document.getElementById('org-carousel-spinner');
+      if (spinner && spinner.contains(node) && typeof window.rotateOrgCarouselToNode === 'function') {
+        window.rotateOrgCarouselToNode(node);
+      }
+
+      openMemberDetails(memberId, node);
     });
   });
 
   if (closeBtn) {
-    closeBtn.addEventListener('click', () => {
+    closeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
       detailsPanel.classList.remove('visible');
       nodes.forEach(n => n.classList.remove('active'));
     });
   }
+
+  // Keyboard accessibility: Escape closes the details panel
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && detailsPanel && detailsPanel.classList.contains('visible')) {
+      detailsPanel.classList.remove('visible');
+      nodes.forEach(n => n.classList.remove('active'));
+    }
+  });
 }
 
 /* ==========================================================================
@@ -1324,15 +1389,16 @@ function initRevenueChart() {
    ========================================================================== */
 function initTimelineReveal() {
   const timelineItems = document.querySelectorAll('.timeline-item');
+  if (!timelineItems || timelineItems.length === 0) return;
   
   if ('IntersectionObserver' in window) {
     const observerOptions = {
       root: null,
-      threshold: 0.15,
-      rootMargin: '0px 0px -100px 0px'
+      threshold: 0.05,
+      rootMargin: '100px 0px -20px 0px'
     };
 
-    const observer = new IntersectionObserver((entries, observer) => {
+    const observer = new window.IntersectionObserver((entries, observer) => {
       entries.forEach(entry => {
         if (entry.isIntersecting) {
           entry.target.classList.add('revealed');
@@ -1342,18 +1408,28 @@ function initTimelineReveal() {
     }, observerOptions);
 
     timelineItems.forEach(item => observer.observe(item));
-  } else {
-    window.addEventListener('scroll', checkTimelineInView);
   }
+
+  // Also bind scroll check for immediate/fallback responsiveness
+  window.addEventListener('scroll', checkTimelineInView, { passive: true });
+  window.addEventListener('resize', checkTimelineInView, { passive: true });
+  
+  // Immediate check for visible viewport
+  checkTimelineInView();
+
+  // Safety fallback: reveal timeline items so roadmap is never hidden if user lands directly on it
+  setTimeout(() => {
+    timelineItems.forEach(item => item.classList.add('revealed'));
+  }, 1200);
 }
 
 function checkTimelineInView() {
   const timelineItems = document.querySelectorAll('.timeline-item');
-  const triggerBottom = window.innerHeight * 0.85;
+  const triggerBottom = window.innerHeight * 0.95;
 
   timelineItems.forEach(item => {
-    const itemTop = item.getBoundingClientRect().top;
-    if (itemTop < triggerBottom) {
+    const rect = item.getBoundingClientRect();
+    if (rect.top < triggerBottom && rect.bottom > 0) {
       item.classList.add('revealed');
     }
   });
@@ -1627,14 +1703,34 @@ function initOrgCarousel() {
   
   if (!spinner) return;
 
-  const nodes = spinner.querySelectorAll('.org-node');
+  const nodes = Array.from(spinner.querySelectorAll('.org-node'));
   const nodeCount = nodes.length;
+  if (nodeCount === 0) return;
+
   const angleStep = 360 / nodeCount;
   let currAngle = 0;
   let currIndex = 0;
 
-  // Set initial active card
-  updateActiveCard();
+  function updateActiveCard() {
+    const normalizedIndex = ((currIndex % nodeCount) + nodeCount) % nodeCount;
+    nodes.forEach((node, idx) => {
+      if (idx === normalizedIndex) {
+        node.classList.add('active-3d');
+      } else {
+        node.classList.remove('active-3d');
+      }
+    });
+
+    // If details panel is visible, sync it with newly focused card
+    const detailsPanel = document.getElementById('node-details-panel');
+    if (detailsPanel && detailsPanel.classList.contains('visible')) {
+      const activeNode = nodes[normalizedIndex];
+      if (activeNode && typeof window.openOrgMemberDetails === 'function') {
+        const memberId = activeNode.getAttribute('data-member');
+        window.openOrgMemberDetails(memberId, activeNode);
+      }
+    }
+  }
 
   function rotateCarousel(direction) {
     if (direction === 'next') {
@@ -1647,6 +1743,24 @@ function initOrgCarousel() {
     spinner.style.transform = `rotateY(${currAngle}deg)`;
     updateActiveCard();
   }
+
+  function rotateToNode(targetNode) {
+    const targetIdx = nodes.indexOf(targetNode);
+    if (targetIdx === -1) return;
+    const normalizedCurr = ((currIndex % nodeCount) + nodeCount) % nodeCount;
+    let diff = targetIdx - normalizedCurr;
+    if (diff > nodeCount / 2) diff -= nodeCount;
+    if (diff < -nodeCount / 2) diff += nodeCount;
+    currIndex += diff;
+    currAngle -= diff * angleStep;
+    spinner.style.transform = `rotateY(${currAngle}deg)`;
+    updateActiveCard();
+  }
+
+  window.rotateOrgCarouselToNode = rotateToNode;
+
+  // Set initial active card
+  updateActiveCard();
 
   if (prevBtn) {
     prevBtn.addEventListener('click', (e) => {
@@ -1661,14 +1775,16 @@ function initOrgCarousel() {
     });
   }
 
-  function updateActiveCard() {
-    nodes.forEach((node, idx) => {
-      // Calculate normalized index
-      const normalizedIndex = ((currIndex % nodeCount) + nodeCount) % nodeCount;
-      if (idx === normalizedIndex) {
-        node.classList.add('active-3d');
-      } else {
-        node.classList.remove('active-3d');
+  // Keyboard navigation for carousel when viewport or container has focus
+  if (viewport) {
+    viewport.setAttribute('tabindex', '0');
+    viewport.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        rotateCarousel('prev');
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        rotateCarousel('next');
       }
     });
   }
@@ -1677,7 +1793,7 @@ function initOrgCarousel() {
   let isDragging = false;
   let startX = 0;
   let currentX = 0;
-  const dragThreshold = 50; 
+  const dragThreshold = 40; 
 
   if (viewport) {
     // Mouse Events
@@ -5239,6 +5355,7 @@ function initPortalAuth() {
 
   // PUBLIC MAIN WEBSITE HYDRATION - Live instant reflection with full CRUD for Founder Ajay
   function renderMainLeadershipGrid() {
+    window.renderMainLeadershipGrid = renderMainLeadershipGrid;
     const container = document.getElementById('main-leadership-grid');
     if (!container) return;
 
@@ -8605,6 +8722,11 @@ async function publishTargetedNotification(title, desc, targetUserId) {
     await renderNotifications();
   }
 }
+
+  if (typeof renderMainLeadershipGrid === 'function') {
+    window.renderMainLeadershipGrid = renderMainLeadershipGrid;
+    renderMainLeadershipGrid();
+  }
 }
 
 

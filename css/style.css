@@ -2657,16 +2657,23 @@ body.dark-theme .revenue-list-icon {
 .org-carousel-spinner .org-node:nth-child(5) { transform: rotateY(240deg) translateZ(210px); }
 .org-carousel-spinner .org-node:nth-child(6) { transform: rotateY(300deg) translateZ(210px); }
 
-/* Inactive cards styling (faded out, slightly blurred, and unclickable) */
+/* Inactive cards styling (smoothly blurred with active cursor so clicking selects them) */
 .org-carousel-spinner .org-node:not(.active-3d) {
-  opacity: 0.45;
-  pointer-events: none;
-  filter: blur(0.5px) grayscale(20%);
+  opacity: 0.65;
+  pointer-events: auto;
+  cursor: pointer;
+  filter: blur(0.4px) grayscale(15%);
+}
+
+.org-carousel-spinner .org-node:not(.active-3d):hover {
+  opacity: 0.95;
+  filter: none;
 }
 
 .org-carousel-spinner .org-node.active-3d {
   opacity: 1;
   pointer-events: auto;
+  cursor: pointer;
   filter: none;
   box-shadow: 0 0 25px var(--node-glow-shadow);
 }
@@ -2881,8 +2888,8 @@ body.dark-theme .timeline-container::before {
 }
 
 .timeline-item.revealed {
-  opacity: 1;
-  transform: translateY(0);
+  opacity: 1 !important;
+  transform: translateY(0) !important;
 }
 
 .timeline-item.left {
