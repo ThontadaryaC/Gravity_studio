@@ -268,8 +268,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   safeInit('AccessibilityControls', initAccessibilityControls);
   safeInit('MagicPaint', initMagicPaint);
   safeInit('MediaGallery', initMediaGallery);
-  safeInit('OrgChart', initOrgChart);
-  safeInit('OrgCarousel', initOrgCarousel);
+  safeInit('DynamicOrgChart', () => {
+    if (typeof renderDynamicOrgChart === 'function') {
+      renderDynamicOrgChart();
+    }
+  });
   safeInit('RevenueChart', initRevenueChart);
   safeInit('TimelineReveal', initTimelineReveal);
   safeInit('DepartmentFilter', initDepartmentFilter);
@@ -1142,14 +1145,19 @@ async function initMediaGallery() {
 }
 
 /* ==========================================================================
-   6. INTERACTIVE ORGANIZATION CHART (WITH MULTI-COLOR THEME UPDATES)
+   6. DYNAMIC EXECUTIVE TEAM & INTERACTIVE ORGANIZATION CHART
    ========================================================================== */
-const memberDetails = {
-  'ajay': {
+const TEAM_STORAGE_KEY = 'antigravity_team_directory';
+
+const DEFAULT_TEAM_DIRECTORY = [
+  {
+    id: 'founder_ajay',
     name: 'Ajay Raj B.K',
     role: 'Founder & Creative Director',
-    glowColor: 'var(--neon-purple)',
-    glowShadow: 'var(--neon-purple-glow)',
+    dept: 'Executive Leadership',
+    glow: 'glow-purple',
+    photo: 'https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/ajay.jpeg',
+    fallbackPhoto: 'assets/images/ajay.jpeg',
     responsibilities: [
       'Establishing startup strategy and overall company vision',
       'Overseeing global creative direction across VFX, Anime & Films',
@@ -1157,13 +1165,21 @@ const memberDetails = {
       'Driving strategic partnerships and business scale',
       'Spearheading core innovation in entertainment technologies'
     ],
-    skills: ['Creative Direction', 'Brand Strategy', 'Film Production', 'VFX Pipeline', 'Executive Leadership']
+    skills: ['Creative Direction', 'Brand Strategy', 'Film Production', 'VFX Pipeline', 'Executive Leadership'],
+    socials: {
+      linkedin: 'https://www.linkedin.com/in/ajay-raj-b-k-940a3b285?utm_source=share_via&utm_content=profile&utm_medium=member_android',
+      twitter: 'https://x.com/AjayRajBK1'
+    },
+    isFounder: true
   },
-  'shashank': {
+  {
+    id: 'ceo_shashank',
     name: 'Shashank Raj B.K',
     role: 'Co-Founder & CEO',
-    glowColor: 'var(--neon-amber)',
-    glowShadow: 'var(--neon-amber-glow)',
+    dept: 'Executive & Operations',
+    glow: 'glow-amber',
+    photo: 'https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/shashank.jpeg',
+    fallbackPhoto: 'assets/images/shashank.jpeg',
     responsibilities: [
       'Governing business operations, legal, and operational strategy',
       'Directing overall management and policy setting',
@@ -1171,13 +1187,20 @@ const memberDetails = {
       'Managing high-value client acquisitions and retention',
       'Structuring global footprint expansion plans'
     ],
-    skills: ['Business Operations', 'Strategic Management', 'Client Relations', 'Joint Ventures', 'Global Expansion']
+    skills: ['Business Operations', 'Strategic Management', 'Client Relations', 'Joint Ventures', 'Global Expansion'],
+    socials: {
+      linkedin: 'https://www.linkedin.com/in/shashank-raj-b-k-a9747b21b?utm_source=share_via&utm_content=profile&utm_medium=member_android',
+      twitter: 'https://twitter.com'
+    }
   },
-  'thontadaraya': {
+  {
+    id: 'cto_thontadaraya',
     name: 'Thontadaraya',
     role: 'CTO (Technology Head)',
-    glowColor: 'var(--neon-cyan)',
-    glowShadow: 'var(--neon-cyan-glow)',
+    dept: 'AI & Engineering',
+    glow: 'glow-cyan',
+    photo: 'https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/thontadarya.jpeg',
+    fallbackPhoto: 'assets/images/thontadarya.jpeg',
     responsibilities: [
       'Leading overall software development and system administration',
       'Architecting deep AI systems and research methodologies',
@@ -1185,13 +1208,20 @@ const memberDetails = {
       'Supervising digital product design and coding standards',
       'Pioneering software innovations for studio rendering systems'
     ],
-    skills: ['Software Architecture', 'Artificial Intelligence', 'System Administration', 'Cloud Infrastructure', 'R&D']
+    skills: ['Software Architecture', 'Artificial Intelligence', 'System Administration', 'Cloud Infrastructure', 'R&D'],
+    socials: {
+      linkedin: 'https://www.linkedin.com/in/thontadarya-c-06a670251/',
+      twitter: 'https://twitter.com'
+    }
   },
-  'munish': {
+  {
+    id: 'cmo_munish',
     name: 'Munish',
     role: 'CMO (Marketing Head)',
-    glowColor: 'var(--neon-pink)',
-    glowShadow: 'var(--neon-pink-glow)',
+    dept: 'Marketing & Media',
+    glow: 'glow-pink',
+    photo: 'https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/munish.jpeg',
+    fallbackPhoto: 'assets/images/munish.png',
     responsibilities: [
       'Devising comprehensive marketing and growth hacking strategy',
       'Managing social media presence and community ecosystems',
@@ -1199,13 +1229,20 @@ const memberDetails = {
       'Governing multimedia content marketing pipelines',
       'Enhancing global brand equity and visibility'
     ],
-    skills: ['Marketing Strategy', 'Growth Hacking', 'Public Relations', 'Social Media Analytics', 'Ad Strategy']
+    skills: ['Marketing Strategy', 'Growth Hacking', 'Public Relations', 'Social Media Analytics', 'Ad Strategy'],
+    socials: {
+      linkedin: 'https://www.linkedin.com/in/munish-r-62a500253?utm_source=share_via&utm_content=profile&utm_medium=member_android',
+      twitter: 'https://twitter.com'
+    }
   },
-  'pavan': {
+  {
+    id: 'chro_pavan',
     name: 'Pavan Krishna',
     role: 'CHRO (HR Head)',
-    glowColor: 'var(--neon-green)',
-    glowShadow: 'var(--neon-green-glow)',
+    dept: 'Human Resources',
+    glow: 'glow-green',
+    photo: 'https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/pavan.jpeg',
+    fallbackPhoto: 'assets/images/pavan.png',
     responsibilities: [
       'Managing recruitment protocols and hiring funnels',
       'Nurturing organizational talent and employee engagement',
@@ -1213,13 +1250,20 @@ const memberDetails = {
       'Designing skill-development modules for junior employees',
       'Cultivating a collaborative, progressive corporate culture'
     ],
-    skills: ['Recruitment Operations', 'Talent Retention', 'Corporate Culture', 'Employee Training', 'HR Analytics']
+    skills: ['Recruitment Operations', 'Talent Retention', 'Corporate Culture', 'Employee Training', 'HR Analytics'],
+    socials: {
+      linkedin: 'https://www.linkedin.com/in/pavan-krishna-k-r-61136a2a4?utm_source=share_via&utm_content=profile&utm_medium=member_android',
+      twitter: 'https://twitter.com'
+    }
   },
-  'pruthvi': {
+  {
+    id: 'cio_pruthvi',
     name: 'Pruthvi Raj',
     role: 'CIO (IT Head)',
-    glowColor: 'var(--neon-cyan)',
-    glowShadow: 'var(--neon-cyan-glow)',
+    dept: 'IT & Infrastructure',
+    glow: 'glow-cyan',
+    photo: '',
+    fallbackPhoto: 'assets/images/pruthvi.png',
     responsibilities: [
       'Maintaining core IT infrastructure and system uptime',
       'Configuring cybersecurity operations and access permissions',
@@ -1227,13 +1271,20 @@ const memberDetails = {
       'Managing network systems and server farm connections',
       'Providing internal technology support protocols'
     ],
-    skills: ['IT Infrastructure', 'Cybersecurity', 'Database Operations', 'Network Engineering', 'Tech Support']
+    skills: ['IT Infrastructure', 'Cybersecurity', 'Database Operations', 'Network Engineering', 'Tech Support'],
+    socials: {
+      linkedin: 'https://linkedin.com',
+      twitter: 'https://twitter.com'
+    }
   },
-  'shreyas': {
+  {
+    id: 'coo_shreyas',
     name: 'Shreyas',
     role: 'COO & Site Engineer',
-    glowColor: 'var(--neon-purple)',
-    glowShadow: 'var(--neon-purple-glow)',
+    dept: 'Operations & Engineering',
+    glow: 'glow-purple',
+    photo: '',
+    fallbackPhoto: 'assets/images/shreyas.png',
     responsibilities: [
       'Managing operational execution, logistics, and resource flows',
       'Coordinating cross-functional project deadlines',
@@ -1241,13 +1292,20 @@ const memberDetails = {
       'Implementing strict quality-control mechanisms',
       'Governing equipment, space, and facility setups'
     ],
-    skills: ['Operations Management', 'Project Coordination', 'Logistics', 'Quality Assurance', 'Facility Planning']
+    skills: ['Operations Management', 'Project Coordination', 'Logistics', 'Quality Assurance', 'Facility Planning'],
+    socials: {
+      linkedin: 'https://linkedin.com',
+      twitter: 'https://twitter.com'
+    }
   },
-  'subhash': {
+  {
+    id: 'sales_subhash',
     name: 'Subhash',
     role: 'Sales & Pricing Lead',
-    glowColor: 'var(--neon-amber)',
-    glowShadow: 'var(--neon-amber-glow)',
+    dept: 'Sales & Growth',
+    glow: 'glow-amber',
+    photo: '',
+    fallbackPhoto: 'assets/images/subhash.png',
     responsibilities: [
       'Supervising sales teams and lead conversion funnels',
       'Formulating dynamic pricing models for complex deliverables',
@@ -1255,9 +1313,240 @@ const memberDetails = {
       'Fostering revenue streams through direct client reach',
       'Conducting market-competitive sales analysis'
     ],
-    skills: ['Sales Strategy', 'Pricing Strategy', 'Negotiation', 'B2B Sales', 'Market Intelligence']
+    skills: ['Sales Strategy', 'Pricing Strategy', 'Negotiation', 'B2B Sales', 'Market Intelligence'],
+    socials: {
+      linkedin: 'https://linkedin.com',
+      twitter: 'https://twitter.com'
+    }
   }
-};
+];
+
+function getTeamDirectory() {
+  try {
+    const raw = localStorage.getItem(TEAM_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to parse saved team directory:', e);
+  }
+  const initial = JSON.parse(JSON.stringify(DEFAULT_TEAM_DIRECTORY));
+  try {
+    localStorage.setItem(TEAM_STORAGE_KEY, JSON.stringify(initial));
+  } catch (e) {}
+  return initial;
+}
+window.getTeamDirectory = getTeamDirectory;
+
+function saveTeamDirectory(team) {
+  try {
+    localStorage.setItem(TEAM_STORAGE_KEY, JSON.stringify(team));
+  } catch (e) {
+    console.error('Failed to save team directory to localStorage:', e);
+  }
+}
+window.saveTeamDirectory = saveTeamDirectory;
+
+function compressImageFile(file, maxWidth = 400, quality = 0.82) {
+  return new Promise((resolve) => {
+    if (!file || !file.type.startsWith('image/')) {
+      resolve('');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxWidth) {
+            width = Math.round((width * maxWidth) / height);
+            height = maxWidth;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = () => resolve(e.target.result);
+      img.src = e.target.result;
+    };
+    reader.onerror = () => resolve('');
+    reader.readAsDataURL(file);
+  });
+}
+window.compressImageFile = compressImageFile;
+
+function getGlowDetails(glow) {
+  switch (glow) {
+    case 'glow-amber':
+      return { color: 'var(--neon-amber)', shadow: 'var(--neon-amber-glow)' };
+    case 'glow-cyan':
+      return { color: 'var(--neon-cyan)', shadow: 'var(--neon-cyan-glow)' };
+    case 'glow-pink':
+      return { color: 'var(--neon-pink)', shadow: 'var(--neon-pink-glow)' };
+    case 'glow-green':
+      return { color: 'var(--neon-green)', shadow: 'var(--neon-green-glow)' };
+    case 'glow-purple':
+    default:
+      return { color: 'var(--neon-purple)', shadow: 'var(--neon-purple-glow)' };
+  }
+}
+
+let memberDetails = {};
+
+function syncMemberDetailsFromTeam(team) {
+  memberDetails = {};
+  team.forEach(member => {
+    const { color, shadow } = getGlowDetails(member.glow);
+    const defaultSkills = [
+      'Strategic Leadership',
+      'Operational Scale',
+      'Executive Coordination',
+      'Client Excellence',
+      'Domain Innovation'
+    ];
+    let skills = member.skills;
+    if (!Array.isArray(skills) || skills.length === 0) {
+      if (Array.isArray(member.responsibilities) && member.responsibilities.length > 0) {
+        skills = member.responsibilities.slice(0, 5);
+      } else {
+        skills = defaultSkills;
+      }
+    }
+
+    const dataObj = {
+      id: member.id,
+      name: member.name || 'Executive Officer',
+      role: member.role || 'Leadership',
+      dept: member.dept || 'Executive',
+      photo: member.photo || member.fallbackPhoto || '',
+      glowColor: color,
+      glowShadow: shadow,
+      responsibilities: Array.isArray(member.responsibilities) && member.responsibilities.length > 0
+        ? member.responsibilities
+        : ['Leadership Strategy', 'Operational Excellence', 'Project Coordination'],
+      skills
+    };
+
+    memberDetails[member.id] = dataObj;
+    const shortId = member.id.replace(/^(founder_|ceo_|cto_|cmo_|chro_|cio_|coo_|sales_|member_)/, '');
+    memberDetails[shortId] = dataObj;
+  });
+}
+
+function renderDynamicOrgChart() {
+  const team = getTeamDirectory();
+  syncMemberDetailsFromTeam(team);
+
+  // Separate Tier 1 (Founders / CEO) and Tier 2 (Department Heads)
+  const tier1 = team.filter(m => m.isFounder || /founder|ceo/i.test(m.role) || /^(founder|ceo)_/i.test(m.id));
+  const tier1Members = tier1.length > 0 ? tier1 : team.slice(0, 2);
+  const tier2Members = team.filter(m => !tier1Members.some(t => t.id === m.id));
+
+  // 1. Render Tier 1 (Founders in .org-row)
+  const tier1Container = document.getElementById('org-tier1-row') || document.querySelector('.org-row');
+  if (tier1Container) {
+    tier1Container.innerHTML = tier1Members.map(m => {
+      const { color, shadow } = getGlowDetails(m.glow);
+      return `
+        <button class="org-node ${m.glow || 'glow-purple'}" data-member="${m.id}" id="node-${m.id}" style="--node-glow: ${color}; --node-glow-shadow: ${shadow};" aria-label="View details for ${m.name}">
+          <div class="org-node-role">${m.role}</div>
+          <div class="org-node-name">${m.name}</div>
+        </button>
+      `;
+    }).join('');
+  }
+
+  // 2. Render Tier 2 (Department Heads in 3D Carousel)
+  const spinner = document.getElementById('org-carousel-spinner');
+  if (spinner) {
+    if (tier2Members.length === 0) {
+      const rootM = tier1Members[0];
+      const { color, shadow } = getGlowDetails(rootM.glow);
+      spinner.innerHTML = `
+        <div class="org-node ${rootM.glow || 'glow-purple'} active-3d" data-member="${rootM.id}" style="transform: rotateY(0deg) translateZ(180px); --node-glow: ${color}; --node-glow-shadow: ${shadow};">
+          <div class="org-node-role">${rootM.role}</div>
+          <div class="org-node-name">${rootM.name}</div>
+        </div>
+      `;
+    } else {
+      spinner.innerHTML = tier2Members.map((m) => {
+        const { color, shadow } = getGlowDetails(m.glow);
+        return `
+          <button class="org-node ${m.glow || 'glow-cyan'}" data-member="${m.id}" id="node-${m.id}" style="--node-glow: ${color}; --node-glow-shadow: ${shadow};" aria-label="View details for ${m.name}">
+            <div class="org-node-role">${m.role}</div>
+            <div class="org-node-name">${m.name}</div>
+          </button>
+        `;
+      }).join('');
+
+      // Dynamically compute 3D geometry transforms for the rotating ring
+      const nodes = spinner.querySelectorAll('.org-node');
+      const count = nodes.length;
+      if (count > 0) {
+        const angleStep = 360 / count;
+        const isMobile = window.innerWidth <= 768;
+        const radius = isMobile 
+          ? Math.max(140, Math.min(220, Math.round(count * 28)))
+          : Math.max(180, Math.min(320, Math.round(count * 36)));
+
+        nodes.forEach((node, idx) => {
+          const angle = idx * angleStep;
+          node.style.transform = `rotateY(${angle}deg) translateZ(${radius}px)`;
+        });
+      }
+    }
+  }
+
+  // 3. Initialize / re-bind event listeners
+  initOrgChart();
+  initOrgCarousel();
+
+  // If details panel is visible, sync its content with the active member
+  const detailsPanel = document.getElementById('node-details-panel');
+  if (detailsPanel && detailsPanel.classList.contains('visible')) {
+    const activeNode = document.querySelector('.org-node.active') || document.querySelector('.org-carousel-spinner .org-node.active-3d');
+    if (activeNode && typeof window.openOrgMemberDetails === 'function') {
+      const memberId = activeNode.getAttribute('data-member');
+      window.openOrgMemberDetails(memberId, activeNode);
+    }
+  }
+
+  if (typeof lucide !== 'undefined' && lucide.createIcons) {
+    lucide.createIcons();
+  }
+}
+window.renderDynamicOrgChart = renderDynamicOrgChart;
+
+function syncAllTeamDisplays() {
+  if (typeof renderMainLeadershipGrid === 'function') {
+    renderMainLeadershipGrid();
+  } else if (typeof window.renderMainLeadershipGrid === 'function') {
+    window.renderMainLeadershipGrid();
+  }
+
+  if (typeof renderDynamicOrgChart === 'function') {
+    renderDynamicOrgChart();
+  } else if (typeof window.renderDynamicOrgChart === 'function') {
+    window.renderDynamicOrgChart();
+  }
+}
+window.syncAllTeamDisplays = syncAllTeamDisplays;
 
 function initOrgChart() {
   const nodes = document.querySelectorAll('.org-node');
@@ -1270,10 +1559,12 @@ function initOrgChart() {
   const panelSkills = document.querySelector('.node-details-skills');
 
   function openMemberDetails(memberId, clickedNode) {
-    const data = memberDetails[memberId];
+    if (!memberId) return;
+    const cleanId = memberId.replace(/^(founder_|ceo_|cto_|cmo_|chro_|cio_|coo_|sales_|member_)/, '');
+    const data = memberDetails[memberId] || memberDetails[cleanId];
     if (!data || !detailsPanel) return;
 
-    nodes.forEach(n => n.classList.remove('active'));
+    document.querySelectorAll('.org-node').forEach(n => n.classList.remove('active'));
     if (clickedNode) clickedNode.classList.add('active');
 
     // Set dynamic colored variables on details panel
@@ -1283,6 +1574,18 @@ function initOrgChart() {
     if (panelName) panelName.textContent = data.name;
     if (panelRole) panelRole.textContent = data.role;
     
+    // Avatar thumbnail if present
+    const avatarElem = document.getElementById('node-details-avatar');
+    if (avatarElem) {
+      if (data.photo) {
+        avatarElem.innerHTML = `<img src="${data.photo}" alt="${data.name}" onerror="this.onerror=null; this.parentElement.style.display='none';">`;
+        avatarElem.style.display = 'block';
+      } else {
+        avatarElem.style.display = 'none';
+        avatarElem.innerHTML = '';
+      }
+    }
+
     if (panelList) {
       panelList.innerHTML = '';
       (data.responsibilities || []).forEach(resp => {
@@ -1316,7 +1619,7 @@ function initOrgChart() {
   window.openOrgMemberDetails = openMemberDetails;
 
   nodes.forEach(node => {
-    node.addEventListener('click', (e) => {
+    node.onclick = (e) => {
       e.stopPropagation();
       const memberId = node.getAttribute('data-member');
       
@@ -1326,22 +1629,22 @@ function initOrgChart() {
       }
 
       openMemberDetails(memberId, node);
-    });
+    };
   });
 
   if (closeBtn) {
-    closeBtn.addEventListener('click', (e) => {
+    closeBtn.onclick = (e) => {
       e.stopPropagation();
       detailsPanel.classList.remove('visible');
-      nodes.forEach(n => n.classList.remove('active'));
-    });
+      document.querySelectorAll('.org-node').forEach(n => n.classList.remove('active'));
+    };
   }
 
   // Keyboard accessibility: Escape closes the details panel
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && detailsPanel && detailsPanel.classList.contains('visible')) {
       detailsPanel.classList.remove('visible');
-      nodes.forEach(n => n.classList.remove('active'));
+      document.querySelectorAll('.org-node').forEach(n => n.classList.remove('active'));
     }
   });
 }
@@ -1763,16 +2066,16 @@ function initOrgCarousel() {
   updateActiveCard();
 
   if (prevBtn) {
-    prevBtn.addEventListener('click', (e) => {
+    prevBtn.onclick = (e) => {
       e.stopPropagation();
       rotateCarousel('prev');
-    });
+    };
   }
   if (nextBtn) {
-    nextBtn.addEventListener('click', (e) => {
+    nextBtn.onclick = (e) => {
       e.stopPropagation();
       rotateCarousel('next');
-    });
+    };
   }
 
   // Keyboard navigation for carousel when viewport or container has focus
@@ -1856,6 +2159,11 @@ function initOrgCarousel() {
    X. PORTAL AUTHENTICATION & SESSION MANAGEMENT
    ========================================================================== */
 function initPortalAuth() {
+  let currentSession = null;
+  try {
+    currentSession = JSON.parse(localStorage.getItem('gravity-user-session')) || null;
+  } catch(e) {}
+  window.renderMainLeadershipGrid = renderMainLeadershipGrid;
   const loginBtn = document.getElementById('portal-login-btn');
   const overlay = document.getElementById('portal-modal-overlay');
   const closeBtn = document.getElementById('portal-modal-close');
@@ -1958,7 +2266,7 @@ function initPortalAuth() {
   }
 
   // Initialize Session
-  let currentSession = JSON.parse(localStorage.getItem('gravity-user-session')) || null;
+  currentSession = currentSession || JSON.parse(localStorage.getItem('gravity-user-session')) || null;
   if (currentSession) {
     const email = (currentSession.email || '').toLowerCase().trim();
     const uname = (currentSession.username || '').toLowerCase().trim();
@@ -4781,18 +5089,25 @@ function initPortalAuth() {
   });
 
   // Live Google Sign-In Initializer
+  let googleSignInAttempts = 0;
   function initLiveGoogleSignIn() {
     if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
       google.accounts.id.initialize({
         client_id: "495105565473-fkb903hmrvl9nrc25uarfj9m2qs0di9p.apps.googleusercontent.com",
         callback: handleGoogleCredentialResponse
       });
-      google.accounts.id.renderButton(
-        document.getElementById("google-signin-btn"),
-        { theme: "outline", size: "large", width: 380 }
-      );
+      const googleBtn = document.getElementById("google-signin-btn");
+      if (googleBtn) {
+        google.accounts.id.renderButton(
+          googleBtn,
+          { theme: "outline", size: "large", width: 380 }
+        );
+      }
     } else {
-      setTimeout(initLiveGoogleSignIn, 150);
+      googleSignInAttempts++;
+      if (googleSignInAttempts < 25) {
+        setTimeout(initLiveGoogleSignIn, 200);
+      }
     }
   }
 
@@ -5027,240 +5342,8 @@ function initPortalAuth() {
   // ==========================================================================
   // FOUNDER AJAY RAJ B.K - EXCLUSIVE TEAM, PHOTO & ROLE MANAGEMENT
   // ==========================================================================
-
-  const DEFAULT_TEAM_DIRECTORY = [
-    {
-      id: 'founder_ajay',
-      name: 'Ajay Raj B.K',
-      role: 'Founder & Creative Director',
-      dept: 'Executive Leadership',
-      glow: 'glow-purple',
-      photo: 'https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/ajay.jpeg',
-      fallbackPhoto: 'assets/images/ajay.jpeg',
-      responsibilities: [
-        'Vision & Strategy',
-        'Creative Direction',
-        'Brand Development',
-        'Business Growth',
-        'Innovation Leadership'
-      ],
-      socials: {
-        linkedin: 'https://www.linkedin.com/in/ajay-raj-b-k-940a3b285?utm_source=share_via&utm_content=profile&utm_medium=member_android',
-        twitter: 'https://x.com/AjayRajBK1'
-      },
-      isFounder: true
-    },
-    {
-      id: 'ceo_shashank',
-      name: 'Shashank Raj B.K',
-      role: 'Co-Founder & CEO',
-      dept: 'Executive & Operations',
-      glow: 'glow-amber',
-      photo: 'https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/shashank.jpeg',
-      fallbackPhoto: 'assets/images/shashank.jpeg',
-      responsibilities: [
-        'Business Operations',
-        'Company Management',
-        'Partnerships',
-        'Client Relations',
-        'Company Expansion'
-      ],
-      socials: {
-        linkedin: 'https://www.linkedin.com/in/shashank-raj-b-k-a9747b21b?utm_source=share_via&utm_content=profile&utm_medium=member_android',
-        twitter: 'https://twitter.com'
-      }
-    },
-    {
-      id: 'cto_thontadaraya',
-      name: 'Thontadaraya',
-      role: 'CTO (Technology Head)',
-      dept: 'AI & Engineering',
-      glow: 'glow-cyan',
-      photo: 'https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/thontadarya.jpeg',
-      fallbackPhoto: 'assets/images/thontadarya.jpeg',
-      responsibilities: [
-        'Software Development',
-        'AI Systems',
-        'Technical Architecture',
-        'Product Development',
-        'Innovation'
-      ],
-      socials: {
-        linkedin: 'https://www.linkedin.com/in/thontadarya-c-06a670251/',
-        twitter: 'https://twitter.com'
-      }
-    },
-    {
-      id: 'cmo_munish',
-      name: 'Munish',
-      role: 'CMO (Marketing Head)',
-      dept: 'Marketing & Media',
-      glow: 'glow-pink',
-      photo: 'https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/munish.jpeg',
-      fallbackPhoto: 'assets/images/munish.png',
-      responsibilities: [
-        'Marketing Strategy',
-        'Social Media',
-        'Advertising',
-        'Content Marketing',
-        'Brand Awareness'
-      ],
-      socials: {
-        linkedin: 'https://www.linkedin.com/in/munish-r-62a500253?utm_source=share_via&utm_content=profile&utm_medium=member_android',
-        twitter: 'https://twitter.com'
-      }
-    },
-    {
-      id: 'chro_pavan',
-      name: 'Pavan Krishna',
-      role: 'CHRO (HR Head)',
-      dept: 'Human Resources',
-      glow: 'glow-green',
-      photo: 'https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/pavan.jpeg',
-      fallbackPhoto: 'assets/images/pavan.png',
-      responsibilities: [
-        'Recruitment',
-        'Talent Management',
-        'Team Building',
-        'Employee Development',
-        'Company Culture'
-      ],
-      socials: {
-        linkedin: 'https://www.linkedin.com/in/pavan-krishna-k-r-61136a2a4?utm_source=share_via&utm_content=profile&utm_medium=member_android',
-        twitter: 'https://twitter.com'
-      }
-    },
-    {
-      id: 'cio_pruthvi',
-      name: 'Pruthvi Raj',
-      role: 'CIO (IT Head)',
-      dept: 'IT & Infrastructure',
-      glow: 'glow-cyan',
-      photo: '',
-      fallbackPhoto: 'assets/images/pruthvi.png',
-      responsibilities: [
-        'IT Infrastructure',
-        'Security Systems',
-        'Data Management',
-        'Network Operations',
-        'Technology Support'
-      ],
-      socials: {
-        linkedin: 'https://linkedin.com',
-        twitter: 'https://twitter.com'
-      }
-    },
-    {
-      id: 'coo_shreyas',
-      name: 'Shreyas',
-      role: 'COO & Site Engineer',
-      dept: 'Operations & Engineering',
-      glow: 'glow-purple',
-      photo: '',
-      fallbackPhoto: 'assets/images/shreyas.png',
-      responsibilities: [
-        'Operations Management',
-        'Project Coordination',
-        'Site Supervision',
-        'Quality Control',
-        'Construction Management'
-      ],
-      socials: {
-        linkedin: 'https://linkedin.com',
-        twitter: 'https://twitter.com'
-      }
-    },
-    {
-      id: 'sales_subhash',
-      name: 'Subhash',
-      role: 'Sales & Pricing Lead',
-      dept: 'Sales & Growth',
-      glow: 'glow-amber',
-      photo: '',
-      fallbackPhoto: 'assets/images/subhash.png',
-      responsibilities: [
-        'Sales Management',
-        'Pricing Strategy',
-        'Client Acquisition',
-        'Revenue Generation',
-        'Business Deals'
-      ],
-      socials: {
-        linkedin: 'https://linkedin.com',
-        twitter: 'https://twitter.com'
-      }
-    }
-  ];
-
-  const TEAM_STORAGE_KEY = 'antigravity_team_directory';
-
-  function getTeamDirectory() {
-    try {
-      const raw = localStorage.getItem(TEAM_STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
-        }
-      }
-    } catch (e) {
-      console.warn('Failed to parse saved team directory:', e);
-    }
-    const initial = JSON.parse(JSON.stringify(DEFAULT_TEAM_DIRECTORY));
-    try {
-      localStorage.setItem(TEAM_STORAGE_KEY, JSON.stringify(initial));
-    } catch (e) {}
-    return initial;
-  }
-
-  // Compress images to high-quality lightweight WebP/JPEG (max 400x400) for instant storage & loading
-  function compressImageFile(file, maxWidth = 400, quality = 0.82) {
-    return new Promise((resolve) => {
-      if (!file || !file.type.startsWith('image/')) {
-        resolve('');
-        return;
-      }
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          let width = img.width;
-          let height = img.height;
-
-          if (width > height) {
-            if (width > maxWidth) {
-              height = Math.round((height * maxWidth) / width);
-              width = maxWidth;
-            }
-          } else {
-            if (height > maxWidth) {
-              width = Math.round((width * maxWidth) / height);
-              height = maxWidth;
-            }
-          }
-
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL('image/jpeg', quality));
-        };
-        img.onerror = () => resolve(e.target.result);
-        img.src = e.target.result;
-      };
-      reader.onerror = () => resolve('');
-      reader.readAsDataURL(file);
-    });
-  }
-
-  function saveTeamDirectory(team) {
-    try {
-      localStorage.setItem(TEAM_STORAGE_KEY, JSON.stringify(team));
-    } catch (e) {
-      console.error('Failed to save team directory to localStorage:', e);
-    }
-  }
+  // Note: getTeamDirectory, saveTeamDirectory, compressImageFile, and TEAM_STORAGE_KEY
+  // are defined at the top-level Section 6 to power both Executive Officers and Organization Chart.
 
   // Strict check: ONLY Founder Ajay Raj B.K has authority & quick access toggle support
   function isFounderSession() {
@@ -5431,6 +5514,13 @@ function initPortalAuth() {
     attachMainLeadershipEvents();
     if (typeof lucide !== 'undefined' && lucide.createIcons) {
       lucide.createIcons();
+    }
+
+    // Instantly reflect all role CRUD changes in Organization Chart as well
+    if (typeof renderDynamicOrgChart === 'function') {
+      try { renderDynamicOrgChart(); } catch (e) { console.warn('Org chart sync error:', e); }
+    } else if (typeof window.renderDynamicOrgChart === 'function') {
+      try { window.renderDynamicOrgChart(); } catch (e) { console.warn('Org chart sync error:', e); }
     }
   }
 
