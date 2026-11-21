@@ -8,6 +8,14 @@
   <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico?v=2.0">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2.0">
   <link rel="canonical" href="https://antigravitystudios.in/">
+
+  <!-- High Performance Speed Optimizations: Preconnects & Font Preloading -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@400;500;700;900&display=swap">
+  <link rel="preload" href="/assets/textures/earth/earth_atmos_2048.jpg" as="image">
   
   <!-- Google Analytics Tag Placeholder (Replace G-XXXXXXXXXX with your actual Measurement ID to enable tracking) -->
   <!-- 
@@ -249,16 +257,17 @@
   </script>
   
   <!-- Style Sheets -->
-  <link rel="stylesheet" href="/css/style.css?v=5.1.0">
-  <link rel="stylesheet" href="/css/chatbot.css?v=5.1.0">
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
-  <!-- Razorpay Checkout SDK -->
-  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  <link rel="stylesheet" href="/css/style.css?v=5.3.0">
+  <link rel="stylesheet" href="/css/chatbot.css?v=5.2.0">
+  <!-- Razorpay Checkout SDK (Deferred for non-blocking load) -->
+  <script src="https://checkout.razorpay.com/v1/checkout.js" defer></script>
 </head>
-<body>
-  <!-- Script to load theme early and prevent flash of default theme -->
+<body class="dark-theme">
+  <!-- Script to load theme early: defaults to dark-theme (Midnight Orbital Space) -->
   <script>
-    if (localStorage.getItem('gravity-theme') === 'dark') {
+    if (localStorage.getItem('gravity-theme') === 'light') {
+      document.body.classList.remove('dark-theme');
+    } else {
       document.body.classList.add('dark-theme');
     }
   </script>
@@ -1148,24 +1157,24 @@
 
       <!-- ZERO-TRUST FOUNDER AUTHENTICATION MODAL (95+ MILITARY GRADE SECURITY) -->
       <div class="portal-modal-overlay" id="founder-auth-modal" aria-modal="true" role="dialog" style="display: none; z-index: 10050;">
-        <div class="portal-modal-container founder-auth-container" style="width: 460px; max-width: 92%; padding: 2rem; border: 1px solid rgba(138, 43, 226, 0.4); box-shadow: 0 0 35px rgba(138, 43, 226, 0.25), 0 20px 50px rgba(0,0,0,0.85); background: rgba(8, 6, 18, 0.96); backdrop-filter: blur(16px); border-radius: 14px;">
+        <div class="portal-modal-container founder-auth-container" style="width: 460px; max-width: 92%; padding: 2rem; border: 1px solid rgba(245, 158, 11, 0.45); box-shadow: 0 0 35px rgba(255, 215, 0, 0.25), 0 20px 50px rgba(0,0,0,0.85); background: rgba(8, 11, 18, 0.98); backdrop-filter: blur(20px); border-radius: 14px;">
           <button type="button" class="portal-modal-close" id="founder-auth-modal-close" aria-label="Close Authentication Modal">&times;</button>
           
           <div style="text-align: center; margin-bottom: 1.25rem;">
-            <div style="display: inline-flex; align-items: center; justify-content: center; width: 56px; height: 56px; border-radius: 50%; background: radial-gradient(circle, rgba(138, 43, 226, 0.3) 0%, rgba(0, 240, 255, 0.08) 100%); border: 1.5px solid var(--neon-purple); box-shadow: 0 0 20px rgba(138, 43, 226, 0.5); margin-bottom: 0.75rem;">
+            <div style="display: inline-flex; align-items: center; justify-content: center; width: 56px; height: 56px; border-radius: 50%; background: radial-gradient(circle, rgba(245, 158, 11, 0.35) 0%, rgba(8, 11, 18, 0.5) 100%); border: 1.5px solid var(--neon-cyan); box-shadow: 0 0 20px rgba(255, 215, 0, 0.5); margin-bottom: 0.75rem;">
               <i data-lucide="shield-alert" style="width: 28px; height: 28px; color: #ffd700;"></i>
             </div>
             <div style="display: flex; align-items: center; justify-content: center; gap: 0.4rem; margin-bottom: 0.25rem;">
-              <span style="font-size: 0.68rem; letter-spacing: 0.12rem; text-transform: uppercase; background: rgba(0, 240, 255, 0.12); color: var(--neon-cyan); padding: 0.2rem 0.55rem; border-radius: 999px; border: 1px solid rgba(0, 240, 255, 0.35); font-weight: 700;">
+              <span style="font-size: 0.68rem; letter-spacing: 0.12rem; text-transform: uppercase; background: rgba(245, 158, 11, 0.15); color: #ffd700; padding: 0.2rem 0.55rem; border-radius: 999px; border: 1px solid rgba(245, 158, 11, 0.4); font-weight: 700;">
                 95+ Zero-Trust Enclave
               </span>
             </div>
             <h3 style="margin: 0.4rem 0 0.2rem 0; font-size: 1.35rem; font-weight: 800; letter-spacing: 0.02rem; color: #fff; font-family: var(--font-heading, sans-serif);">Founder Security Clearance</h3>
-            <p style="margin: 0; font-size: 0.78rem; color: rgba(233, 213, 255, 0.8);">Ajay Raj B.K &bull; Cryptographic Proof of Authority</p>
+            <p style="margin: 0; font-size: 0.78rem; color: rgba(240, 244, 252, 0.8);">Ajay Raj B.K &bull; Cryptographic Proof of Authority</p>
           </div>
 
           <!-- Lockout Alert Banner (hidden unless locked) -->
-          <div id="founder-lockout-banner" style="display: none; background: rgba(255, 0, 85, 0.15); border: 1px solid rgba(255, 0, 85, 0.5); border-radius: 8px; padding: 0.75rem; margin-bottom: 1rem; color: #ff6b8b; font-size: 0.78rem; text-align: center; line-height: 1.4;">
+          <div id="founder-lockout-banner" style="display: none; background: rgba(255, 0, 85, 0.2); border: 1px solid rgba(255, 0, 85, 0.5); border-radius: 8px; padding: 0.75rem; margin-bottom: 1rem; color: #ff6b8b; font-size: 0.78rem; text-align: center; line-height: 1.4;">
             <i data-lucide="alert-octagon" style="width: 16px; height: 16px; vertical-align: middle; margin-right: 0.25rem;"></i>
             <strong>MAXIMUM SECURITY LOCKDOWN</strong><br>
             Too many failed attempts. Cooldown active for: <span id="founder-lockout-timer" style="font-weight: bold; color: #fff;">15m 00s</span>
@@ -1174,12 +1183,12 @@
           <!-- Auth Form -->
           <form id="founder-auth-form" style="display: flex; flex-direction: column; gap: 1rem;">
             <div class="portal-input-group" style="position: relative;">
-              <label for="founder-master-key" style="font-size: 0.76rem; letter-spacing: 0.05rem; text-transform: uppercase; color: #e9d5ff; font-weight: 600; display: block; margin-bottom: 0.35rem;">
+              <label for="founder-master-key" style="font-size: 0.76rem; letter-spacing: 0.05rem; text-transform: uppercase; color: #f0f4fc; font-weight: 600; display: block; margin-bottom: 0.35rem;">
                 Enter Master Founder Key
               </label>
               <div style="position: relative; display: flex; align-items: center;">
-                <input type="password" id="founder-master-key" required placeholder="Enter Ajay Raj B.K Security Key" autocomplete="current-password" style="width: 100%; background: rgba(0, 0, 0, 0.6); border: 1px solid rgba(138, 43, 226, 0.5); color: #fff; padding: 0.75rem 2.75rem 0.75rem 0.85rem; border-radius: 8px; font-family: monospace; font-size: 0.92rem; outline: none; transition: border-color 0.2s, box-shadow 0.2s;">
-                <button type="button" id="founder-toggle-pwd-btn" aria-label="Toggle Password Visibility" style="position: absolute; right: 0.6rem; background: none; border: none; color: rgba(255,255,255,0.6); cursor: pointer; padding: 0.25rem; display: flex; align-items: center;">
+                <input type="password" id="founder-master-key" required placeholder="Enter Ajay Raj B.K Security Key" autocomplete="current-password" style="width: 100%; background: rgba(0, 0, 0, 0.7); border: 1px solid rgba(245, 158, 11, 0.45); color: #fff; padding: 0.75rem 2.75rem 0.75rem 0.85rem; border-radius: 8px; font-family: monospace; font-size: 0.92rem; outline: none; transition: border-color 0.2s, box-shadow 0.2s;">
+                <button type="button" id="founder-toggle-pwd-btn" aria-label="Toggle Password Visibility" style="position: absolute; right: 0.6rem; background: none; border: none; color: rgba(255,255,255,0.7); cursor: pointer; padding: 0.25rem; display: flex; align-items: center;">
                   <i data-lucide="eye" id="founder-pwd-icon" style="width: 18px; height: 18px;"></i>
                 </button>
               </div>
@@ -1194,7 +1203,7 @@
 
             <div style="display: flex; gap: 0.75rem; margin-top: 0.5rem;">
               <button type="button" id="founder-auth-cancel" class="main-founder-btn outline" style="flex: 1; padding: 0.65rem;">Cancel</button>
-              <button type="submit" id="founder-auth-submit" class="main-founder-btn primary" style="flex: 2; padding: 0.65rem; background: linear-gradient(135deg, #8a2be2, #00f0ff); border: none; font-weight: 700; color: #000; box-shadow: 0 0 15px rgba(0, 240, 255, 0.4);">
+              <button type="submit" id="founder-auth-submit" class="main-founder-btn primary" style="flex: 2; padding: 0.65rem; background: linear-gradient(135deg, #ffd700, #f59e0b); border: 1px solid #fde047; font-weight: 700; color: #030407; box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);">
                 <i data-lucide="unlock" style="width: 14px; height: 14px; vertical-align: middle;"></i> Verify & Unlock
               </button>
             </div>
@@ -3088,9 +3097,9 @@
   <!-- Supabase Client SDK (CDN) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.7/dist/umd/supabase.js" integrity="sha384-hazsLVND17GNLVdtV19te6qbFT2YuLgl8SamcF+QR5eIOC+W4dGKrUNMxU1jH1zD" crossorigin="anonymous"></script>
   <!-- Custom Application Scripts -->
-  <script src="/js/three-scene.js?v=5.1.0"></script>
-  <script src="/js/app.js?v=5.1.0"></script>
-  <script src="/js/chatbot.js?v=5.1.0"></script>
+  <script src="/js/three-scene.js?v=5.8.0"></script>
+  <script src="/js/app.js?v=5.2.0"></script>
+  <script src="/js/chatbot.js?v=5.2.0"></script>
 
   <!-- DIGITAL PRODUCTS UNDER CONSTRUCTION MODAL -->
   <div id="construction-modal-overlay" class="construction-modal-overlay" aria-modal="true" role="dialog" aria-labelledby="construction-modal-title" style="display: none;">
