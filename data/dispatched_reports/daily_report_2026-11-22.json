@@ -1,0 +1,34 @@
+{
+  "generatedAt": "2026-11-22T03:33:25.271Z",
+  "reportDate": "Sunday, 22 November 2026",
+  "reportTime": "9:03:25 am",
+  "windowHours": 24,
+  "metrics": {
+    "totalLogins": 1,
+    "successfulLogins": 1,
+    "failedAttempts": 0,
+    "uniqueUsersCount": 1,
+    "uniqueIpsCount": 1
+  },
+  "uniqueUsers": [
+    "test_client@antigravitystudios.in"
+  ],
+  "logs": [
+    {
+      "id": "log_1795318405251_81focb",
+      "email": "test_client@antigravitystudios.in",
+      "name": "Test Client",
+      "role": "client",
+      "status": "SUCCESS",
+      "reason": "Authenticated successfully",
+      "authMethod": "test_verification",
+      "sessionId": "sess_1795318405251",
+      "ip": "1",
+      "userAgent": "node",
+      "device": "Desktop",
+      "timestampUtc": "2026-11-22T03:33:25.178Z",
+      "timestampIst": "22/11/2026, 9:03:25 am",
+      "epoch": 1795318405178
+    }
+  ]
+}

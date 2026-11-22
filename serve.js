@@ -127,4 +127,41 @@ server.listen(PORT, () => {
   console.log(`Gravity Studios Local Web Server is now ACTIVE!`);
   console.log(`Please open: http://localhost:${PORT}/`);
   console.log(`==================================================\n`);
+
+  // Start automated daily 10:00 AM admin dispatch timer
+  initDaily10AmScheduler();
 });
+
+// Automated Daily 10:00 AM Login Report Scheduler
+function initDaily10AmScheduler() {
+  let lastDispatchedDate = null;
+
+  setInterval(async () => {
+    try {
+      const now = new Date();
+      // Calculate IST time components
+      const istString = now.toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour12: false });
+      const [hourStr, minuteStr] = istString.split(':');
+      const hour = parseInt(hourStr, 10);
+      const minute = parseInt(minuteStr, 10);
+
+      const todayDateStr = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }); // YYYY-MM-DD
+
+      // Check if it's 10:00 AM IST and haven't dispatched today yet
+      if (hour === 10 && minute === 0 && lastDispatchedDate !== todayDateStr) {
+        lastDispatchedDate = todayDateStr;
+        console.log(`\n[CRON 10:00 AM] Triggering Daily Login Audit Dispatch for ${todayDateStr}...`);
+        
+        try {
+          const { generateDailyDigest } = require('./api_handlers/daily-admin-dispatch');
+          const result = await generateDailyDigest(24);
+          console.log(`[CRON 10:00 AM SUCCESS] Dispatched report to all admins. Total logins: ${result.summary.metrics.totalLogins}`);
+        } catch (dispatchErr) {
+          console.error(`[CRON 10:00 AM ERROR] Failed to dispatch daily report:`, dispatchErr);
+        }
+      }
+    } catch (err) {
+      // Non-blocking catch
+    }
+  }, 30000); // Check every 30 seconds
+}

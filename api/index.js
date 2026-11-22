@@ -17,7 +17,9 @@ const handlers = {
   '/api/get-refund-claims': require('../api_handlers/get-refund-claims'),
   '/api/get-supabase-config': require('../api_handlers/get-supabase-config'),
   '/api/submit-dispute': require('../api_handlers/submit-dispute'),
-  '/api/verify-razorpay-signature': require('../api_handlers/verify-razorpay-signature')
+  '/api/verify-razorpay-signature': require('../api_handlers/verify-razorpay-signature'),
+  '/api/record-login': require('../api_handlers/record-login'),
+  '/api/daily-admin-dispatch': require('../api_handlers/daily-admin-dispatch')
 };
 
 module.exports = async (req, res) => {

@@ -262,18 +262,80 @@
   <!-- Razorpay Checkout SDK (Deferred for non-blocking load) -->
   <script src="https://checkout.razorpay.com/v1/checkout.js" defer></script>
 </head>
-<body class="dark-theme">
-  <!-- Script to load theme early: defaults to dark-theme (Midnight Orbital Space) -->
+<body>
+  <!-- Script to load theme early: defaults to Crisp Luxury White Marble theme & enfore Outside Gatekeeper -->
   <script>
-    if (localStorage.getItem('gravity-theme') === 'light') {
-      document.body.classList.remove('dark-theme');
-    } else {
+    if (localStorage.getItem('gravity-theme') === 'dark') {
       document.body.classList.add('dark-theme');
+    } else {
+      document.body.classList.remove('dark-theme');
     }
+
+    // Outside Auth Gatekeeper: Lock site before rendering if user not authenticated
+    (function() {
+      var sess = sessionStorage.getItem('gravity_auth_session') || localStorage.getItem('gravity_auth_session');
+      if (!sess) {
+        document.documentElement.classList.add('site-locked');
+      }
+    })();
   </script>
 
-  <!-- Three.js Cosmic Background Canvas -->
-  <div id="three-canvas" aria-hidden="true"></div>
+  <!-- OUTSIDE AUTH GATEWAY (Mandatory login before viewing website) -->
+  <aside id="outside-auth-gateway" aria-label="Antigravity Studios Client Login Gateway">
+    <div class="auth-gate-box">
+      <div class="auth-gate-header">
+        <img src="/logo.png" onerror="this.onerror=null; this.src='https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/logo.png';" alt="Antigravity Studios Logo" class="auth-gate-logo">
+        <div class="auth-gate-badge">
+          <i data-lucide="shield-check"></i>
+          <span>Secure Studio Portal</span>
+        </div>
+        <h2 class="auth-gate-title">Antigravity Studios</h2>
+        <p class="auth-gate-subtitle">Authorized Access Only. Please sign in to enter our creative agency & client portal.</p>
+      </div>
+
+      <form id="gatekeeper-auth-form" class="auth-gate-form" onsubmit="return false;">
+        <div class="gate-input-group">
+          <label for="gate-email">Work Email / Client ID</label>
+          <div class="gate-input-wrap">
+            <i data-lucide="mail"></i>
+            <input type="email" id="gate-email" placeholder="client@antigravitystudios.in" required autocomplete="email">
+          </div>
+        </div>
+
+        <div class="gate-input-group">
+          <label for="gate-password">Password / Access Pass</label>
+          <div class="gate-input-wrap">
+            <i data-lucide="lock"></i>
+            <input type="password" id="gate-password" placeholder="••••••••••••" required autocomplete="current-password">
+          </div>
+        </div>
+
+        <div class="gate-options-row">
+          <label class="gate-checkbox-label">
+            <input type="checkbox" id="gate-remember" checked>
+            <span>Remember this device</span>
+          </label>
+          <a href="https://wa.me/919019779409?text=Hi%20Antigravity%20Studios,%20I%20need%20access%20credentials%20for%20the%20client%20portal" target="_blank" rel="noopener" style="color: var(--neon-cyan); text-decoration: none; font-size: 0.8rem;">Request Access</a>
+        </div>
+
+        <div id="gate-alert-box" class="gate-alert" role="alert"></div>
+
+        <button type="submit" id="gate-submit-btn" class="gate-btn-submit">
+          <i data-lucide="log-in"></i>
+          <span id="gate-submit-text">Unlock & Enter Studio</span>
+        </button>
+
+        <button type="button" id="gate-quick-demo-btn" class="gate-demo-access-btn">
+          <i data-lucide="sparkles"></i>
+          <span>Quick Demo Access (Test Login)</span>
+        </button>
+      </form>
+
+      <div class="gate-footer-note">
+        All login events are audited with military-grade timestamping. Daily security digests are automatically dispatched to studio administrators at 10:00 AM IST.
+      </div>
+    </div>
+  </aside>
 
   <!-- Kids Playful drawing canvas (Active when toggled in header) -->
   <canvas id="magic-paint-canvas" aria-hidden="true"></canvas>
@@ -3090,16 +3152,46 @@
   </div>
 
   <!-- SCRIPT HOOKS -->
-  <!-- Three.js (Core WebGL) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.147.0/three.min.js" integrity="sha512-GWXLkqxMENYgBdQvA/lTeOV+R2auhasgKQxjMTWBFt3Z6GJVZ9owiyAMOzz0Wt6J1ri8bf/g2kHJV0uvWpJTuw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <!-- Lucide (SVG Vector Icons - CDN) -->
   <script src="https://cdn.jsdelivr.net/npm/lucide@0.390.0/dist/umd/lucide.min.js" integrity="sha384-wM5u8voM9wo+2UV6QW8AEp5KExANUw9XWUYy7YyBI38S1UtKVoSFjS6v7A6RpN3s" crossorigin="anonymous"></script>
   <!-- Supabase Client SDK (CDN) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.7/dist/umd/supabase.js" integrity="sha384-hazsLVND17GNLVdtV19te6qbFT2YuLgl8SamcF+QR5eIOC+W4dGKrUNMxU1jH1zD" crossorigin="anonymous"></script>
   <!-- Custom Application Scripts -->
-  <script src="/js/three-scene.js?v=5.8.0"></script>
-  <script src="/js/app.js?v=5.2.0"></script>
-  <script src="/js/chatbot.js?v=5.2.0"></script>
+  <script src="/js/app.js?v=5.3.0"></script>
+  <script src="/js/chatbot.js?v=5.3.0"></script>
+
+  <!-- APPLE APP STORE "MORPH & EXPAND" CARD MODAL -->
+  <div id="morph-card-overlay" aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="morph-modal-container">
+      <button class="morph-modal-close-btn" id="morph-modal-close" aria-label="Close modal">
+        <i data-lucide="x"></i>
+      </button>
+      <div class="morph-modal-hero" id="morph-hero">
+        <i data-lucide="sparkles" class="morph-hero-icon" id="morph-icon"></i>
+      </div>
+      <div class="morph-modal-content">
+        <span class="morph-modal-badge" id="morph-badge">Featured Service</span>
+        <h2 class="morph-modal-title" id="morph-title">Service Title</h2>
+        <p class="morph-modal-desc" id="morph-desc">Comprehensive service description and strategic deliverables breakdown.</p>
+        
+        <h3 style="font-size: 1.05rem; font-weight: 700; color: var(--text-pure); margin-top: 0.5rem;">Included Deliverables & Milestones</h3>
+        <div class="morph-deliverables-grid" id="morph-deliverables">
+          <!-- Populated dynamically via JS -->
+        </div>
+
+        <div class="morph-modal-actions">
+          <a href="#contact" class="btn-primary" id="morph-cta-btn">
+            <i data-lucide="arrow-right"></i>
+            <span>Book This Service</span>
+          </a>
+          <a href="https://wa.me/919019779409?text=Hi%20Antigravity%20Studios,%20I%20would%20like%20to%20discuss%20a%20project" target="_blank" rel="noopener" class="btn-secondary">
+            <i data-lucide="message-circle"></i>
+            <span>Direct WhatsApp Inquiry</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- DIGITAL PRODUCTS UNDER CONSTRUCTION MODAL -->
   <div id="construction-modal-overlay" class="construction-modal-overlay" aria-modal="true" role="dialog" aria-labelledby="construction-modal-title" style="display: none;">

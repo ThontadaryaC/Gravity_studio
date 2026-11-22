@@ -33,6 +33,83 @@
   // Axial tilt of Earth: 23.44 degrees = 0.4091 radians
   const EARTH_AXIAL_TILT = 23.44 * (Math.PI / 180);
 
+  // High-Resolution Procedural Carrara Marble & Kintsugi Gold Texture
+  function createCarraraMarbleTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 2048;
+    canvas.height = 1024;
+    const ctx = canvas.getContext('2d');
+
+    // Base Alabaster White with subtle stone variations
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Soft cloudy stone undertones
+    for (let i = 0; i < 40; i++) {
+      const rx = Math.random() * canvas.width;
+      const ry = Math.random() * canvas.height;
+      const rad = 120 + Math.random() * 280;
+      const cloudGrad = ctx.createRadialGradient(rx, ry, 10, rx, ry, rad);
+      cloudGrad.addColorStop(0, 'rgba(241, 245, 249, 0.85)');
+      cloudGrad.addColorStop(0.5, 'rgba(226, 232, 240, 0.45)');
+      cloudGrad.addColorStop(1, 'rgba(248, 250, 252, 0)');
+      ctx.fillStyle = cloudGrad;
+      ctx.beginPath();
+      ctx.arc(rx, ry, rad, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Natural Grey/Slate Mineral Veins (Subtle & organic)
+    const veinCount = 28;
+    for (let v = 0; v < veinCount; v++) {
+      ctx.beginPath();
+      let vx = (v / veinCount) * canvas.width + (Math.random() - 0.5) * 120;
+      let vy = 0;
+      ctx.moveTo(vx, vy);
+
+      const amplitude = 15 + Math.random() * 25;
+      const frequency = 0.01 + Math.random() * 0.015;
+
+      while (vy < canvas.height) {
+        vy += 10 + Math.random() * 16;
+        vx += (Math.random() - 0.5) * 18 + Math.sin(vy * frequency) * amplitude * 0.15;
+        ctx.lineTo(vx, vy);
+      }
+      ctx.strokeStyle = v % 3 === 0 ? 'rgba(100, 116, 139, 0.35)' : 'rgba(148, 163, 184, 0.22)';
+      ctx.lineWidth = 1.2 + Math.random() * 2.8;
+      ctx.stroke();
+    }
+
+    // Radiant Polished Gold Kintsugi Seams
+    const goldCount = 9;
+    for (let g = 0; g < goldCount; g++) {
+      ctx.beginPath();
+      let gx = (g / goldCount) * canvas.width + 60;
+      let gy = 0;
+      ctx.moveTo(gx, gy);
+
+      while (gy < canvas.height) {
+        gy += 14 + Math.random() * 20;
+        gx += (Math.random() - 0.5) * 24 + Math.cos(gy * 0.012) * 8;
+        ctx.lineTo(gx, gy);
+      }
+      // Rich Amber / Deep Gold border
+      ctx.strokeStyle = '#b45309';
+      ctx.lineWidth = 3.2;
+      ctx.stroke();
+
+      // Gleaming Core Solar Gold
+      ctx.strokeStyle = '#ffd700';
+      ctx.lineWidth = 1.6;
+      ctx.stroke();
+    }
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.ClampToEdgeWrapping;
+    return tex;
+  }
+
   // 1. Procedural Soft Gaussian Star Texture with Bright Starlight Core
   function createStarTexture() {
     const canvas = document.createElement('canvas');
@@ -314,9 +391,10 @@
 
     clock = new THREE.Clock();
 
-    // 1. Scene setup (Deep Space Midnight Obsidian)
+    // 1. Scene setup
+    const isDarkInit = document.body.classList.contains('dark-theme');
     scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x030407, 0.04);
+    scene.fog = new THREE.FogExp2(isDarkInit ? 0x030407 : 0xf8fafc, isDarkInit ? 0.04 : 0.012);
 
     // 2. Camera setup
     camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 180);
@@ -334,16 +412,19 @@
     renderer.toneMappingExposure = 1.15;
     container.appendChild(renderer.domElement);
 
-    // 4. Directional Cosmic Sunlight & Space Ambient Lighting
-    // Directional light from front-right illuminating Earth, Moon, and Ant I Gravity scene
-    const sunLight = new THREE.DirectionalLight(0xffffff, 2.3);
-    sunLight.position.set(7.5, 4.5, 6.0);
+    // 4. Directional Studio Sunlight & Ambient Illumination
+    const sunLight = new THREE.DirectionalLight(0xfff7ed, 2.6);
+    sunLight.position.set(7.5, 5.0, 6.0);
     scene.add(sunLight);
 
-    const spaceAmbient = new THREE.AmbientLight(0x0a1c38, 0.72);
+    const fillLight = new THREE.DirectionalLight(0xe2e8f0, 1.2);
+    fillLight.position.set(-6.0, -3.0, -4.0);
+    scene.add(fillLight);
+
+    const spaceAmbient = new THREE.AmbientLight(0xffffff, isDarkInit ? 0.72 : 1.2);
     scene.add(spaceAmbient);
 
-    // 5. MASTER EARTH GROUPS (Hierarchy: earthMasterGroup -> earthTiltGroup -> earthMesh)
+    // 5. MASTER SCULPTURE GROUPS (Hierarchy: earthMasterGroup -> earthTiltGroup -> earthMesh)
     earthMasterGroup = new THREE.Group();
     scene.add(earthMasterGroup);
 
@@ -353,100 +434,33 @@
     earthTiltGroup.rotation.x = 0.08;
     earthMasterGroup.add(earthTiltGroup);
 
-    // --- A. PHOTOREALISTIC EARTH GLOBE SPHERE ---
-    const earthGeo = new THREE.SphereGeometry(1.85, 64, 64);
-    const textureLoader = new THREE.TextureLoader();
+    // --- A. PHOTOREALISTIC WHITE CARRARA MARBLE & KINTSUGI GOLD SCULPTURE ---
+    const marbleGeo = new THREE.SphereGeometry(1.85, 64, 64);
+    const marbleTex = createCarraraMarbleTexture();
+    marbleTex.colorSpace = THREE.SRGBColorSpace;
 
-    const earthMat = new THREE.MeshPhongMaterial({
-      color: 0x0d2847,
-      specular: new THREE.Color(0x38bdf8),
-      shininess: 28,
-      emissive: new THREE.Color(0x020817),
-      emissiveIntensity: 0.3
+    const marbleMat = new THREE.MeshStandardMaterial({
+      map: marbleTex,
+      roughness: 0.16,
+      metalness: 0.12,
+      color: 0xffffff
     });
 
-    earthMesh = new THREE.Mesh(earthGeo, earthMat);
-    // Orient globe so Asia (India, Central & East Asia) faces directly forward on initial load
+    earthMesh = new THREE.Mesh(marbleGeo, marbleMat);
+    // Orient sculpture smoothly toward the camera
     earthMesh.rotation.y = -3.05;
     earthTiltGroup.add(earthMesh);
 
-    // Asynchronously stream high-resolution NASA textures
-    textureLoader.load('/assets/textures/earth/earth_atmos_2048.jpg', function (tex) {
-      tex.colorSpace = THREE.SRGBColorSpace;
-      tex.anisotropy = Math.min(renderer.capabilities.getMaxAnisotropy(), 8);
-      earthMat.map = tex;
-      earthMat.color.setHex(0xffffff);
-      earthMat.needsUpdate = true;
-    });
-
-    textureLoader.load('/assets/textures/earth/earth_normal_2048.jpg', function (normTex) {
-      earthMat.normalMap = normTex;
-      earthMat.normalScale = new THREE.Vector2(0.85, 0.85);
-      earthMat.needsUpdate = true;
-    });
-
-    textureLoader.load('/assets/textures/earth/earth_specular_2048.jpg', function (specTex) {
-      earthMat.specularMap = specTex;
-      earthMat.needsUpdate = true;
-    });
-
-    // Custom shader hook to illuminate city night lights on the dark hemisphere
-    textureLoader.load('/assets/textures/earth/earth_lights_2048.png', function (nightTex) {
-      nightTex.colorSpace = THREE.SRGBColorSpace;
-      earthMat.onBeforeCompile = function (shader) {
-        shader.uniforms.nightTexture = { value: nightTex };
-        shader.uniforms.sunDirection = { value: sunLight.position };
-
-        shader.fragmentShader = shader.fragmentShader.replace(
-          '#include <common>',
-          `#include <common>
-           uniform sampler2D nightTexture;
-           uniform vec3 sunDirection;`
-        );
-
-        shader.fragmentShader = shader.fragmentShader.replace(
-          '#include <dithering_fragment>',
-          `#include <dithering_fragment>
-           vec3 norm = normalize(vNormal);
-           vec3 sunDir = normalize(sunDirection);
-           float sunDot = dot(norm, sunDir);
-
-           float nightWeight = clamp(-sunDot * 3.2, 0.0, 1.0);
-           vec4 nightLights = texture2D(nightTexture, vUv);
-           gl_FragColor.rgb += nightLights.rgb * nightWeight * vec3(1.5, 1.25, 0.8);`
-        );
-      };
-      earthMat.needsUpdate = true;
-    });
-
-    // --- B. HIGH-DEFINITION ATMOSPHERIC CLOUD SPHERE ---
-    const cloudGeo = new THREE.SphereGeometry(1.878, 64, 64);
-    const cloudMat = new THREE.MeshStandardMaterial({
-      transparent: true,
-      opacity: 0.0,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false
-    });
-    cloudsMesh = new THREE.Mesh(cloudGeo, cloudMat);
-    cloudsMesh.rotation.y = -3.05;
-    earthTiltGroup.add(cloudsMesh);
-
-    textureLoader.load('/assets/textures/earth/earth_clouds_1024.png', function (cloudTex) {
-      cloudMat.map = cloudTex;
-      cloudMat.opacity = 0.52;
-      cloudMat.needsUpdate = true;
-    });
-
-    // --- C. ATMOSPHERIC RAYLEIGH SCATTERING ELECTRIC CYAN HALO ---
+    // --- B. WARM SOLAR GOLD AURA ---
     atmosphereMesh = createAtmosphereShader();
     earthMasterGroup.add(atmosphereMesh);
 
-    // --- D. 3D SATELLITE CONSTELLATION ---
+    // --- C. ORBITING STUDIO SATELLITES ---
     const satConfigs = [
-      { radius: 2.65, incX: 0.55, incZ: 0.25, speed: 0.009, angle: 0.2, color: 0xffd700 },
-      { radius: 2.95, incX: 1.45, incZ: -0.2, speed: 0.007, angle: 2.4, color: 0xf59e0b },
-      { radius: 2.45, incX: 0.85, incZ: 0.75, speed: 0.011, angle: 4.1, color: 0xffaa00 },
-      { radius: 3.35, incX: 0.2, incZ: -0.65, speed: 0.005, angle: 1.5, color: 0xfbbf24 }
+      { radius: 2.65, incX: 0.55, incZ: 0.25, speed: 0.009, angle: 0.2, color: 0xd97706 },
+      { radius: 2.95, incX: 1.45, incZ: -0.2, speed: 0.007, angle: 2.4, color: 0xb45309 },
+      { radius: 2.45, incX: 0.85, incZ: 0.75, speed: 0.011, angle: 4.1, color: 0xf59e0b },
+      { radius: 3.35, incX: 0.2, incZ: -0.65, speed: 0.005, angle: 1.5, color: 0xd97706 }
     ];
 
     satConfigs.forEach((cfg) => {
@@ -464,145 +478,8 @@
       });
     });
 
-    // --- E. REALISTIC MOON SYSTEM WITH 3D ANT I GRAVITY MASCOT ---
-    moonGroup = createMoonSystem();
-    scene.add(moonGroup);
-
-    // --- F. MULTI-LAYERED ASTRONOMICAL REALISTIC STARFIELD ---
-    const sharedStarTex = createStarTexture();
-
-    // 1. Deep Celestial Starfield (2,600 stars)
-    const starCount = 2600;
-    const starGeo = new THREE.BufferGeometry();
-    const starPositions = new Float32Array(starCount * 3);
-    const starColors = new Float32Array(starCount * 3);
-
-    const spectralColors = [
-      new THREE.Color(0x9bb0ff),
-      new THREE.Color(0xb5c7ff),
-      new THREE.Color(0xffffff),
-      new THREE.Color(0xf6f8ff),
-      new THREE.Color(0xfff3db),
-      new THREE.Color(0xffe2ab),
-      new THREE.Color(0xffaa66),
-      new THREE.Color(0xff7744)
-    ];
-
-    for (let i = 0; i < starCount; i++) {
-      const radius = 35 + Math.random() * 85;
-      const theta = Math.random() * Math.PI * 2;
-      const phi = Math.acos(2 * Math.random() - 1);
-
-      starPositions[i * 3] = radius * Math.sin(phi) * Math.cos(theta);
-      starPositions[i * 3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
-      starPositions[i * 3 + 2] = radius * Math.cos(phi);
-
-      const color = spectralColors[Math.floor(Math.random() * spectralColors.length)];
-      starColors[i * 3] = color.r;
-      starColors[i * 3 + 1] = color.g;
-      starColors[i * 3 + 2] = color.b;
-    }
-
-    starGeo.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
-    starGeo.setAttribute('color', new THREE.BufferAttribute(starColors, 3));
-
-    const starMat = new THREE.PointsMaterial({
-      size: 0.42,
-      map: sharedStarTex,
-      vertexColors: true,
-      transparent: true,
-      opacity: 0.9,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-      fog: false
-    });
-    starField = new THREE.Points(starGeo, starMat);
-    scene.add(starField);
-
-    // 2. Bright Alpha Navigational Stars (80 stars)
-    const brightCount = 80;
-    const brightGeo = new THREE.BufferGeometry();
-    const brightPositions = new Float32Array(brightCount * 3);
-    const brightColors = new Float32Array(brightCount * 3);
-
-    for (let i = 0; i < brightCount; i++) {
-      const radius = 28 + Math.random() * 55;
-      const theta = Math.random() * Math.PI * 2;
-      const phi = Math.acos(2 * Math.random() - 1);
-
-      brightPositions[i * 3] = radius * Math.sin(phi) * Math.cos(theta);
-      brightPositions[i * 3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
-      brightPositions[i * 3 + 2] = radius * Math.cos(phi);
-
-      const color = spectralColors[i % 5];
-      brightColors[i * 3] = color.r * 1.25;
-      brightColors[i * 3 + 1] = color.g * 1.25;
-      brightColors[i * 3 + 2] = color.b * 1.25;
-    }
-
-    brightGeo.setAttribute('position', new THREE.BufferAttribute(brightPositions, 3));
-    brightGeo.setAttribute('color', new THREE.BufferAttribute(brightColors, 3));
-
-    const brightMat = new THREE.PointsMaterial({
-      size: 0.85,
-      map: sharedStarTex,
-      vertexColors: true,
-      transparent: true,
-      opacity: 0.95,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-      fog: false
-    });
-    brightStars = new THREE.Points(brightGeo, brightMat);
-    scene.add(brightStars);
-
-    // 3. Milky Way Galactic Plane Ribbon (650 particles)
-    const mwCount = 650;
-    const mwGeo = new THREE.BufferGeometry();
-    const mwPositions = new Float32Array(mwCount * 3);
-    const mwColors = new Float32Array(mwCount * 3);
-
-    const mwPalette = [
-      new THREE.Color(0x00f0ff),
-      new THREE.Color(0x0077ff),
-      new THREE.Color(0xdbeafe),
-      new THREE.Color(0x38bdf8)
-    ];
-
-    for (let i = 0; i < mwCount; i++) {
-      const dist = 32 + Math.random() * 60;
-      const angle = (i / mwCount) * Math.PI * 2 + (Math.random() - 0.5) * 0.4;
-      const spread = (Math.random() - 0.5) * 7.5;
-
-      const x = Math.cos(angle) * dist;
-      const z = Math.sin(angle) * dist;
-      const y = Math.sin(angle + 0.5) * 14 + spread;
-
-      mwPositions[i * 3] = x;
-      mwPositions[i * 3 + 1] = y;
-      mwPositions[i * 3 + 2] = z;
-
-      const color = mwPalette[Math.floor(Math.random() * mwPalette.length)];
-      mwColors[i * 3] = color.r;
-      mwColors[i * 3 + 1] = color.g;
-      mwColors[i * 3 + 2] = color.b;
-    }
-
-    mwGeo.setAttribute('position', new THREE.BufferAttribute(mwPositions, 3));
-    mwGeo.setAttribute('color', new THREE.BufferAttribute(mwColors, 3));
-
-    const mwMat = new THREE.PointsMaterial({
-      size: 0.55,
-      map: sharedStarTex,
-      vertexColors: true,
-      transparent: true,
-      opacity: 0.65,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-      fog: false
-    });
-    milkyWayPoints = new THREE.Points(mwGeo, mwMat);
-    scene.add(milkyWayPoints);
+    // NOTE: All space clutter, moon base, and starfield behind the sphere
+    // have been cleanly removed per user request for a pristine, distraction-free aesthetic.
 
     // Event listeners
     window.addEventListener('resize', onWindowResize, { passive: true });
