@@ -29,17 +29,44 @@ module.exports = async (req, res) => {
     return res.status(200).end();
   }
 
-  // GET: Return recent login summary for admins
+  const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
+  // GET: Return active 24-hour login ledger for admins (auto-pruned)
   if (req.method === 'GET') {
     try {
       if (!fs.existsSync(AUDIT_FILE)) {
-        return res.status(200).json({ total: 0, logs: [] });
+        return res.status(200).json({ total: 0, logs: [], retentionWindow: '24 Hours' });
       }
       const raw = fs.readFileSync(AUDIT_FILE, 'utf8');
-      const logs = JSON.parse(raw || '[]');
+      let logs = JSON.parse(raw || '[]');
+
+      // Auto-prune records older than 24 hours to keep database clean
+      const cutoff = Date.now() - ONE_DAY_MS;
+      const initialCount = logs.length;
+      logs = logs.filter(item => (item.epoch && item.epoch >= cutoff) || (new Date(item.timestampUtc).getTime() >= cutoff));
+
+      // Save pruned state if any entries expired
+      if (logs.length !== initialCount) {
+        fs.writeFileSync(AUDIT_FILE, JSON.stringify(logs, null, 2), 'utf8');
+      }
+
+      // Filter: Except admins, check and return all client logins
+      const urlObj = new URL(req.url, 'http://localhost');
+      const showAll = urlObj.searchParams.get('all') === 'true';
+
+      const filteredLogs = showAll ? logs : logs.filter(item => {
+        const r = (item.role || '').toLowerCase();
+        const e = (item.email || '').toLowerCase();
+        const isAdmin = r === 'admin' || r === 'founder' || r === 'ceo' || r === 'cto' || 
+                        e.startsWith('admin@') || e.startsWith('founder@') || e.startsWith('ceo@') || e.startsWith('cto@');
+        return !isAdmin;
+      });
+
       return res.status(200).json({
-        total: logs.length,
-        logs: logs.slice(-100).reverse() // Return last 100 entries, most recent first
+        total: filteredLogs.length,
+        retentionWindow: '24 Hours',
+        filter: showAll ? 'all' : 'clients_only',
+        logs: [...filteredLogs].reverse() // Return active entries, most recent first
       });
     } catch (err) {
       return res.status(500).json({ error: { message: err.message } });
@@ -55,6 +82,7 @@ module.exports = async (req, res) => {
     const {
       email,
       name,
+      phone = '',
       role = 'client',
       status = 'SUCCESS', // 'SUCCESS' or 'FAILED'
       reason = '',
@@ -77,6 +105,7 @@ module.exports = async (req, res) => {
       id: 'log_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
       email: String(email).trim().toLowerCase(),
       name: name ? String(name).trim() : (email.split('@')[0] || 'User'),
+      phone: phone ? String(phone).trim() : 'N/A',
       role: String(role).toLowerCase(),
       status: status.toUpperCase() === 'SUCCESS' ? 'SUCCESS' : 'FAILED',
       reason: reason || (status === 'SUCCESS' ? 'Authenticated successfully' : 'Invalid credentials'),
@@ -90,7 +119,7 @@ module.exports = async (req, res) => {
       epoch: now.getTime()
     };
 
-    // Safely append to local data file
+    // Safely append to local data file and enforce 24-hour cleanup
     let logs = [];
     if (fs.existsSync(AUDIT_FILE)) {
       try {
@@ -100,6 +129,11 @@ module.exports = async (req, res) => {
         logs = [];
       }
     }
+
+    // Prune entries older than 24h
+    const cutoff = now.getTime() - ONE_DAY_MS;
+    logs = logs.filter(item => (item.epoch && item.epoch >= cutoff) || (new Date(item.timestampUtc).getTime() >= cutoff));
+    
     logs.push(auditEntry);
     fs.writeFileSync(AUDIT_FILE, JSON.stringify(logs, null, 2), 'utf8');
 

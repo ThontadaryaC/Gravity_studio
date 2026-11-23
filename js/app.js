@@ -4922,6 +4922,73 @@ function initPortalAuth() {
     if (typeof renderAdminPricingEditor === 'function') {
       renderAdminPricingEditor();
     }
+    if (typeof renderAdminClientLoginsLedger === 'function') {
+      renderAdminClientLoginsLedger();
+    }
+  }
+
+  // Active Client Logins Ledger (24h Live Window - Admins Excluded)
+  async function renderAdminClientLoginsLedger() {
+    const tbody = document.getElementById('admin-login-audit-tbody');
+    if (!tbody) return;
+
+    tbody.innerHTML = '<tr><td colspan="7" style="padding: 1rem; text-align: center; color: var(--text-muted);"><i data-lucide="loader" class="spin"></i> Refreshing 24-hour client access ledger...</td></tr>';
+    if (window.lucide) lucide.createIcons();
+
+    try {
+      const res = await fetch('/api/record-login');
+      const data = await res.json();
+      const logs = (data && data.logs) ? data.logs : [];
+
+      if (logs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="padding: 1.2rem; text-align: center; color: var(--text-muted);">No active client logins recorded in the last 24 hours. (Admins excluded &amp; expired records auto-purged)</td></tr>';
+        return;
+      }
+
+      function escapeCell(str) {
+        if (!str) return '';
+        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      }
+
+      tbody.innerHTML = logs.map(entry => {
+        const isSuccess = entry.status === 'SUCCESS';
+        const statusBadge = isSuccess
+          ? '<span style="display:inline-block; padding: 0.15rem 0.5rem; border-radius: 4px; background: rgba(16, 185, 129, 0.15); color: #10b981; font-weight: 700; font-size: 0.72rem;">ACTIVE</span>'
+          : '<span style="display:inline-block; padding: 0.15rem 0.5rem; border-radius: 4px; background: rgba(239, 68, 68, 0.15); color: #ef4444; font-weight: 700; font-size: 0.72rem;">DENIED</span>';
+
+        const methodBadge = `<span style="display:inline-block; padding: 0.15rem 0.45rem; border-radius: 4px; background: rgba(255,255,255,0.06); color: var(--neon-cyan); font-size: 0.72rem;">${escapeCell(entry.authMethod || 'password')}</span>`;
+        const phoneDisplay = entry.phone && entry.phone !== 'N/A' && entry.phone !== ''
+          ? `<span style="color: #38bdf8; font-weight: 600;">${escapeCell(entry.phone)}</span>`
+          : `<span style="color: var(--text-muted); font-style: italic;">Not Provided</span>`;
+
+        return `
+          <tr style="border-bottom: 1px solid rgba(255,255,255,0.04);">
+            <td style="padding: 0.5rem 0.65rem; white-space: nowrap; color: var(--text-muted);">${escapeCell(entry.timestampIst || 'Recently')}</td>
+            <td style="padding: 0.5rem 0.65rem; font-weight: 600; color: #fff;">${escapeCell(entry.name || 'Client')}</td>
+            <td style="padding: 0.5rem 0.65rem; color: #cbd5e1;">${escapeCell(entry.email || 'N/A')}</td>
+            <td style="padding: 0.5rem 0.65rem;">${phoneDisplay}</td>
+            <td style="padding: 0.5rem 0.65rem;">${methodBadge}</td>
+            <td style="padding: 0.5rem 0.65rem; color: #94a3b8; font-size: 0.73rem;">${escapeCell(entry.device || 'Desktop')}</td>
+            <td style="padding: 0.5rem 0.65rem;">${statusBadge}</td>
+          </tr>
+        `;
+      }).join('');
+
+      if (window.lucide) lucide.createIcons();
+    } catch (err) {
+      console.warn('Error loading admin client login ledger:', err);
+      tbody.innerHTML = `<tr><td colspan="7" style="padding: 1rem; text-align: center; color: #ef4444;">Failed to load active ledger: ${escapeCell(err.message)}</td></tr>`;
+    }
+  }
+  window.renderAdminClientLoginsLedger = renderAdminClientLoginsLedger;
+
+  // Refresh client audit ledger button
+  const adminRefreshAuditBtn = document.getElementById('admin-refresh-audit-btn');
+  if (adminRefreshAuditBtn) {
+    adminRefreshAuditBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      renderAdminClientLoginsLedger();
+    });
   }
 
   // Admin processes refund claim
@@ -5474,6 +5541,13 @@ function initPortalAuth() {
           { theme: "outline", size: "large", width: 380 }
         );
       }
+      const gateRenderBtn = document.getElementById("gate-google-signin-render");
+      if (gateRenderBtn) {
+        google.accounts.id.renderButton(
+          gateRenderBtn,
+          { theme: "outline", size: "large", width: 340, shape: "pill", text: "continue_with" }
+        );
+      }
     } else {
       googleSignInAttempts++;
       if (googleSignInAttempts < 25) {
@@ -5506,6 +5580,39 @@ function initPortalAuth() {
       });
       localStorage.setItem('gravity-registered-users', JSON.stringify(localUsers));
     }
+
+    const gatePhone = document.getElementById('gate-phone');
+    const phoneVal = gatePhone ? gatePhone.value.trim() : '';
+    const detectedRole = (payload.email.toLowerCase().includes('founder') || payload.email.toLowerCase().includes('ajayraj')) ? 'founder' : 'client';
+
+    // Unlock Outside Auth Gateway with verified Google Session
+    const verifiedAuth = JSON.stringify({
+      email: payload.email,
+      name: payload.name,
+      phone: phoneVal || 'Google Account',
+      role: detectedRole,
+      authMethod: 'google_oauth',
+      authenticatedAt: new Date().toISOString()
+    });
+    sessionStorage.setItem('gravity_auth_session', verifiedAuth);
+    localStorage.setItem('gravity_auth_session', verifiedAuth);
+    document.documentElement.classList.remove('site-locked');
+    const outsideGate = document.getElementById('outside-auth-gateway');
+    if (outsideGate) outsideGate.style.display = 'none';
+
+    // Record verified login event in 24-hour audit ledger
+    fetch('/api/record-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: payload.email,
+        name: payload.name,
+        phone: phoneVal || 'Google Account',
+        role: detectedRole,
+        status: 'SUCCESS',
+        authMethod: 'google_oauth'
+      })
+    }).catch(() => {});
     
     if (supabaseClient) {
       const { data, error } = await supabaseClient.auth.signInWithIdToken({
@@ -9712,11 +9819,11 @@ function initOutsideAuthGate() {
   const form = document.getElementById('gatekeeper-auth-form');
   const emailInput = document.getElementById('gate-email');
   const passInput = document.getElementById('gate-password');
+  const phoneInput = document.getElementById('gate-phone');
   const rememberBox = document.getElementById('gate-remember');
   const alertBox = document.getElementById('gate-alert-box');
   const submitBtn = document.getElementById('gate-submit-btn');
   const submitText = document.getElementById('gate-submit-text');
-  const quickDemoBtn = document.getElementById('gate-quick-demo-btn');
   const profileLoginBtn = document.getElementById('portal-login-btn');
 
   function checkExistingAuth() {
@@ -9790,15 +9897,6 @@ function initOutsideAuthGate() {
     }
   }
 
-  // Quick Demo Access button
-  if (quickDemoBtn) {
-    quickDemoBtn.addEventListener('click', () => {
-      if (emailInput) emailInput.value = 'client@antigravitystudios.in';
-      if (passInput) passInput.value = 'antigravity2026';
-      performAuth('client@antigravitystudios.in', 'antigravity2026', true, 'quick_demo');
-    });
-  }
-
   // Google Sign-In Gatekeeper Button
   const gateGoogleBtn = document.getElementById('gate-google-btn');
   if (gateGoogleBtn) {
@@ -9811,7 +9909,13 @@ function initOutsideAuthGate() {
     if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
       google.accounts.id.prompt((notification) => {
         if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-          promptFallbackGoogleAuth();
+          // If One-Tap skipped or blocked by browser, trigger render button click or fallback
+          const renderBtn = document.querySelector('#gate-google-signin-render div[role="button"]');
+          if (renderBtn) {
+            renderBtn.click();
+          } else {
+            promptFallbackGoogleAuth();
+          }
         }
       });
     } else {
@@ -9835,6 +9939,7 @@ function initOutsideAuthGate() {
       e.preventDefault();
       const email = emailInput ? emailInput.value.trim() : '';
       const pass = passInput ? passInput.value.trim() : '';
+      const phone = phoneInput ? phoneInput.value.trim() : '';
       const remember = rememberBox ? rememberBox.checked : true;
 
       if (!email || !pass) {
@@ -9842,11 +9947,11 @@ function initOutsideAuthGate() {
         return;
       }
 
-      performAuth(email, pass, remember, 'outside_gatekeeper');
+      performAuth(email, pass, remember, 'outside_gatekeeper', phone);
     });
   }
 
-  async function performAuth(email, pass, remember, authMethod = 'outside_gatekeeper') {
+  async function performAuth(email, pass, remember, authMethod = 'outside_gatekeeper', phone = '') {
     if (submitBtn) submitBtn.disabled = true;
     if (submitText) submitText.textContent = 'Verifying Credentials...';
 
@@ -9862,14 +9967,17 @@ function initOutsideAuthGate() {
       detectedRole = 'admin';
     }
 
+    const clientPhone = phone || (phoneInput ? phoneInput.value.trim() : '') || 'N/A';
+
     try {
-      // Record login audit with server
+      // Record login audit with server (Client logins monitored & recorded)
       const recordRes = await fetch('/api/record-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: email,
           name: email.split('@')[0],
+          phone: clientPhone,
           role: detectedRole,
           status: 'SUCCESS',
           authMethod: authMethod
@@ -9883,6 +9991,7 @@ function initOutsideAuthGate() {
       const sessionData = JSON.stringify({
         email: email,
         name: email.split('@')[0],
+        phone: clientPhone,
         role: detectedRole,
         authMethod: authMethod,
         authenticatedAt: new Date().toISOString()
@@ -9926,7 +10035,53 @@ function initOutsideAuthGate() {
     alertBox.style.display = 'flex';
   }
 
-  // Initial check
+  // Routine: Enforce 24-hour retention on cache & purge junk metadata
+  function cleanExpiredClientCache() {
+    try {
+      const now = Date.now();
+      const ONE_DAY = 24 * 60 * 60 * 1000;
+      
+      const storedAuth = localStorage.getItem('gravity_auth_session');
+      if (storedAuth) {
+        try {
+          const parsed = JSON.parse(storedAuth);
+          if (parsed.authenticatedAt) {
+            const authTime = new Date(parsed.authenticatedAt).getTime();
+            if (now - authTime > ONE_DAY) {
+              localStorage.removeItem('gravity_auth_session');
+              sessionStorage.removeItem('gravity_auth_session');
+            }
+          }
+        } catch (e) {}
+      }
+
+      const purgeKeys = ['gravity-temp-cache', 'gravity_analytics_queue', 'gravity-debug-logs'];
+      purgeKeys.forEach(k => {
+        try { localStorage.removeItem(k); } catch (e) {}
+      });
+
+      const regUsersRaw = localStorage.getItem('gravity-registered-users');
+      if (regUsersRaw) {
+        try {
+          const users = JSON.parse(regUsersRaw);
+          if (Array.isArray(users)) {
+            const seen = new Set();
+            const compact = users.filter(u => {
+              if (!u.email || seen.has(u.email.toLowerCase())) return false;
+              seen.add(u.email.toLowerCase());
+              return true;
+            });
+            localStorage.setItem('gravity-registered-users', JSON.stringify(compact));
+          }
+        } catch (e) {}
+      }
+    } catch (e) {
+      console.warn("Client cache pruning notice:", e.message);
+    }
+  }
+
+  // Initial check & cache maintenance
+  cleanExpiredClientCache();
   checkExistingAuth();
 }
 

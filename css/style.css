@@ -8009,69 +8009,7 @@ body.dark-theme .auth-gate-box {
   gap: 1.1rem;
 }
 
-/* Google Sign-In Button on Outside Gate */
-.gate-btn-google {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-  background: #ffffff;
-  color: #1e293b;
-  border: 1px solid rgba(15, 23, 42, 0.16);
-  border-radius: 10px;
-  padding: 0.85rem 1rem;
-  font-family: var(--font-body);
-  font-size: 0.92rem;
-  font-weight: 600;
-  cursor: pointer;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
-  transition: transform var(--transition-fast), box-shadow var(--transition-fast), background-color var(--transition-fast);
-}
 
-.gate-btn-google:hover {
-  background: #f8fafc;
-  border-color: rgba(15, 23, 42, 0.28);
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
-  transform: translateY(-1px);
-}
-
-.gate-btn-google:active {
-  transform: translateY(0);
-}
-
-body.dark-theme .gate-btn-google {
-  background: #141a29;
-  border-color: rgba(245, 158, 11, 0.3);
-  color: #f8fafc;
-}
-
-.gate-divider {
-  display: flex;
-  align-items: center;
-  text-align: center;
-  margin: 0.25rem 0;
-  color: var(--text-muted);
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06rem;
-}
-
-.gate-divider::before,
-.gate-divider::after {
-  content: '';
-  flex: 1;
-  border-bottom: 1px solid rgba(15, 23, 42, 0.1);
-}
-
-body.dark-theme .gate-divider::before,
-body.dark-theme .gate-divider::after {
-  border-bottom-color: rgba(245, 158, 11, 0.2);
-}
-
-.gate-divider span {
-  padding: 0 0.75rem;
-}
 
 .gate-input-group {
   display: flex;
@@ -8178,30 +8116,78 @@ body.dark-theme .gate-input-wrap input:focus {
   transform: translateY(0);
 }
 
-.gate-demo-access-btn {
-  background: transparent;
-  border: 1px dashed rgba(15, 23, 42, 0.2);
+/* Gate Google Sign-In & Divider */
+.gate-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 1.1rem 0 0.8rem;
   color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.gate-divider::before,
+.gate-divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.12);
+}
+
+body.dark-theme .gate-divider::before,
+body.dark-theme .gate-divider::after {
+  border-bottom-color: rgba(255, 255, 255, 0.12);
+}
+
+.gate-divider span {
+  padding: 0 0.75rem;
+  text-transform: uppercase;
+}
+
+.gate-btn-google {
+  width: 100%;
+  background: #ffffff;
+  color: #1f2937;
+  border: 1.5px solid rgba(15, 23, 42, 0.14);
   border-radius: 10px;
-  padding: 0.75rem;
-  font-size: 0.8rem;
+  padding: 0.85rem 1.25rem;
+  font-family: var(--font-body);
+  font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  transition: var(--transition-fast);
+  gap: 0.75rem;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-body.dark-theme .gate-demo-access-btn {
-  border-color: rgba(245, 158, 11, 0.3);
+body.dark-theme .gate-btn-google {
+  background: #111726;
+  color: #f8fafc;
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
 }
 
-.gate-demo-access-btn:hover {
-  background: rgba(15, 23, 42, 0.04);
-  color: var(--text-pure);
-  border-color: var(--neon-cyan);
+.gate-btn-google:hover {
+  background: #f8fafc;
+  border-color: rgba(15, 23, 42, 0.3);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+}
+
+body.dark-theme .gate-btn-google:hover {
+  background: #182238;
+  border-color: rgba(245, 158, 11, 0.45);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
+}
+
+.gate-btn-google .google-icon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
 }
 
 .gate-alert {
@@ -10808,6 +10794,58 @@ body.dark-theme .footer-info li {
       inset 1.5px 1.5px 0 #ffffff,
       0 2px 6px rgba(15, 23, 42, 0.04) !important;
     color: #0f172a !important;
+  }
+}
+
+/* Mobile Responsive Optimization for Auth Gatekeeper & Touch Targets */
+@media (max-width: 480px) {
+  #outside-auth-gateway {
+    padding: 1rem 0.85rem !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  .auth-gate-box {
+    padding: 1.5rem 1.15rem !important;
+    border-radius: 16px !important;
+    max-height: 94vh !important;
+    overflow-y: auto !important;
+  }
+  .auth-gate-logo {
+    height: 38px !important;
+    margin-bottom: 0.85rem !important;
+  }
+  .auth-gate-title {
+    font-size: 1.35rem !important;
+  }
+  .auth-gate-subtitle {
+    font-size: 0.8rem !important;
+    margin-bottom: 1rem !important;
+  }
+  .gate-input-wrap input {
+    font-size: 16px !important; /* Prevents auto-zoom on iOS */
+    padding: 0.75rem 0.85rem 0.75rem 2.5rem !important;
+  }
+  .gate-btn-submit,
+  .gate-btn-google {
+    min-height: 48px !important;
+    font-size: 0.86rem !important;
+  }
+  #admin-login-audit-wrapper {
+    max-height: 320px !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  #admin-login-audit-wrapper table {
+    min-width: 600px;
+  }
+}
+
+/* Tablet & Mobile Admin Dashboard & Device Optimization */
+@media (max-width: 900px) {
+  #admin-dashboard-interface .dashboard-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .dashboard-card.terminal-style {
+    grid-column: span 1 !important;
   }
 }
 

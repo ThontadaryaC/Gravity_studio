@@ -19,7 +19,8 @@ const handlers = {
   '/api/submit-dispute': require('../api_handlers/submit-dispute'),
   '/api/verify-razorpay-signature': require('../api_handlers/verify-razorpay-signature'),
   '/api/record-login': require('../api_handlers/record-login'),
-  '/api/daily-admin-dispatch': require('../api_handlers/daily-admin-dispatch')
+  '/api/daily-admin-dispatch': require('../api_handlers/daily-admin-dispatch'),
+  '/api/download-clients-pdf': require('../api_handlers/download-clients-pdf')
 };
 
 module.exports = async (req, res) => {
