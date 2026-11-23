@@ -279,6 +279,7 @@ const SecureSessionEngine = (function() {
         country: userData.country || '',
         phone: userData.phone || '',
         avatarUrl: userData.avatarUrl || '',
+        authMethod: userData.authMethod || '',
         signature: signature
       };
 
@@ -5173,21 +5174,27 @@ function initPortalAuth() {
     }
   }
 
-  // Active Client Logins Ledger (24h Live Window - Admins Excluded)
+  // Monthly Verified Client Logins Ledger (1-Month Retention - Auto-resets on the 1st of each month)
   async function renderAdminClientLoginsLedger() {
     const tbody = document.getElementById('admin-login-audit-tbody');
+    const monthLabelEl = document.getElementById('admin-audit-month-label');
     if (!tbody) return;
 
-    tbody.innerHTML = '<tr><td colspan="7" style="padding: 1rem; text-align: center; color: var(--text-muted);"><i data-lucide="loader" class="spin"></i> Refreshing 24-hour client access ledger...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" style="padding: 1rem; text-align: center; color: var(--text-muted);"><i data-lucide="loader" class="spin"></i> Refreshing active monthly client access ledger...</td></tr>';
     if (window.lucide) lucide.createIcons();
 
     try {
       const res = await fetch('/api/record-login');
       const data = await res.json();
       const logs = (data && data.logs) ? data.logs : [];
+      const currentMonth = data.month || new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' });
+
+      if (monthLabelEl) {
+        monthLabelEl.innerText = currentMonth;
+      }
 
       if (logs.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="padding: 1.2rem; text-align: center; color: var(--text-muted);">No active client logins recorded in the last 24 hours. (Admins excluded &amp; expired records auto-purged)</td></tr>';
+        tbody.innerHTML = `<tr><td colspan="7" style="padding: 1.2rem; text-align: center; color: var(--text-muted);">No client logins recorded for ${escapeCell(currentMonth)} yet. (Previous month's records automatically clear on the 1st of each month)</td></tr>`;
         return;
       }
 
@@ -5202,9 +5209,19 @@ function initPortalAuth() {
           ? '<span style="display:inline-block; padding: 0.15rem 0.5rem; border-radius: 4px; background: rgba(16, 185, 129, 0.15); color: #10b981; font-weight: 700; font-size: 0.72rem;">ACTIVE</span>'
           : '<span style="display:inline-block; padding: 0.15rem 0.5rem; border-radius: 4px; background: rgba(239, 68, 68, 0.15); color: #ef4444; font-weight: 700; font-size: 0.72rem;">DENIED</span>';
 
-        const methodBadge = `<span style="display:inline-block; padding: 0.15rem 0.45rem; border-radius: 4px; background: rgba(255,255,255,0.06); color: var(--neon-cyan); font-size: 0.72rem;">${escapeCell(entry.authMethod || 'password')}</span>`;
+        const isGoogle = (entry.authMethod === 'Google Sign-In' || entry.authMethod === 'google_oauth' || entry.authMethod === 'google');
+        const methodBadge = isGoogle
+          ? `<span style="display:inline-flex; align-items:center; gap:0.35rem; padding: 0.2rem 0.6rem; border-radius: 4px; background: rgba(225, 29, 72, 0.12); color: #e11d48; font-weight: 700; font-size: 0.72rem; border: 1px solid rgba(225, 29, 72, 0.25);">
+               <svg style="width:12px;height:12px" viewBox="0 0 24 24"><path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.2 1.6l3.2-3.1C17.5 2.1 15 1 12 1 7.7 1 4 3.5 2.2 7.1l3.6 2.8C6.7 7.3 9.1 5 12 5z"/><path fill="#4285F4" d="M22.6 12.3c0-.8-.1-1.5-.2-2.3H12v4.3h6c-.3 1.4-1.1 2.5-2.2 3.3v2.8h3.6c2.1-1.9 3.2-4.7 3.2-8.1z"/><path fill="#FBBC05" d="M5.8 14.1c-.2-.7-.3-1.4-.3-2.1s.1-1.4.3-2.1V7.1H2.2C1.4 8.6 1 10.2 1 12s.4 3.4 1.2 4.9l2.8-2.2.8-.6z"/><path fill="#34A853" d="M12 23c3 0 5.5-1 7.3-2.7l-3.6-2.8c-1 .7-2.2 1.1-3.7 1.1-2.9 0-5.3-1.9-6.2-4.5H2.2v2.8C4 20.5 7.7 23 12 23z"/></svg>
+               Google
+             </span>`
+          : `<span style="display:inline-flex; align-items:center; gap:0.35rem; padding: 0.2rem 0.6rem; border-radius: 4px; background: rgba(255,255,255,0.06); color: #cbd5e1; font-weight: 600; font-size: 0.72rem; border: 1px solid rgba(255,255,255,0.12);">
+               <i data-lucide="key" style="width:12px;height:12px;color:var(--accent-red)"></i>
+               Email &amp; Password
+             </span>`;
+
         const phoneDisplay = entry.phone && entry.phone !== 'N/A' && entry.phone !== ''
-          ? `<span style="color: #38bdf8; font-weight: 600;">${escapeCell(entry.phone)}</span>`
+          ? `<a href="https://wa.me/${entry.phone.replace(/[^0-9]/g, '')}" target="_blank" rel="noopener" style="color: #38bdf8; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 0.3rem;"><i data-lucide="message-circle" style="width:12px;height:12px;"></i> ${escapeCell(entry.phone)}</a>`
           : `<span style="color: var(--text-muted); font-style: italic;">Not Provided</span>`;
 
         return `
@@ -5555,32 +5572,65 @@ function initPortalAuth() {
     }, 400); // Match transition duration
   }
 
-  // Update Header Icons and Tooltips based on Session state
+  // Update Header Avatar and Tooltips based on Session state
+  // If user signed in with Google -> display user's Gmail profile image
+  // If user signed in with Email/Password -> display standard person login icon
   function updateAuthUI() {
-    const userIcon = loginBtn.querySelector('.portal-user-icon');
-    const adminIcon = loginBtn.querySelector('.portal-admin-icon');
+    if (!loginBtn) return;
     const sidebarAdminBtn = document.getElementById('sidebar-admin-btn');
-    
-    loginBtn.className = 'control-btn'; // Reset classes
 
-    // Always show the user login icon and hide the admin icon to keep the admin portal hidden
-    if (userIcon) userIcon.style.display = 'block';
-    if (adminIcon) adminIcon.style.display = 'none';
+    // Retrieve active session from currentSession or stored tokens
+    let session = currentSession;
+    if (!session) {
+      try {
+        const raw = sessionStorage.getItem('gravity_auth_session') || 
+                    localStorage.getItem('gravity_auth_session') || 
+                    localStorage.getItem('gravity-user-session');
+        if (raw) session = JSON.parse(raw);
+      } catch (e) {}
+    }
 
-    if (!currentSession) {
+    if (!session || (!session.email && !session.username)) {
+      // User is NOT logged in: Display "Sign In" text button
       if (sidebarAdminBtn) sidebarAdminBtn.style.display = 'none';
+      loginBtn.className = 'header-signin-btn';
+      loginBtn.innerHTML = 'Sign In';
       loginBtn.setAttribute('data-tooltip', 'Portal Sign-In');
       loginBtn.setAttribute('aria-label', 'Open Login Portal');
-    } else {
-      // Both admin and standard users visual styling are identical in header
-      if (sidebarAdminBtn) {
-        sidebarAdminBtn.style.display = (currentSession.role === 'admin') ? 'flex' : 'none';
-      }
-      loginBtn.classList.add('logged-in-user');
-      const displayName = currentSession.username || (currentSession.role === 'admin' ? 'Member' : 'User');
-      loginBtn.setAttribute('data-tooltip', `User Portal (${displayName})`);
-      loginBtn.setAttribute('aria-label', 'Open User Workspace');
+      return;
     }
+
+    // User IS LOGGED IN:
+    if (sidebarAdminBtn) {
+      sidebarAdminBtn.style.display = (session.role === 'admin') ? 'flex' : 'none';
+    }
+
+    loginBtn.className = 'header-signin-btn header-user-avatar-btn';
+    const displayName = session.username || session.name || (session.email ? session.email.split('@')[0] : 'User');
+    const isGoogleAuth = session.authMethod === 'google_oauth' || 
+                         session.authMethod === 'google' ||
+                         (session.avatarUrl && (session.avatarUrl.includes('google') || session.avatarUrl.includes('googleusercontent.com')));
+
+    if (isGoogleAuth && session.avatarUrl) {
+      // User logged in with direct Google: render their Google profile picture
+      loginBtn.innerHTML = `
+        <div class="header-avatar-circle" title="${displayName} (${session.email})">
+          <img src="${session.avatarUrl}" alt="${displayName}" class="header-user-avatar-img" onerror="this.onerror=null; this.parentElement.classList.add('header-avatar-person-icon'); this.parentElement.innerHTML='<i data-lucide=\\'user\\'></i>'; if (window.lucide) lucide.createIcons();">
+        </div>
+      `;
+    } else {
+      // User logged in with email and password: render normal person icon
+      loginBtn.innerHTML = `
+        <div class="header-avatar-circle header-avatar-person-icon" title="${displayName} (${session.email})">
+          <i data-lucide="user"></i>
+        </div>
+      `;
+    }
+
+    loginBtn.setAttribute('data-tooltip', `User Portal (${displayName})`);
+    loginBtn.setAttribute('aria-label', `Open User Workspace (${displayName})`);
+
+    if (window.lucide) lucide.createIcons();
   }
 
   // User tab toggling (Sign In vs Sign Up)
@@ -5848,6 +5898,7 @@ function initPortalAuth() {
       phone: phoneVal || 'Google Account',
       role: detectedRole,
       authMethod: 'google_oauth',
+      avatarUrl: googleAvatarUrl,
       authenticatedAt: new Date().toISOString()
     });
     sessionStorage.setItem('gravity_auth_session', verifiedAuth);
@@ -5855,6 +5906,7 @@ function initPortalAuth() {
     document.documentElement.classList.remove('site-locked');
     const outsideGate = document.getElementById('outside-auth-gateway');
     if (outsideGate) outsideGate.style.display = 'none';
+    if (typeof updateAuthUI === 'function') updateAuthUI();
 
     // Record verified login event in 24-hour audit ledger
     fetch('/api/record-login', {
@@ -10006,18 +10058,10 @@ function initOutsideAuthGate() {
 
   function updateHeaderProfile(email) {
     if (!profileLoginBtn) return;
-    profileLoginBtn.setAttribute('data-tooltip', `Signed in: ${email} (Click to Sign Out)`);
-    profileLoginBtn.style.borderColor = 'var(--neon-green)';
-    profileLoginBtn.style.color = 'var(--neon-green)';
-
-    // Attach click to prompt sign out
-    profileLoginBtn.onclick = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (confirm(`You are currently logged in as:\n${email}\n\nDo you want to sign out and lock the website?`)) {
-        signOutAndLock();
-      }
-    };
+    profileLoginBtn.onclick = null;
+    if (typeof updateAuthUI === 'function') {
+      updateAuthUI();
+    }
   }
 
   function signOutAndLock() {
@@ -10138,7 +10182,8 @@ function initOutsideAuthGate() {
         name: email.split('@')[0],
         phone: clientPhone,
         role: detectedRole,
-        authMethod: authMethod,
+        authMethod: authMethod || 'email_password',
+        avatarUrl: '',
         authenticatedAt: new Date().toISOString()
       });
 

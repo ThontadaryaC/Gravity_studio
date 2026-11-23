@@ -1,17 +1,39 @@
 // api_handlers/record-login.js
-// Collects and persists every login event with full audit metadata
+// Collects and persists verified client login events with 1-month calendar retention
 const fs = require('fs');
 const path = require('path');
 const { setCorsHeaders, validateCSRF, verifySessionAndRole, auditLog } = require('./security-utils');
 
 const AUDIT_FILE = path.join(__dirname, '..', 'data', 'login_audit.json');
 
+// Helper to get active calendar month metadata (resets on 1st date of every month)
+function getCurrentMonthMeta(now = new Date()) {
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth(); // 0-11
+  const currentMonthKey = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
+  const monthLabel = now.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+  
+  // First day of next month at 00:00:00
+  const nextMonthFirst = new Date(currentYear, currentMonth + 1, 1, 0, 0, 0, 0);
+  return { currentYear, currentMonth, currentMonthKey, monthLabel, nextMonthFirst };
+}
+
+// Prune records not belonging to the current calendar month
+function pruneExpiredMonthlyLogs(logs, now = new Date()) {
+  const { currentYear, currentMonth } = getCurrentMonthMeta(now);
+  return logs.filter(item => {
+    const itemDate = new Date(item.epoch || item.timestampUtc || 0);
+    return itemDate.getFullYear() === currentYear && itemDate.getMonth() === currentMonth;
+  });
+}
+
 module.exports = async (req, res) => {
   if (setCorsHeaders(req, res, { methods: 'GET, POST, OPTIONS' })) return;
 
-  const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+  const now = new Date();
+  const { currentMonthKey, monthLabel, nextMonthFirst } = getCurrentMonthMeta(now);
 
-  // GET: Return active 24-hour login ledger for admins (auto-pruned)
+  // GET: Return active monthly client login ledger for admins (auto-purged on month roll)
   if (req.method === 'GET') {
     // Require verified admin authentication
     const { user, isAdmin, error } = await verifySessionAndRole(req);
@@ -21,17 +43,22 @@ module.exports = async (req, res) => {
 
     try {
       if (!fs.existsSync(AUDIT_FILE)) {
-        return res.status(200).json({ total: 0, logs: [], retentionWindow: '24 Hours' });
+        return res.status(200).json({
+          total: 0,
+          month: monthLabel,
+          monthKey: currentMonthKey,
+          retentionWindow: '1 Calendar Month (Auto-resets on the 1st of next month)',
+          logs: []
+        });
       }
       const raw = fs.readFileSync(AUDIT_FILE, 'utf8');
       let logs = JSON.parse(raw || '[]');
 
-      // Auto-prune records older than 24 hours to keep database clean
-      const cutoff = Date.now() - ONE_DAY_MS;
+      // Enforce 1-month lifecycle: auto-purge previous month's entries starting from the 1st of this month
       const initialCount = logs.length;
-      logs = logs.filter(item => (item.epoch && item.epoch >= cutoff) || (new Date(item.timestampUtc).getTime() >= cutoff));
+      logs = pruneExpiredMonthlyLogs(logs, now);
 
-      // Save pruned state if any entries expired
+      // Save pruned state if previous month expired
       if (logs.length !== initialCount) {
         fs.writeFileSync(AUDIT_FILE, JSON.stringify(logs, null, 2), 'utf8');
       }
@@ -43,14 +70,17 @@ module.exports = async (req, res) => {
       const filteredLogs = showAll ? logs : logs.filter(item => {
         const r = (item.role || '').toLowerCase();
         const e = (item.email || '').toLowerCase();
-        const isAdmin = r === 'admin' || r === 'founder' || r === 'ceo' || r === 'cto' || 
-                        e.startsWith('admin@') || e.startsWith('founder@') || e.startsWith('ceo@') || e.startsWith('cto@');
-        return !isAdmin;
+        const isAdminRole = r === 'admin' || r === 'founder' || r === 'ceo' || r === 'cto' || 
+                            e.startsWith('admin@') || e.startsWith('founder@') || e.startsWith('ceo@') || e.startsWith('cto@');
+        return !isAdminRole;
       });
 
       return res.status(200).json({
         total: filteredLogs.length,
-        retentionWindow: '24 Hours',
+        month: monthLabel,
+        monthKey: currentMonthKey,
+        retentionWindow: '1 Calendar Month (Auto-resets on the 1st of next month)',
+        resetsAt: nextMonthFirst.toISOString(),
         filter: showAll ? 'all' : 'clients_only',
         logs: [...filteredLogs].reverse() // Return active entries, most recent first
       });
@@ -89,8 +119,12 @@ module.exports = async (req, res) => {
     const userAgent = req.headers['user-agent'] || 'Unknown Client';
     
     // Format timestamp in UTC and Indian Standard Time (IST)
-    const now = new Date();
     const istString = now.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+
+    // Determine normalized human-readable auth method
+    const cleanAuthMethod = (authMethod === 'google_oauth' || authMethod === 'google')
+      ? 'Google Sign-In'
+      : 'Email & Password';
 
     const auditEntry = {
       id: 'log_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
@@ -100,7 +134,10 @@ module.exports = async (req, res) => {
       role: String(role).toLowerCase(),
       status: status.toUpperCase() === 'SUCCESS' ? 'SUCCESS' : 'FAILED',
       reason: reason || (status === 'SUCCESS' ? 'Authenticated successfully' : 'Invalid credentials'),
-      authMethod,
+      authMethod: cleanAuthMethod,
+      rawAuthMethod: authMethod,
+      monthKey: currentMonthKey,
+      monthLabel: monthLabel,
       sessionId: sessionId || ('sess_' + Date.now()),
       ip: ip.replace(/^.*:/, ''), // clean ipv6 localhost prefix
       userAgent,
@@ -110,7 +147,7 @@ module.exports = async (req, res) => {
       epoch: now.getTime()
     };
 
-    // Safely append to local data file and enforce 24-hour cleanup
+    // Safely append to local data file and enforce 1-month calendar lifecycle
     let logs = [];
     if (fs.existsSync(AUDIT_FILE)) {
       try {
@@ -121,9 +158,8 @@ module.exports = async (req, res) => {
       }
     }
 
-    // Prune entries older than 24h
-    const cutoff = now.getTime() - ONE_DAY_MS;
-    logs = logs.filter(item => (item.epoch && item.epoch >= cutoff) || (new Date(item.timestampUtc).getTime() >= cutoff));
+    // Prune entries from previous months so dashboard always starts fresh on 1st of each month
+    logs = pruneExpiredMonthlyLogs(logs, now);
     
     logs.push(auditEntry);
     fs.writeFileSync(AUDIT_FILE, JSON.stringify(logs, null, 2), 'utf8');
@@ -134,18 +170,22 @@ module.exports = async (req, res) => {
         ip: auditEntry.ip,
         userAgent: auditEntry.userAgent,
         device: auditEntry.device,
+        authMethod: auditEntry.authMethod,
+        month: monthLabel,
         ist: istString
       });
     } catch (e) {
       // Non-blocking
     }
 
-    console.log(`[LOGIN AUDIT] ${auditEntry.status}: ${auditEntry.email} from ${auditEntry.ip} (${auditEntry.device}) at ${istString}`);
+    console.log(`[LOGIN AUDIT] [${monthLabel}] ${auditEntry.status}: ${auditEntry.email} via ${auditEntry.authMethod} from ${auditEntry.ip} (${auditEntry.device}) at ${istString}`);
 
     return res.status(200).json({
       success: true,
-      message: 'Login event recorded',
+      message: 'Login event recorded for active month',
       logId: auditEntry.id,
+      month: monthLabel,
+      authMethod: auditEntry.authMethod,
       timestampIst: istString
     });
   } catch (err) {

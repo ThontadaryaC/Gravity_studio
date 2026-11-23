@@ -2637,24 +2637,24 @@
             </form>
           </div>
 
-          <!-- ACTIVE CLIENT LOGINS & MONITORING (24-HOUR RETENTION) -->
+          <!-- ACTIVE CLIENT LOGINS & MONITORING (1-MONTH RETENTION, AUTO-RESETS 1ST OF EACH MONTH) -->
           <div class="dashboard-card terminal-style" style="grid-column: span 2;">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 0.75rem;">
               <div>
                 <h4 style="margin: 0; display: flex; align-items: center; gap: 0.5rem;">
                   <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10b981; box-shadow: 0 0 8px #10b981;"></span>
-                  Active Client Logins &amp; Access Ledger (24h Live Window)
+                  Monthly Client Logins &amp; Access Ledger (<span id="admin-audit-month-label">Active Month</span>)
                 </h4>
                 <p style="margin: 0.2rem 0 0; font-size: 0.75rem; color: var(--text-muted);">
-                  Logs automatically purge after 24 hours to keep the database stable and clutter-free.
+                  Logs are preserved for 1 calendar month. On the 1st of every month, previous logs automatically clear and start fresh from day 1.
                 </p>
               </div>
               <div style="display: flex; gap: 0.5rem; align-items: center;">
                 <button type="button" class="admin-action-btn" id="admin-refresh-audit-btn" style="padding: 0.4rem 0.8rem; font-size: 0.75rem;">
                   <i data-lucide="refresh-cw"></i> Refresh
                 </button>
-                <a href="/api/download-clients-pdf" download="clients_data.pdf" id="admin-download-clients-pdf-btn" class="admin-action-btn" style="background: linear-gradient(135deg, #b45309, #d97706); color: #fff; text-decoration: none; display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.4rem 0.85rem; font-size: 0.75rem; font-weight: bold; border-radius: 6px;">
-                  <i data-lucide="download"></i> Download clients_data.pdf
+                <a href="/api/download-clients-pdf" download="clients_data.pdf" id="admin-download-clients-pdf-btn" class="admin-action-btn" style="background: linear-gradient(135deg, #e11d48, #9b0d1e); color: #fff; text-decoration: none; display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.4rem 0.85rem; font-size: 0.75rem; font-weight: bold; border-radius: 6px; box-shadow: 0 4px 12px rgba(225, 29, 72, 0.3);">
+                  <i data-lucide="download"></i> Download Monthly PDF
                 </a>
               </div>
             </div>
