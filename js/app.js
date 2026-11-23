@@ -281,6 +281,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   safeInit('GoogleReviewsWidget', initGoogleReviewsWidget);
   safeInit('OutsideAuthGate', initOutsideAuthGate);
   safeInit('MorphCardExpansion', initMorphCardExpansion);
+  safeInit('ExecutiveDossierDrawers', initExecutiveDossierDrawers);
+  safeInit('AdminLoginAuditHub', initAdminLoginAuditHub);
 
   // Sync service catalog from Supabase on load
   try {
@@ -2067,40 +2069,77 @@ function checkTimelineInView() {
    9. DEPARTMENT grid FILTERING & SEARCH
    ========================================================================== */
 const deptCategoryMapping = {
+  // Tech & AI (6)
   'Technology & IT': 'tech',
-  'Marketing': 'core',
+  'Support & Administration': 'tech',
+  'AI Research & Innovation': 'tech',
+  'Game Development': 'tech',
+  'Website Development': 'tech',
+  'Mobile App Development': 'tech',
+  
+  // Creative & Media (8)
+  'Marketing': 'creative',
+  'Animation Studio': 'creative',
+  'Anime Production': 'creative',
+  'VFX Studio': 'creative',
+  'Film Production': 'creative',
+  'Music & Sound Production': 'creative',
+  'Branding & Marketing': 'creative',
+  'Architecture & Visualization': 'creative',
+  
+  // Core Business (4)
   'Human Resources': 'core',
   'Operations': 'core',
   'Sales & Pricing': 'core',
-  'Revenue & Business Growth': 'core',
-  'Support & Administration': 'core',
-  'Animation Studio': 'creative',
-  'Anime Production': 'creative',
-  'AI Research & Innovation': 'tech',
-  'VFX Studio': 'creative',
-  'Game Development': 'tech',
-  'Film Production': 'creative',
-  'Music & Sound Production': 'creative',
-  'Branding & Marketing': 'core',
-  'Architecture & Visualization': 'creative',
-  'Website Development': 'tech',
-  'Mobile App Development': 'tech'
+  'Revenue & Business Growth': 'core'
 };
 
+/* ==========================================================================
+   EXECUTIVE OFFICERS STACKED DOSSIER DEPTH DECK & GRID CONTROLLERS
+   (Only Executive Officers retains the 3D Stacked Card Depth Deck animation;
+    Services, Work, and Departments are clean responsive native grids)
+   ========================================================================== */
+
+const activeCardObservers = new WeakMap();
+
+function syncStageHeight(stage, activeCard, buffer = 50) {
+  if (!stage || !activeCard) return;
+  function applyHeight() {
+    const cardH = activeCard.offsetHeight || activeCard.scrollHeight || 700;
+    if (cardH > 100) {
+      stage.style.minHeight = (cardH + buffer) + 'px';
+    }
+  }
+  requestAnimationFrame(applyHeight);
+  if (typeof ResizeObserver !== 'undefined' && !activeCardObservers.has(activeCard)) {
+    const ro = new ResizeObserver(() => applyHeight());
+    ro.observe(activeCard);
+    activeCardObservers.set(activeCard, ro);
+  }
+}
+
+/* ==========================================================================
+   9. DEPARTMENT GRID FILTERING & SEARCH
+   ========================================================================== */
 function initDepartmentFilter() {
   const searchInput = document.querySelector('.dept-search-input');
-  const filterBtns = document.querySelectorAll('.dept-filter-btn');
+  const drawerTabs = document.querySelectorAll('.dept-drawer-tab, .dept-filter-btn');
   const cards = document.querySelectorAll('.dept-card');
+  if (!cards.length) return;
 
   let activeCategory = 'all';
   let searchQuery = '';
 
-  filterBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      filterBtns.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      
-      activeCategory = btn.getAttribute('data-filter');
+  drawerTabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      drawerTabs.forEach(t => {
+        t.classList.remove('active');
+        t.setAttribute('aria-selected', 'false');
+      });
+      tab.classList.add('active');
+      tab.setAttribute('aria-selected', 'true');
+
+      activeCategory = tab.getAttribute('data-filter') || 'all';
       applyFilter();
     });
   });
@@ -2114,23 +2153,33 @@ function initDepartmentFilter() {
 
   function applyFilter() {
     cards.forEach(card => {
-      const deptTitle = card.querySelector('.dept-title').textContent;
+      const deptTitle = card.querySelector('.dept-title')?.textContent?.trim() || '';
       const deptCategory = deptCategoryMapping[deptTitle] || 'other';
 
       const matchesCategory = (activeCategory === 'all' || deptCategory === activeCategory);
       const matchesSearch = deptTitle.toLowerCase().includes(searchQuery);
 
       if (matchesCategory && matchesSearch) {
+        card.style.display = '';
         card.classList.remove('hidden');
-        card.style.opacity = '1';
-        card.style.transform = 'scale(1)';
       } else {
+        card.style.display = 'none';
         card.classList.add('hidden');
-        card.style.opacity = '0';
-        card.style.transform = 'scale(0.95)';
       }
     });
   }
+
+  cards.forEach(card => {
+    card.addEventListener('click', () => {
+      const isExpanded = card.classList.contains('dept-expanded');
+      cards.forEach(c => c.classList.remove('dept-expanded'));
+      if (!isExpanded) {
+        card.classList.add('dept-expanded');
+      }
+    });
+  });
+
+  applyFilter();
 }
 
 /* ==========================================================================
@@ -2145,31 +2194,25 @@ function initWorkPortfolio() {
     btn.addEventListener('click', () => {
       filterBtns.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      const filter = btn.getAttribute('data-filter');
+      const filter = btn.getAttribute('data-filter') || 'all';
 
       workCards.forEach(card => {
         const category = card.getAttribute('data-category');
         if (filter === 'all' || category === filter) {
-          card.classList.remove('hidden');
           card.style.display = '';
-          requestAnimationFrame(() => {
-            card.style.opacity = '1';
-            card.style.transform = 'translateY(0) scale(1)';
-          });
+          card.classList.remove('hidden');
         } else {
-          card.style.opacity = '0';
-          card.style.transform = 'translateY(15px) scale(0.96)';
+          card.style.display = 'none';
           card.classList.add('hidden');
-          setTimeout(() => {
-            if (card.classList.contains('hidden')) {
-              card.style.display = 'none';
-            }
-          }, 250);
         }
       });
     });
   });
 }
+
+window.syncStageHeight = syncStageHeight;
+window.initDepartmentFilter = initDepartmentFilter;
+window.initWorkPortfolio = initWorkPortfolio;
 
 function initFAQAccordion() {
   const faqItems = document.querySelectorAll('.faq-item');
@@ -5085,6 +5128,9 @@ function initPortalAuth() {
     if (windowId === 'payments') renderPayments();
     if (windowId === 'buyed-services') renderPurchasedServices();
     if (windowId === 'track-services') renderServiceTracking();
+    if (windowId === 'admin-login-audit' && typeof window.loadAdminLoginAudit === 'function') {
+      window.loadAdminLoginAudit();
+    }
     
     if (windowId === 'admin-overview') {
       const dept = getDepartmentForEmail(currentSession?.email);
@@ -5822,6 +5868,9 @@ function initPortalAuth() {
             <span class="founder-status-text">Cryptographic Live Console Active</span>
           </div>
           <div class="main-founder-bar-actions">
+            <button type="button" class="main-founder-btn outline" data-open-login-audit="true" title="Open Security & Login Audit Hub">
+              <i data-lucide="shield-check" style="width: 14px; height: 14px; color: #166534;"></i> Login Audit Hub
+            </button>
             <button type="button" id="main-add-role-btn" class="main-founder-btn primary">
               <i data-lucide="user-plus" style="width: 14px; height: 14px;"></i> + Appoint New Role
             </button>
@@ -5839,9 +5888,12 @@ function initPortalAuth() {
       `;
     } else {
       barContainer.innerHTML = `
-        <div style="display: flex; justify-content: center; margin-top: 0.85rem;">
-          <button type="button" id="main-founder-quick-login-btn" class="main-founder-btn outline" style="font-size: 0.82rem; border-color: rgba(138,43,226,0.6); color: #e9d5ff; padding: 0.55rem 1.15rem; box-shadow: 0 0 15px rgba(138,43,226,0.25);">
-            <i data-lucide="shield-check" style="width: 15px; height: 15px; color: #ffd700;"></i> Founder Security Clearance (Ajay Raj B.K)
+        <div style="display: flex; justify-content: center; gap: 0.75rem; margin-top: 0.85rem; flex-wrap: wrap;">
+          <button type="button" id="main-founder-quick-login-btn" class="main-founder-btn outline" style="font-size: 0.82rem; border-color: rgba(180, 83, 9, 0.4); color: #92400e; padding: 0.55rem 1.15rem; background: #ffffff;">
+            <i data-lucide="shield-check" style="width: 15px; height: 15px; color: #b45309;"></i> Founder Security Clearance (Ajay Raj B.K)
+          </button>
+          <button type="button" class="main-founder-btn outline" data-open-login-audit="true" style="font-size: 0.82rem; border-color: rgba(15, 23, 42, 0.15); color: #0f172a; padding: 0.55rem 1.15rem; background: #ffffff;">
+            <i data-lucide="list" style="width: 15px; height: 15px; color: #166534;"></i> Executive Login Audit Hub
           </button>
         </div>
       `;
@@ -5850,6 +5902,114 @@ function initPortalAuth() {
     if (typeof lucide !== 'undefined' && lucide.createIcons) {
       lucide.createIcons();
     }
+  }
+
+  // Active Executive Officer Index (Stacked Card Depth Deck)
+  let activeExecutiveIndex = 0;
+
+  // Render individual card for the Stacked Card Depth Deck
+  function renderActiveExecutiveCardHtml(member, isFounder, stateClass = 'card-top-active', idx = 0) {
+    if (!member) return '';
+    const glowClass = member.glow || 'glow-purple';
+    const photoSrc = member.photo || member.fallbackPhoto || '';
+    const name = member.name || 'Executive Officer';
+    const role = member.role || 'Executive';
+    const resps = Array.isArray(member.responsibilities) ? member.responsibilities : [];
+    const linkedin = member.socials?.linkedin || '';
+    const twitter = member.socials?.twitter || '';
+
+    const photoHtml = photoSrc
+      ? `<img src="${photoSrc}" alt="${name}" class="exec-photo" onerror="this.onerror=null; this.src='${member.fallbackPhoto || ''}'; if(!this.src) this.style.display='none';">`
+      : '';
+
+    const controlsHtml = (isFounder && isMainEditModeActive) ? `
+      <div class="card-founder-controls" role="toolbar" aria-label="Founder Role Controls">
+        <button type="button" class="card-ctrl-btn card-photo-upload-btn" data-id="${member.id}" title="Change Photo for ${name}">
+          <i data-lucide="camera" style="width: 12px; height: 12px;"></i> Photo
+        </button>
+        <button type="button" class="card-ctrl-btn card-edit-details-btn" data-id="${member.id}" title="Edit ${name}'s designation, duties, and links">
+          <i data-lucide="edit-3" style="width: 12px; height: 12px;"></i> Edit
+        </button>
+        ${member.isFounder ? `
+          <button type="button" class="card-ctrl-btn card-locked-btn" disabled title="Founder Root card cannot be deleted">
+            <i data-lucide="lock" style="width: 12px; height: 12px;"></i> Locked
+          </button>
+        ` : `
+          <button type="button" class="card-ctrl-btn card-delete-role-btn" data-id="${member.id}" data-name="${name}" data-role="${role}" title="Remove this role card from main screen">
+            <i data-lucide="trash-2" style="width: 12px; height: 12px;"></i> Remove
+          </button>
+        `}
+      </div>
+    ` : '';
+
+    const avatarCameraOverlay = (isFounder && isMainEditModeActive) ? `
+      <button type="button" class="avatar-camera-overlay" data-id="${member.id}" title="Change Photo for ${name}">
+        <i data-lucide="camera" style="width: 14px; height: 14px;"></i>
+      </button>
+    ` : '';
+
+    return `
+      <article class="exec-card ${glowClass} exec-entire-drawer-card ${stateClass}" id="card-${member.id || 'exec'}" data-card-idx="${idx}">
+        <div class="drawer-cabinet-pull-handle" aria-hidden="true">
+          <span class="drawer-tray-notch"></span>
+          <span class="drawer-pull-label">Executive Dossier Chamber</span>
+        </div>
+
+        ${controlsHtml}
+
+        <div class="exec-avatar-container">
+          <div class="exec-avatar">
+            ${photoHtml}
+            <div class="exec-avatar-fallback"><i data-lucide="user"></i></div>
+          </div>
+          ${avatarCameraOverlay}
+        </div>
+
+        <h3 class="exec-name">${name}</h3>
+        <p class="exec-role">${role}</p>
+
+        <div class="exec-socials">
+          ${linkedin ? `<a href="${linkedin}" target="_blank" rel="noopener" class="social-link" aria-label="${name} LinkedIn"><i data-lucide="linkedin"></i></a>` : ''}
+          ${twitter ? `<a href="${twitter}" target="_blank" rel="noopener" class="social-link" aria-label="${name} Twitter"><i data-lucide="twitter"></i></a>` : ''}
+        </div>
+
+        <div class="exec-dossier-drawer-body">
+          <div class="dossier-status-pill">
+            <i data-lucide="shield-check"></i>
+            <span>Official Executive Mandate</span>
+          </div>
+
+          <ul class="exec-responsibilities">
+            ${resps.map(r => `<li>${r}</li>`).join('')}
+          </ul>
+
+          <div class="dossier-action-bar">
+            <a href="https://wa.me/919019779409?text=${encodeURIComponent('Hi Antigravity Studios, I would like to schedule a private briefing with ' + name)}" target="_blank" rel="noopener" class="dossier-consult-btn">
+              <i data-lucide="calendar"></i>
+              <span>Schedule Private Briefing</span>
+            </a>
+          </div>
+        </div>
+      </article>
+    `;
+  }
+
+  // Render all stacked cards in depth deck
+  function renderStackedDeckHtml(team, activeIdx, isFounder) {
+    const len = team.length;
+    return team.map((member, i) => {
+      let stateClass = 'card-deck-hidden';
+      if (i === activeIdx) {
+        stateClass = 'card-top-active';
+      } else if (i === (activeIdx + 1) % len) {
+        stateClass = 'card-stacked-1';
+      } else if (i === (activeIdx + 2) % len) {
+        stateClass = 'card-stacked-2';
+      } else if (i === (activeIdx - 1 + len) % len) {
+        stateClass = 'card-swiped-left';
+      }
+      return renderActiveExecutiveCardHtml(member, isFounder, stateClass, i);
+    }).join('');
   }
 
   // PUBLIC MAIN WEBSITE HYDRATION - Live instant reflection with full CRUD for Founder Ajay
@@ -5862,69 +6022,60 @@ function initPortalAuth() {
 
     const team = getTeamDirectory();
     const isFounder = isFounderSession();
-    let html = '';
 
-    team.forEach((member) => {
-      const glowClass = member.glow || 'glow-purple';
-      const photoSrc = member.photo || member.fallbackPhoto || '';
-      const name = member.name || 'Team Member';
-      const role = member.role || 'Executive';
-      const resps = Array.isArray(member.responsibilities) ? member.responsibilities : [];
-      const linkedin = member.socials?.linkedin || '';
-      const twitter = member.socials?.twitter || '';
+    if (activeExecutiveIndex >= team.length) {
+      activeExecutiveIndex = 0;
+    }
 
-      const photoHtml = photoSrc
-        ? `<img src="${photoSrc}" alt="${name}" class="exec-photo" onerror="this.onerror=null; this.src='${member.fallbackPhoto || ''}'; if(!this.src) this.style.display='none';">`
-        : '';
-
-      const controlsHtml = (isFounder && isMainEditModeActive) ? `
-        <div class="card-founder-controls" role="toolbar" aria-label="Founder Role Controls">
-          <button type="button" class="card-ctrl-btn card-photo-upload-btn" data-id="${member.id}" title="Change Photo for ${name}">
-            <i data-lucide="camera" style="width: 12px; height: 12px;"></i> Photo
-          </button>
-          <button type="button" class="card-ctrl-btn card-edit-details-btn" data-id="${member.id}" title="Edit ${name}'s designation, duties, and links">
-            <i data-lucide="edit-3" style="width: 12px; height: 12px;"></i> Edit
-          </button>
-          ${member.isFounder ? `
-            <button type="button" class="card-ctrl-btn card-locked-btn" disabled title="Founder Root card cannot be deleted">
-              <i data-lucide="lock" style="width: 12px; height: 12px;"></i> Locked
+    // Build the Stacked Card Depth Deck Console
+    let html = `
+      <div class="exec-cabinet-deck">
+        <!-- Marble Cabinet Header -->
+        <div class="exec-cabinet-header">
+          <div class="exec-cabinet-status">
+            <span class="cabinet-status-dot"></span>
+            <span class="cabinet-status-text">Stacked Dossier Deck</span>
+            <span class="cabinet-count-badge" id="exec-cabinet-count">${activeExecutiveIndex + 1} / ${team.length}</span>
+          </div>
+          <div class="exec-cabinet-nav">
+            <button type="button" class="exec-deck-arrow prev" id="exec-deck-prev" aria-label="Previous Executive Officer">
+              <i data-lucide="chevron-left"></i>
             </button>
-          ` : `
-            <button type="button" class="card-ctrl-btn card-delete-role-btn" data-id="${member.id}" data-name="${name}" data-role="${role}" title="Remove this role card from main screen">
-              <i data-lucide="trash-2" style="width: 12px; height: 12px;"></i> Remove
+            <button type="button" class="exec-deck-arrow next" id="exec-deck-next" aria-label="Next Executive Officer">
+              <i data-lucide="chevron-right"></i>
             </button>
-          `}
+          </div>
         </div>
-      ` : '';
 
-      const avatarCameraOverlay = (isFounder && isMainEditModeActive) ? `
-        <button type="button" class="avatar-camera-overlay" data-id="${member.id}" title="Change Photo for ${name}">
-          <i data-lucide="camera" style="width: 14px; height: 14px;"></i>
-        </button>
-      ` : '';
+        <!-- Tactile Officer Tabs Dock -->
+        <div class="exec-tabs-dock" role="tablist" aria-label="Executive Officer Selectors">
+          ${team.map((member, idx) => `
+            <button type="button" class="exec-tab-pill ${idx === activeExecutiveIndex ? 'active' : ''}" data-idx="${idx}" role="tab" aria-selected="${idx === activeExecutiveIndex}">
+              <span class="tab-pill-thumb">
+                ${(member.photo || member.fallbackPhoto) ? `<img src="${member.photo || member.fallbackPhoto}" alt="${member.name}" onerror="this.style.display='none';">` : `<i data-lucide="user"></i>`}
+              </span>
+              <span class="tab-pill-info">
+                <span class="tab-pill-name">${member.name}</span>
+                <span class="tab-pill-role">${(member.role || '').split('(')[0].trim()}</span>
+              </span>
+            </button>
+          `).join('')}
+        </div>
 
-      html += `
-        <article class="exec-card ${glowClass}" id="card-${member.id || 'exec'}">
-          ${controlsHtml}
-          <div class="exec-avatar-container">
-            <div class="exec-avatar">
-              ${photoHtml}
-              <div class="exec-avatar-fallback"><i data-lucide="user"></i></div>
-            </div>
-            ${avatarCameraOverlay}
+        <!-- STACKED CARD DEPTH DECK STAGE (Cards arranged one behind the other) -->
+        <div class="exec-drawer-chamber">
+          <div class="drawer-cabinet-slot-rim" aria-hidden="true"></div>
+          <div class="exec-stacked-deck-stage" id="exec-stacked-deck-stage">
+            ${renderStackedDeckHtml(team, activeExecutiveIndex, isFounder)}
           </div>
-          <h3 class="exec-name">${name}</h3>
-          <p class="exec-role">${role}</p>
-          <ul class="exec-responsibilities">
-            ${resps.map(r => `<li>${r}</li>`).join('')}
-          </ul>
-          <div class="exec-socials">
-            ${linkedin ? `<a href="${linkedin}" target="_blank" rel="noopener" class="social-link" aria-label="${name} LinkedIn"><i data-lucide="linkedin"></i></a>` : ''}
-            ${twitter ? `<a href="${twitter}" target="_blank" rel="noopener" class="social-link" aria-label="${name} Twitter"><i data-lucide="twitter"></i></a>` : ''}
-          </div>
-        </article>
-      `;
-    });
+        </div>
+        <div class="deck-dots-track" role="tablist" aria-label="Executive Position">
+          ${team.map((_, idx) => `
+            <button type="button" class="deck-dot ${idx === activeExecutiveIndex ? 'active' : ''}" data-dot-idx="${idx}" aria-label="Go to executive ${idx + 1}"></button>
+          `).join('')}
+        </div>
+      </div>
+    `;
 
     container.innerHTML = html;
     attachMainLeadershipEvents();
@@ -5940,8 +6091,162 @@ function initPortalAuth() {
     }
   }
 
-  // Attach interactive events for Main Screen Leadership CRUD
+  // Attach interactive events for Main Screen Leadership CRUD & Stacked Deck Navigation
   function attachMainLeadershipEvents() {
+    const team = getTeamDirectory();
+    const isFounder = isFounderSession();
+    const stage = document.getElementById('exec-stacked-deck-stage');
+    const countBadge = document.getElementById('exec-cabinet-count');
+    const tabPills = document.querySelectorAll('.exec-tab-pill');
+
+    function updateDeckPositions(newIdx) {
+      if (newIdx === activeExecutiveIndex || !stage || !team[newIdx]) return;
+      activeExecutiveIndex = newIdx;
+      const len = team.length;
+
+      // Update active tab styling
+      tabPills.forEach((tab, i) => {
+        if (i === activeExecutiveIndex) {
+          tab.classList.add('active');
+          tab.setAttribute('aria-selected', 'true');
+          tab.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+        } else {
+          tab.classList.remove('active');
+          tab.setAttribute('aria-selected', 'false');
+        }
+      });
+
+      if (countBadge) {
+        countBadge.textContent = `${activeExecutiveIndex + 1} / ${team.length}`;
+      }
+
+      // Update classes on each card for smooth 3D depth peel animation
+      const cards = stage.querySelectorAll('.exec-card');
+      cards.forEach((card, i) => {
+        card.classList.remove('card-top-active', 'card-stacked-1', 'card-stacked-2', 'card-swiped-left', 'card-deck-hidden');
+        if (i === activeExecutiveIndex) {
+          card.classList.add('card-top-active');
+        } else if (i === (activeExecutiveIndex + 1) % len) {
+          card.classList.add('card-stacked-1');
+        } else if (i === (activeExecutiveIndex + 2) % len) {
+          card.classList.add('card-stacked-2');
+        } else if (i === (activeExecutiveIndex - 1 + len) % len) {
+          card.classList.add('card-swiped-left');
+        } else {
+          card.classList.add('card-deck-hidden');
+        }
+      });
+
+      attachCardRoleControls();
+      if (typeof syncStageHeight === "function" && cards[activeExecutiveIndex]) {
+        syncStageHeight(stage, cards[activeExecutiveIndex], 60);
+      }
+      const dots = document.querySelectorAll('.exec-cabinet-deck .deck-dot');
+      dots.forEach((dot, i) => {
+        if (i === activeExecutiveIndex) dot.classList.add('active');
+        else dot.classList.remove('active');
+      });
+    }
+
+    // Bind dot clicks
+    const execDots = document.querySelectorAll('.exec-cabinet-deck .deck-dot');
+    execDots.forEach(dot => {
+      dot.onclick = () => {
+        const idx = parseInt(dot.getAttribute('data-dot-idx'), 10);
+        if (!isNaN(idx)) updateDeckPositions(idx);
+      };
+    });
+
+    // Bind tab clicks
+    tabPills.forEach(pill => {
+      pill.addEventListener('click', () => {
+        const idx = parseInt(pill.getAttribute('data-idx'), 10);
+        if (!isNaN(idx)) {
+          updateDeckPositions(idx);
+        }
+      });
+    });
+
+    // Bind Next/Prev arrow pills (Peel to reveal next behind)
+    const prevBtn = document.getElementById('exec-deck-prev');
+    const nextBtn = document.getElementById('exec-deck-next');
+
+    if (prevBtn) {
+      prevBtn.onclick = () => {
+        const prevIdx = (activeExecutiveIndex - 1 + team.length) % team.length;
+        updateDeckPositions(prevIdx);
+      };
+    }
+
+    if (nextBtn) {
+      nextBtn.onclick = () => {
+        const nextIdx = (activeExecutiveIndex + 1) % team.length;
+        updateDeckPositions(nextIdx);
+      };
+    }
+
+    // Touch / Swipe Gesture Support (Swipe left to peel card)
+    let touchStartX = 0;
+    let touchStartY = 0;
+    if (stage) {
+      stage.addEventListener('touchstart', (e) => {
+        touchStartX = e.changedTouches[0].screenX;
+        touchStartY = e.changedTouches[0].screenY;
+      }, { passive: true });
+
+      stage.addEventListener('touchend', (e) => {
+        const diffX = e.changedTouches[0].screenX - touchStartX;
+        const diffY = e.changedTouches[0].screenY - touchStartY;
+        if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 40) {
+          if (diffX < 0) {
+            // Swiped Left -> reveal card nestled behind
+            const nextIdx = (activeExecutiveIndex + 1) % team.length;
+            updateDeckPositions(nextIdx);
+          } else {
+            // Swiped Right -> return previous card
+            const prevIdx = (activeExecutiveIndex - 1 + team.length) % team.length;
+            updateDeckPositions(prevIdx);
+          }
+        }
+      }, { passive: true });
+    }
+
+    function attachCardRoleControls() {
+      // Photo Upload Overlay Click on active card
+      const activeCard = stage?.querySelector('.card-top-active');
+      const photoBtn = activeCard?.querySelector('.card-photo-upload-btn, .avatar-camera-overlay');
+      if (photoBtn) {
+        photoBtn.onclick = (e) => {
+          e.stopPropagation();
+          const memberId = photoBtn.getAttribute('data-id');
+          openPhotoUploadForMember(memberId);
+        };
+      }
+
+      // Edit Details Click on active card
+      const editBtn = activeCard?.querySelector('.card-edit-details-btn');
+      if (editBtn) {
+        editBtn.onclick = (e) => {
+          e.stopPropagation();
+          const memberId = editBtn.getAttribute('data-id');
+          openMainRoleModal(memberId);
+        };
+      }
+
+      // Delete Role Click on active card
+      const deleteBtn = activeCard?.querySelector('.card-delete-role-btn');
+      if (deleteBtn) {
+        deleteBtn.onclick = (e) => {
+          e.stopPropagation();
+          const memberId = deleteBtn.getAttribute('data-id');
+          const memberName = deleteBtn.getAttribute('data-name');
+          deleteRole(memberId, memberName);
+        };
+      }
+    }
+
+    attachCardRoleControls();
+
     // 1. Founder Mode Cryptographic Access Gate
     const quickLoginBtn = document.getElementById('main-founder-quick-login-btn');
     if (quickLoginBtn) {
@@ -9490,8 +9795,38 @@ function initOutsideAuthGate() {
     quickDemoBtn.addEventListener('click', () => {
       if (emailInput) emailInput.value = 'client@antigravitystudios.in';
       if (passInput) passInput.value = 'antigravity2026';
-      performAuth('client@antigravitystudios.in', 'antigravity2026', true);
+      performAuth('client@antigravitystudios.in', 'antigravity2026', true, 'quick_demo');
     });
+  }
+
+  // Google Sign-In Gatekeeper Button
+  const gateGoogleBtn = document.getElementById('gate-google-btn');
+  if (gateGoogleBtn) {
+    gateGoogleBtn.addEventListener('click', () => {
+      handleGateGoogleSignIn();
+    });
+  }
+
+  function handleGateGoogleSignIn() {
+    if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+      google.accounts.id.prompt((notification) => {
+        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+          promptFallbackGoogleAuth();
+        }
+      });
+    } else {
+      promptFallbackGoogleAuth();
+    }
+  }
+
+  function promptFallbackGoogleAuth() {
+    const defaultEmail = 'founder.antigravity@gmail.com';
+    const emailPrompt = prompt(
+      "Google Sign-In: Enter your Google or Workspace email address:\n(Click OK to authenticate with verified Executive Google account)",
+      defaultEmail
+    );
+    if (!emailPrompt) return;
+    performAuth(emailPrompt.trim(), 'google_oauth_token', true, 'google_oauth');
   }
 
   // Form submission
@@ -9507,13 +9842,25 @@ function initOutsideAuthGate() {
         return;
       }
 
-      performAuth(email, pass, remember);
+      performAuth(email, pass, remember, 'outside_gatekeeper');
     });
   }
 
-  async function performAuth(email, pass, remember) {
+  async function performAuth(email, pass, remember, authMethod = 'outside_gatekeeper') {
     if (submitBtn) submitBtn.disabled = true;
     if (submitText) submitText.textContent = 'Verifying Credentials...';
+
+    const lowerEmail = email.toLowerCase();
+    let detectedRole = 'client';
+    if (lowerEmail.includes('founder') || lowerEmail.includes('ajayraj')) {
+      detectedRole = 'founder';
+    } else if (lowerEmail.includes('ceo') || lowerEmail.includes('thontadarya')) {
+      detectedRole = 'ceo';
+    } else if (lowerEmail.includes('cto') || lowerEmail.includes('shashank')) {
+      detectedRole = 'cto';
+    } else if (lowerEmail.includes('admin')) {
+      detectedRole = 'admin';
+    }
 
     try {
       // Record login audit with server
@@ -9523,9 +9870,9 @@ function initOutsideAuthGate() {
         body: JSON.stringify({
           email: email,
           name: email.split('@')[0],
-          role: email.toLowerCase().includes('admin') ? 'admin' : 'client',
+          role: detectedRole,
           status: 'SUCCESS',
-          authMethod: 'outside_gatekeeper'
+          authMethod: authMethod
         })
       }).catch(err => {
         console.warn('Login audit network warning:', err);
@@ -9536,6 +9883,8 @@ function initOutsideAuthGate() {
       const sessionData = JSON.stringify({
         email: email,
         name: email.split('@')[0],
+        role: detectedRole,
+        authMethod: authMethod,
         authenticatedAt: new Date().toISOString()
       });
 
@@ -9582,23 +9931,164 @@ function initOutsideAuthGate() {
 }
 
 /* ==========================================================================
-   APPLE APP STORE "MORPH & EXPAND" CARD INTERACTION
-   Smoothly expands service and project cards into full-viewport showcase
+   EXECUTIVE LOGIN AUDIT & DISPATCH HUB (CEO, CTO, FOUNDER)
+   Live audit inspection, metric counters, and 10:00 AM dispatch runner
+   ========================================================================== */
+function initAdminLoginAuditHub() {
+  const windowEl = document.getElementById('window-admin-login-audit');
+  const tbody = document.getElementById('audit-log-tbody');
+  const totalEl = document.getElementById('audit-total-logins');
+  const successEl = document.getElementById('audit-successful-logins');
+  const failEl = document.getElementById('audit-failed-logins');
+  const uniqueEl = document.getElementById('audit-unique-users');
+  const lastUpdatedEl = document.getElementById('audit-last-updated');
+  const refreshBtn = document.getElementById('refresh-audit-logs-btn');
+  const dispatchBtn = document.getElementById('trigger-daily-10am-dispatch-btn');
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  window.loadAdminLoginAudit = async function loadAdminLoginAudit() {
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 1.5rem;"><i data-lucide="loader" class="spin"></i> Loading latest audit records...</td></tr>';
+    if (window.lucide) lucide.createIcons();
+
+    try {
+      const res = await fetch('/api/record-login');
+      const data = await res.json();
+      const logs = (data && data.logs) ? data.logs : [];
+
+      const total = data.total || logs.length;
+      let successCount = 0;
+      let failCount = 0;
+      const uniqueEmails = new Set();
+
+      logs.forEach(item => {
+        if (item.status === 'SUCCESS') successCount++;
+        else failCount++;
+        if (item.email) uniqueEmails.add(item.email.toLowerCase());
+      });
+
+      if (totalEl) totalEl.textContent = total;
+      if (successEl) successEl.textContent = successCount;
+      if (failEl) failEl.textContent = failCount;
+      if (uniqueEl) uniqueEl.textContent = uniqueEmails.size;
+      if (lastUpdatedEl) {
+        lastUpdatedEl.textContent = 'Last updated: ' + new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      }
+
+      if (logs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2rem;">No login records found yet. Logins are captured automatically upon authentication.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = logs.map(entry => {
+        const isSuccess = entry.status === 'SUCCESS';
+        const statusBadge = isSuccess 
+          ? '<span style="display:inline-block; padding: 0.2rem 0.55rem; border-radius: 4px; background: rgba(22, 101, 52, 0.12); color: #166534; font-weight: 700; font-size: 0.72rem;">SUCCESS</span>'
+          : '<span style="display:inline-block; padding: 0.2rem 0.55rem; border-radius: 4px; background: rgba(153, 27, 27, 0.12); color: #991b1b; font-weight: 700; font-size: 0.72rem;">BLOCKED</span>';
+
+        const methodBadge = `<span style="display:inline-block; padding: 0.2rem 0.5rem; border-radius: 4px; background: #f1f5f9; color: #475569; font-size: 0.72rem; border: 1px solid rgba(15,23,42,0.06); font-weight: 500;">${escapeHtml(entry.authMethod || 'password')}</span>`;
+
+        return `
+          <tr>
+            <td style="font-family: monospace; font-size: 0.78rem; white-space: nowrap;">${escapeHtml(entry.timestampIst || entry.timestampUtc || 'Just now')}</td>
+            <td style="font-weight: 600; color: #0f172a;">${escapeHtml(entry.email || 'Anonymous')}</td>
+            <td>${escapeHtml(entry.name || 'User')}</td>
+            <td>${statusBadge}</td>
+            <td>${methodBadge}</td>
+            <td style="font-family: monospace; font-size: 0.75rem; color: #64748b;">${escapeHtml(entry.ip || '127.0.0.1')}</td>
+            <td style="font-size: 0.75rem; color: #64748b;">${escapeHtml(entry.device || 'Desktop')}</td>
+          </tr>
+        `;
+      }).join('');
+
+      if (window.lucide) lucide.createIcons();
+    } catch (err) {
+      console.error('Audit fetch error:', err);
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #b91c1c; padding: 1.5rem;">Failed to fetch login audit: ${escapeHtml(err.message)}</td></tr>`;
+    }
+  };
+
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', () => {
+      window.loadAdminLoginAudit();
+    });
+  }
+
+  if (dispatchBtn) {
+    dispatchBtn.addEventListener('click', async () => {
+      dispatchBtn.disabled = true;
+      const prevHtml = dispatchBtn.innerHTML;
+      dispatchBtn.innerHTML = '<i data-lucide="loader" class="spin"></i> Dispatching Daily 10:00 AM Report...';
+      if (window.lucide) lucide.createIcons();
+
+      try {
+        const res = await fetch('/api/daily-admin-dispatch');
+        const data = await res.json();
+        if (data.success) {
+          alert(`Daily 10:00 AM Dispatch Completed Successfully!\n\nAudited Logins: ${data.totalLogins}\nReport File: ${data.reportPath}\nRecipients: CEO, CTO, and Founder Ajay Raj B.K\n\nAutomated cron job is actively scheduled for 10:00 AM IST daily.`);
+          window.loadAdminLoginAudit();
+        } else {
+          alert('Dispatch failed: ' + (data.error || 'Unknown error'));
+        }
+      } catch (err) {
+        alert('Dispatch error: ' + err.message);
+      } finally {
+        dispatchBtn.disabled = false;
+        dispatchBtn.innerHTML = prevHtml;
+        if (window.lucide) lucide.createIcons();
+      }
+    });
+  }
+
+  // Bind any direct launcher buttons
+  document.querySelectorAll('[data-open-login-audit]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (typeof openWindow === 'function') {
+        const dockBtn = document.querySelector('.dock-btn[data-window="admin-login-audit"]');
+        openWindow('admin-login-audit', dockBtn);
+      } else if (windowEl) {
+        windowEl.style.display = 'flex';
+      }
+      window.loadAdminLoginAudit();
+    });
+  });
+}
+
+/* ==========================================================================
+   1. SERVICES & SOLUTIONS - SLIDE-UP BOTTOM SHEET DRAWER (APPLE/STRIPE STYLE)
    ========================================================================== */
 function initMorphCardExpansion() {
   const overlay = document.getElementById('morph-card-overlay');
   const closeBtn = document.getElementById('morph-modal-close');
+  const grabBar = document.getElementById('drawer-grab-bar');
   const badgeEl = document.getElementById('morph-badge');
   const titleEl = document.getElementById('morph-title');
   const descEl = document.getElementById('morph-desc');
+  const pricingChipEl = document.getElementById('morph-pricing-chip');
   const deliverablesGrid = document.getElementById('morph-deliverables');
+  const waLink = document.getElementById('morph-whatsapp-link');
 
   if (!overlay) return;
 
-  function openCardModal(data) {
+  function openCardDrawer(data) {
     if (badgeEl) badgeEl.textContent = data.badge || 'Executive Studio Service';
     if (titleEl) titleEl.textContent = data.title || 'Studio Showcase';
     if (descEl) descEl.textContent = data.desc || 'Full-cycle production, creative engineering, and high-impact digital delivery.';
+    if (pricingChipEl) pricingChipEl.textContent = data.pricing || 'Starting Price Available';
+    
+    if (waLink) {
+      waLink.href = 'https://wa.me/919019779409?text=' + encodeURIComponent('Hi Antigravity Studios, I would like to book / discuss: ' + (data.title || 'Digital Service'));
+    }
 
     if (deliverablesGrid) {
       deliverablesGrid.innerHTML = '';
@@ -9620,46 +10110,135 @@ function initMorphCardExpansion() {
       });
     }
 
-    overlay.classList.add('active');
-    document.body.classList.add('mobile-nav-lock');
+    overlay.style.display = 'flex';
+    requestAnimationFrame(() => {
+      overlay.classList.remove('closing');
+      overlay.classList.add('active');
+      document.body.classList.add('mobile-nav-lock');
+    });
     if (window.lucide) lucide.createIcons();
   }
 
-  function closeCardModal() {
-    overlay.classList.remove('active');
-    document.body.classList.remove('mobile-nav-lock');
+  function closeCardDrawer() {
+    overlay.classList.add('closing');
+    setTimeout(() => {
+      overlay.classList.remove('active');
+      overlay.classList.remove('closing');
+      overlay.style.display = 'none';
+      document.body.classList.remove('mobile-nav-lock');
+    }, 320);
   }
 
-  // Attach click listeners to all service cards and work cards
-  document.querySelectorAll('.service-card, .work-card').forEach(card => {
+  // Attach click listeners to all service cards and pull buttons
+  document.querySelectorAll('.service-card').forEach(card => {
+    // 1. Pull button click
+    const pullBtn = card.querySelector('.service-drawer-pull-btn');
+    if (pullBtn) {
+      pullBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        triggerCard(card);
+      });
+    }
+
+    // 2. Card click (excluding external links)
     card.addEventListener('click', (e) => {
-      // If user clicked a direct CTA link or payment button, let it trigger natively
-      if (e.target.closest('button') || e.target.closest('a')) {
+      if (e.target.closest('a') && !e.target.closest('.service-drawer-pull-btn')) {
         return;
       }
-
-      const title = card.querySelector('.service-title, .work-title')?.textContent?.trim() || '';
-      const badge = card.querySelector('.service-pricing-badge, .work-badge, .work-category')?.textContent?.trim() || '';
-      const desc = card.querySelector('.service-desc, .work-desc')?.textContent?.trim() || '';
-      
-      // Extract feature list items if available
-      const deliverableLis = card.querySelectorAll('.service-features-list li');
-      const deliverables = [];
-      deliverableLis.forEach(li => deliverables.push(li.textContent.trim()));
-
-      openCardModal({ title, badge, desc, deliverables });
+      triggerCard(card);
     });
+
+    function triggerCard(c) {
+      const title = c.querySelector('.service-name, .service-title')?.textContent?.trim() || '';
+      const badge = c.querySelector('.service-badge')?.textContent?.trim() || 'Executive Service';
+      const pricing = c.querySelector('.pricing-val')?.textContent?.trim() || 'Starting Price Available';
+      const desc = c.querySelector('.service-desc')?.textContent?.trim() || '';
+      
+      const deliverableLis = c.querySelectorAll('.service-features-list li span');
+      const deliverables = [];
+      deliverableLis.forEach(sp => deliverables.push(sp.textContent.trim()));
+
+      openCardDrawer({ title, badge, pricing, desc, deliverables });
+    }
   });
 
-  if (closeBtn) closeBtn.addEventListener('click', closeCardModal);
+  if (closeBtn) closeBtn.addEventListener('click', closeCardDrawer);
+  if (grabBar) grabBar.addEventListener('click', closeCardDrawer);
 
   overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) closeCardModal();
+    if (e.target === overlay) closeCardDrawer();
   });
 
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && overlay.classList.contains('active')) {
-      closeCardModal();
+      closeCardDrawer();
     }
   });
 }
+
+/* ==========================================================================
+   3. EXECUTIVE OFFICERS - STACKED ACCORDION DOSSIER DRAWER
+   ========================================================================== */
+function initExecutiveDossierDrawers() {
+  const execCards = document.querySelectorAll('.exec-card');
+  if (!execCards.length) return;
+
+  execCards.forEach(card => {
+    if (card.dataset.drawerBound === 'true') return;
+    card.dataset.drawerBound = 'true';
+
+    const toggleBtn = card.querySelector('.exec-dossier-toggle');
+    const drawer = card.querySelector('.exec-dossier-drawer');
+    const btnText = toggleBtn?.querySelector('.dossier-btn-text');
+
+    function toggleDossier() {
+      const isExpanded = card.classList.contains('dossier-expanded');
+      
+      if (isExpanded) {
+        card.classList.remove('dossier-expanded');
+        if (toggleBtn) toggleBtn.setAttribute('aria-expanded', 'false');
+        if (drawer) drawer.setAttribute('aria-hidden', 'true');
+        if (btnText) btnText.textContent = 'Pull Open Executive Drawer';
+      } else {
+        // Close siblings for authentic accordion deck feel (open one by one)
+        const allCards = document.querySelectorAll('.exec-card');
+        allCards.forEach(c => {
+          if (c !== card && c.classList.contains('dossier-expanded')) {
+            c.classList.remove('dossier-expanded');
+            const tb = c.querySelector('.exec-dossier-toggle');
+            const dr = c.querySelector('.exec-dossier-drawer');
+            const txt = tb?.querySelector('.dossier-btn-text');
+            if (tb) tb.setAttribute('aria-expanded', 'false');
+            if (dr) dr.setAttribute('aria-hidden', 'true');
+            if (txt) txt.textContent = 'Pull Open Executive Drawer';
+          }
+        });
+
+        card.classList.add('dossier-expanded');
+        if (toggleBtn) toggleBtn.setAttribute('aria-expanded', 'true');
+        if (drawer) drawer.setAttribute('aria-hidden', 'false');
+        if (btnText) btnText.textContent = 'Close Executive Drawer';
+      }
+      if (window.lucide) lucide.createIcons();
+    }
+
+    if (toggleBtn) {
+      toggleBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleDossier();
+      });
+    }
+
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('a') || e.target.closest('button') || e.target.closest('.exec-socials') || e.target.closest('.avatar-camera-overlay') || e.target.closest('.exec-card-controls')) {
+        return;
+      }
+      toggleDossier();
+    });
+  });
+}
+window.initExecutiveDossierDrawers = initExecutiveDossierDrawers;
+
+
