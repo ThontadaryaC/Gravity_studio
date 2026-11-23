@@ -3,17 +3,48 @@
 
 const crypto = require("crypto");
 
-const allowedOrigins = [
+const ALLOWED_ORIGINS = [
   "https://antigravitystudios.in",
   "https://www.antigravitystudios.in",
   "http://localhost:3000",
   "http://localhost:8000",
   "http://localhost:5173",
   "http://localhost:5500",
-  "http://127.0.0.1:3000",
-  "http://127.0.0.1:8000",
-  "http://127.0.0.1:5500"
+  "http://127.0.0.1:8000"
 ];
+
+// Centralized CORS configuration across all API endpoints
+function setCorsHeaders(req, res, options = {}) {
+  const origin = req.headers.origin;
+  const methods = options.methods || "GET, POST, PUT, PATCH, DELETE, OPTIONS";
+  const allowHeaders = options.headers || "Content-Type, Authorization, apikey, Prefer, x-client-info, x-api-key, Range";
+
+  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+  }
+
+  res.setHeader("Access-Control-Allow-Methods", methods);
+  res.setHeader("Access-Control-Allow-Headers", allowHeaders);
+
+  if (options.exposeHeaders) {
+    res.setHeader("Access-Control-Expose-Headers", options.exposeHeaders);
+  }
+
+  if (options.contentType !== false) {
+    res.setHeader("Content-Type", options.contentType || "application/json");
+  }
+
+  if (req.method === "OPTIONS") {
+    res.statusCode = 200;
+    if (typeof res.status === 'function') {
+      res.status(200);
+    }
+    res.end();
+    return true;
+  }
+  return false;
+}
 
 // 1. Verify CSRF
 function validateCSRF(req) {
@@ -23,9 +54,7 @@ function validateCSRF(req) {
 
   const isAllowed = (org) => {
     if (!org) return false;
-    if (allowedOrigins.includes(org)) return true;
-    if (org.endsWith(".vercel.app")) return true;
-    return false;
+    return ALLOWED_ORIGINS.includes(org);
   };
 
   // For mutating methods, require a valid origin or referer
@@ -319,6 +348,8 @@ async function resetFailedAttempts(key) {
 }
 
 module.exports = {
+  ALLOWED_ORIGINS,
+  setCorsHeaders,
   validateCSRF,
   sanitizeInput,
   checkRateLimit,

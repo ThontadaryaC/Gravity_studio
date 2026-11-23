@@ -1,35 +1,18 @@
 // Vercel Serverless Function for Gravity AI Chatbot Proxy
 // Supports Multi-Provider LLMs (Render FreeLLMAPI, LiteLLM, OneAPI) and Google Gemini with unified API keys.
 
-const { checkRateLimit } = require("./security-utils");
+const { setCorsHeaders, validateCSRF, checkRateLimit } = require("./security-utils");
 
 module.exports = async (req, res) => {
-  // Enable CORS
-  const allowedOrigins = [
-    "https://antigravitystudios.in",
-    "https://www.antigravitystudios.in",
-    "http://localhost:3000",
-    "http://localhost:8000",
-    "http://localhost:5173",
-    "http://localhost:5500",
-    "http://127.0.0.1:3000",
-    "http://127.0.0.1:8000",
-    "http://127.0.0.1:5500"
-  ];
-  const origin = req.headers.origin;
-  if (origin && (allowedOrigins.includes(origin) || origin.endsWith(".vercel.app"))) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
-  }
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
-  }
+  if (setCorsHeaders(req, res, { methods: "POST, OPTIONS" })) return;
 
   // Only allow POST requests
   if (req.method !== "POST") {
     return res.status(405).json({ error: { message: "Method Not Allowed" } });
+  }
+
+  if (!validateCSRF(req)) {
+    return res.status(403).json({ error: { message: "Access Denied: CSRF verification failed." } });
   }
 
   try {

@@ -118,6 +118,26 @@
   ],
   "rewrites": [
     {
+      "source": "/setup_database.sql",
+      "destination": "/404.html"
+    },
+    {
+      "source": "/data/:match*",
+      "destination": "/404.html"
+    },
+    {
+      "source": "/clients_data.pdf",
+      "destination": "/404.html"
+    },
+    {
+      "source": "/:path*(.*\\.py)",
+      "destination": "/404.html"
+    },
+    {
+      "source": "/:path*(.*\\.sql)",
+      "destination": "/404.html"
+    },
+    {
       "source": "/msme-certificate.pdf",
       "destination": "/assets/docs/msme-certificate.pdf"
     },

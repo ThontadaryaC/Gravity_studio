@@ -14,8 +14,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://cdnjs.cloudflare.com">
   <link rel="preconnect" href="https://cdn.jsdelivr.net">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@400;500;700;900&display=swap">
-  <link rel="preload" href="/assets/textures/earth/earth_atmos_2048.jpg" as="image">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Orbitron:wght@400;500;700;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap">
   
   <!-- Google Analytics Tag Placeholder (Replace G-XXXXXXXXXX with your actual Measurement ID to enable tracking) -->
   <!-- 
@@ -360,19 +359,22 @@
   <canvas id="magic-paint-canvas" aria-hidden="true"></canvas>
 
 
-  <!-- HEADER & NAVIGATION -->
+  <!-- HEADER & NAVIGATION (Minimalist Centered Pill Floating Bar matching Reference Design) -->
   <header>
     <div class="logo-container">
-      <img src="/logo.png" onerror="this.onerror=null; this.src='https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/logo.png';" alt="Antigravity Studios Logo" class="logo-image">
+      <a href="#hero" class="logo-link" aria-label="Antigravity Studios Home">
+        <img src="/logo.png" onerror="this.onerror=null; this.src='https://kivfatgytkjqoreltuyu.supabase.co/storage/v1/object/public/gallery-assets/logo.png';" alt="Antigravity Studios Logo" class="logo-image">
+      </a>
     </div>
     
-    <div class="nav-wrap">
-      <nav aria-label="Main Navigation">
+    <!-- Centered Floating Pill Navigation Capsule -->
+    <div class="header-nav-center">
+      <nav class="nav-pill-capsule" aria-label="Main Navigation">
         <ul class="nav-links">
-          <li><a href="#hero" class="active">Home</a></li>
-          <li><a href="#services">Services</a></li>
-          <li><a href="#work">Our Work</a></li>
-          <li><a href="#digital-products">Products</a></li>
+          <li><a href="#hero" class="nav-pill-link active">Home</a></li>
+          <li><a href="#services" class="nav-pill-link">Services</a></li>
+          <li><a href="#work" class="nav-pill-link">Our Work</a></li>
+          <li><a href="#digital-products" class="nav-pill-link">Products</a></li>
           <li class="nav-dropdown-item">
             <button class="nav-dropdown-trigger" id="more-dropdown-btn" aria-haspopup="true" aria-expanded="false" aria-label="More Navigation Options">
               <span class="more-label-desktop">More</span>
@@ -460,42 +462,20 @@
           </li>
         </ul>
       </nav>
-
-      <div class="accessibility-controls">
-        <button class="control-btn" data-action="theme-toggle" data-tooltip="Switch Theme" aria-pressed="false" aria-label="Toggle Dark/Light Theme">
-          <i data-lucide="sun" class="icon-sun"></i>
-          <i data-lucide="moon" class="icon-moon"></i>
-        </button>
-        <button class="control-btn portal-profile-btn" id="portal-login-btn" data-action="login-portal" data-tooltip="Profile Portal" aria-label="Open Profile Portal">
-          <i data-lucide="user" class="portal-user-icon"></i>
-          <i data-lucide="shield" class="portal-admin-icon"></i>
-          <span class="login-status-dot" aria-hidden="true"></span>
-        </button>
-        <button class="control-btn mobile-menu-toggle" id="mobile-menu-btn" data-tooltip="Open Menu" aria-label="Toggle Navigation Menu">
-          <i data-lucide="menu" class="menu-open-icon"></i>
-          <i data-lucide="x" class="menu-close-icon" style="display: none;"></i>
-        </button>
-      </div>
     </div>
 
-    <!-- Certification Badges — positioned on the right side below the nav bar -->
-    <div class="header-certifications" aria-label="Company Certifications">
-      <div class="certification-badge msme-badge" role="img" aria-label="MSME Certified">
-        <span class="msme-pulse-indicator" aria-hidden="true">
-          <span class="msme-pulse-ring"></span>
-          <span class="msme-pulse-dot"></span>
-        </span>
-        <span class="msme-badge-text">MSME Certified</span>
-        <i data-lucide="badge-check" class="msme-badge-icon" aria-hidden="true"></i>
-      </div>
-      <div class="certification-badge startup-india-badge" role="img" aria-label="Startup India Registered">
-        <span class="startup-india-pulse-indicator" aria-hidden="true">
-          <span class="startup-india-pulse-ring"></span>
-          <span class="startup-india-pulse-dot"></span>
-        </span>
-        <span class="startup-india-badge-text">Startup India Registered</span>
-        <i data-lucide="award" class="startup-india-badge-icon" aria-hidden="true"></i>
-      </div>
+    <!-- Header Right: Sign In & Contact Us Button (matching reference image) -->
+    <div class="header-right-actions">
+      <button class="header-signin-btn" id="portal-login-btn" data-action="login-portal" aria-label="Sign In to Portal">
+        Sign In
+      </button>
+      <a href="https://wa.me/919019779409?text=Hi%20Antigravity%20Studios,%20I%20am%20interested%20in%20working%20together!" target="_blank" rel="noopener" class="header-contact-btn">
+        Contact Us
+      </a>
+      <button class="control-btn mobile-menu-toggle" id="mobile-menu-btn" data-tooltip="Open Menu" aria-label="Toggle Navigation Menu">
+        <i data-lucide="menu" class="menu-open-icon"></i>
+        <i data-lucide="x" class="menu-close-icon" style="display: none;"></i>
+      </button>
     </div>
   </header>
 
@@ -504,21 +484,78 @@
 
     <!-- SECTION 1: HERO -->
     <section id="hero" aria-labelledby="hero-title">
-      <div class="hero-content">
-        <div class="hero-subtitle">
-          <span class="hero-subtitle-dot" aria-hidden="true"></span>
-          Antigravity Studios Ecosystem
+      <!-- Ambient Micro Floating Orbs (as seen in reference design) -->
+      <div class="hero-ambient-dot dot-red-1" aria-hidden="true"></div>
+      <div class="hero-ambient-dot dot-black-1" aria-hidden="true"></div>
+      <div class="hero-ambient-dot dot-red-2" aria-hidden="true"></div>
+      <div class="hero-ambient-dot dot-black-2" aria-hidden="true"></div>
+      <div class="hero-ambient-dot dot-red-3" aria-hidden="true"></div>
+      <div class="hero-ambient-dot dot-red-4" aria-hidden="true"></div>
+
+      <div class="hero-container">
+        <!-- Top Pill Badge -->
+        <div class="hero-ecosystem-pill">
+          <span class="hero-ecosystem-dot" aria-hidden="true"></span>
+          <span class="hero-ecosystem-text">ANTIGRAVITY STUDIOS ECOSYSTEM</span>
         </div>
-        <h1 class="hero-title" id="hero-title">
-          <span>Antigravity Studios</span>
-          <span class="glow-text">Premium AI, 3D & Web Dev Agency</span>
+
+        <!-- Hook Line -->
+        <p class="hero-lead-hook">You don't need just a website</p>
+
+        <!-- Main Headline -->
+        <h1 class="hero-headline" id="hero-title">
+          <span class="headline-row">
+            You need a
+            <svg class="hero-lightning-svg" viewBox="0 0 24 24" fill="#e11d48" aria-hidden="true">
+              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+            </svg>
+            <span class="hero-highlight-brush">premium AI, 3D</span>
+          </span>
+          <span class="headline-row">& Web Dev Agency</span>
+          <span class="headline-row">for your business.</span>
         </h1>
+
+        <!-- Subtitle Description -->
         <p class="hero-description">
           We build premium websites, AI automation, lead generation systems, VFX, 3D animations, branding, mobile apps, and digital experiences that help businesses grow faster.
         </p>
-        <div class="hero-cta">
-          <a href="#services" class="btn-primary" id="cta-services">Explore Services</a>
-          <a href="#work" class="btn-secondary" id="cta-work">Our Work</a>
+
+        <!-- Bottom Row: CTA Action Buttons & Social Proof / Certifications -->
+        <div class="hero-bottom-grid">
+          <div class="hero-cta-group">
+            <a href="#services" class="hero-btn-primary" id="cta-services">
+              <span>Explore Services</span>
+              <span class="hero-btn-arrow-icon" aria-hidden="true">
+                <i data-lucide="arrow-right"></i>
+              </span>
+            </a>
+            <a href="#work" class="hero-btn-secondary" id="cta-work">
+              <span>Our Work</span>
+            </a>
+          </div>
+
+          <!-- Social Proof Cluster (Right side on desktop, stacked on mobile) -->
+          <div class="hero-social-proof">
+            <div class="hero-cert-row">
+              <span class="hero-cert-item">MSME Certified <span class="cert-pulse-dot" aria-hidden="true"></span></span>
+              <span class="hero-cert-item">Startup India Registered <span class="cert-pulse-dot" aria-hidden="true"></span></span>
+            </div>
+            <div class="hero-reviews-cluster">
+              <div class="hero-avatar-stack" aria-hidden="true">
+                <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=90&h=90&fit=crop&crop=faces" alt="Client 1" class="hero-avatar-img">
+                <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=90&h=90&fit=crop&crop=faces" alt="Client 2" class="hero-avatar-img">
+                <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=90&h=90&fit=crop&crop=faces" alt="Client 3" class="hero-avatar-img">
+                <img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=90&h=90&fit=crop&crop=faces" alt="Client 4" class="hero-avatar-img">
+              </div>
+              <div class="hero-rating-meta">
+                <div class="hero-rating-stars-line">
+                  <span class="hero-rating-num">4.9 / 5</span>
+                  <span class="hero-rating-stars">★★★★★</span>
+                </div>
+                <span class="hero-rating-subtext">from 30+ happy clients</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -3361,57 +3398,6 @@
           <div style="background: rgba(255,215,0,0.03); border: 1px solid rgba(255,215,0,0.25); border-radius: 6px; padding: 0.65rem 0.85rem;">
             <div style="font-size: 0.7rem; color: #ffd700; text-transform: uppercase;">Interested / Deal</div>
             <div id="stat-converted-leads" style="font-size: 1.25rem; font-weight: bold; color: #ffd700; margin-top: 0.2rem;">0</div>
-          </div>
-        </div>
-
-        <!-- AI Voice Calling Agent Interactive Station -->
-        <div id="ai-call-agent-station" style="background: linear-gradient(135deg, rgba(0, 240, 255, 0.08), rgba(138, 43, 226, 0.12)); border: 1px solid var(--neon-cyan); border-radius: 8px; padding: 1.1rem 1.25rem; margin-bottom: 1.25rem; transition: box-shadow 0.3s ease;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.65rem; flex-wrap: wrap; gap: 0.5rem;">
-            <h5 style="margin: 0; color: #fff; display: flex; align-items: center; gap: 0.45rem; font-size: 0.92rem;">
-              <i data-lucide="bot" style="color: var(--neon-cyan); width: 17px; height: 17px;"></i>
-              Automated AI Voice Calling Agent & Outbound Pitcher
-            </h5>
-            <span style="font-size: 0.72rem; color: var(--neon-green); font-family: monospace; background: rgba(0,255,100,0.12); padding: 0.2rem 0.5rem; border-radius: 4px; border: 1px solid var(--neon-green); font-weight: bold;">
-              Agent API Ready (tr_test)
-            </span>
-          </div>
-          
-          <p style="margin: 0 0 0.85rem 0; font-size: 0.8rem; color: var(--text-muted); line-height: 1.4;">
-            Initiate direct AI-driven voice calls to prospects. Click <strong>"🤖 AI Call"</strong> on any discovered lead below to <em>auto-cache & pre-fill</em> their researched number and customized pitch, or <em>manually type</em> any phone number and custom instructions below.
-          </p>
-
-          <div style="display: grid; grid-template-columns: 1.2fr 1.2fr 1fr; gap: 0.65rem; margin-bottom: 0.65rem;">
-            <div>
-              <label for="ai-call-phone-input" style="font-size: 0.73rem; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">> Target Customer Phone Number (Manually Typable / Auto-Cached)</label>
-              <input type="tel" id="ai-call-phone-input" placeholder="+91 98452 11223" style="width: 100%; background: rgba(0,0,0,0.5); border: 1px solid var(--neon-cyan); color: #fff; padding: 0.55rem; border-radius: 4px; font-family: monospace; font-size: 0.85rem; font-weight: bold;">
-            </div>
-            <div>
-              <label for="ai-call-name-input" style="font-size: 0.73rem; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">> Customer / Clinic / Brand Name (Manually Typable)</label>
-              <input type="text" id="ai-call-name-input" placeholder="e.g. Apollo Multi-Speciality Clinic" style="width: 100%; background: rgba(0,0,0,0.5); border: 1px solid var(--glass-border); color: #fff; padding: 0.55rem; border-radius: 4px; font-family: monospace; font-size: 0.82rem;">
-            </div>
-            <div>
-              <label for="ai-call-sector-select" style="font-size: 0.73rem; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">> Target Industry Niche</label>
-              <select id="ai-call-sector-select" style="width: 100%; background: rgba(0,0,0,0.5); border: 1px solid var(--glass-border); color: #fff; padding: 0.55rem; border-radius: 4px; font-family: monospace; font-size: 0.82rem;">
-                <option value="hospital">🏥 Hospital & Healthcare</option>
-                <option value="wedding">💍 Weddings & Events</option>
-                <option value="realestate">🏢 Real Estate & Builders</option>
-                <option value="retail">💎 Elite Retail & Brands</option>
-                <option value="education">🎓 Colleges & Education</option>
-                <option value="hotel">🏨 Hotels & Hospitality</option>
-              </select>
-            </div>
-          </div>
-
-          <div style="margin-bottom: 0.75rem;">
-            <label for="ai-call-pitch-input" style="font-size: 0.73rem; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">> AI Agent Pitch / Call Script (Auto-Generated from Niche & Fully Editable)</label>
-            <textarea id="ai-call-pitch-input" rows="2" placeholder="Custom instructions or value proposition for the AI calling agent..." style="width: 100%; background: rgba(0,0,0,0.5); border: 1px solid var(--glass-border); color: #fff; padding: 0.55rem; border-radius: 4px; font-family: monospace; font-size: 0.8rem; resize: vertical;"></textarea>
-          </div>
-
-          <div style="display: flex; gap: 0.75rem; align-items: center; justify-content: space-between; flex-wrap: wrap;">
-            <button type="button" id="ai-call-dispatch-btn" class="admin-action-btn" style="padding: 0.65rem 1.35rem; font-size: 0.84rem; background: linear-gradient(135deg, var(--neon-cyan), var(--neon-green)); color: #000; font-weight: bold; border: none; border-radius: 5px; cursor: pointer; display: flex; align-items: center; gap: 0.45rem;">
-              <i data-lucide="phone-outgoing" style="width: 15px; height: 15px;"></i> Launch AI Outbound Call
-            </button>
-            <div id="ai-call-feedback" style="display: none; font-family: monospace; font-size: 0.8rem; padding: 0.4rem 0.75rem; border-radius: 4px; flex: 1; max-width: 480px;"></div>
           </div>
         </div>
 

@@ -2,7 +2,7 @@
 // Securely verifies Razorpay payment signatures and records database entries server-side
 
 const crypto = require("crypto");
-const { validateCSRF, checkRateLimit, verifySessionAndRole } = require("./security-utils");
+const { setCorsHeaders, validateCSRF, checkRateLimit, verifySessionAndRole } = require("./security-utils");
 
 const DEFAULT_SERVICE_PRICES = [
   { id: "ai_chatbot", name: "AI Chatbot", priceINR: 24999, priceUSD: 799, priceMaxINR: 120000, priceMaxUSD: 4000 },
@@ -41,32 +41,11 @@ const DEFAULT_SERVICE_PRICES = [
   { id: "email_marketing", name: "Email Marketing (Monthly)", priceINR: 15000, priceUSD: 600 }
 ];
 
-async function getVerifiedPrice(serviceId, tier, isIndian) {
-  let catalog = [];
-  try {
-    const SUPABASE_URL = process.env.SUPABASE_URL;
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (SUPABASE_URL && serviceRoleKey) {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/notifications?title=eq.%5BSYSTEM_PRICING_CATALOG%5D&select=desc_text`, {
-        headers: {
-          "Authorization": `Bearer ${serviceRoleKey}`,
-          "apikey": serviceRoleKey
-        }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data && data.length > 0) {
-          catalog = JSON.parse(data[0].desc_text);
-        }
-      }
-    }
-  } catch (err) {
-    console.warn("Failed to fetch custom catalog, using defaults:", err.message);
-  }
-
-  const service = catalog.find(s => s.id === serviceId) || DEFAULT_SERVICE_PRICES.find(s => s.id === serviceId);
+// Immutable Pricing Engine: Load pricing strictly from immutable server-defined catalog
+function getVerifiedPrice(serviceId, tier, isIndian) {
+  const service = DEFAULT_SERVICE_PRICES.find(s => s.id === serviceId);
   if (!service) {
-    throw new Error(`Service ${serviceId} not found in catalog`);
+    throw new Error(`Service ${serviceId} not found in verified catalog`);
   }
 
   let totalCost = isIndian ? service.priceINR : service.priceUSD;
@@ -78,36 +57,7 @@ async function getVerifiedPrice(serviceId, tier, isIndian) {
 }
 
 module.exports = async (req, res) => {
-  const headers = {
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Content-Type": "application/json"
-  };
-
-  const allowedOrigins = [
-    "https://antigravitystudios.in",
-    "https://www.antigravitystudios.in",
-    "http://localhost:3000",
-    "http://localhost:8000",
-    "http://localhost:5173",
-    "http://localhost:5500",
-    "http://127.0.0.1:3000",
-    "http://127.0.0.1:8000",
-    "http://127.0.0.1:5500"
-  ];
-
-  const origin = req.headers.origin;
-  if (origin && (allowedOrigins.includes(origin) || origin.endsWith(".vercel.app"))) {
-    headers["Access-Control-Allow-Origin"] = origin;
-  }
-
-  for (const [key, value] of Object.entries(headers)) {
-    res.setHeader(key, value);
-  }
-
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
-  }
+  if (setCorsHeaders(req, res, { methods: "POST, OPTIONS" })) return;
 
   if (req.method !== "POST") {
     return res.status(405).json({ error: { message: "Method Not Allowed" } });
@@ -130,14 +80,16 @@ module.exports = async (req, res) => {
       return res.status(500).json({ error: { message: "Razorpay configuration error." } });
     }
 
-    // 1. Perform HMAC-SHA256 signature verification
+    // 1. Perform constant-time HMAC-SHA256 signature verification to prevent timing attacks
     const text = orderId + "|" + paymentId;
     const generatedSignature = crypto
       .createHmac("sha256", keySecret)
       .update(text)
       .digest("hex");
 
-    const isVerified = generatedSignature === signature;
+    const genBuf = Buffer.from(generatedSignature, 'utf8');
+    const sigBuf = Buffer.from(String(signature), 'utf8');
+    const isVerified = (genBuf.length === sigBuf.length) && crypto.timingSafeEqual(genBuf, sigBuf);
     if (!isVerified) {
       return res.status(400).json({ verified: false, error: { message: "Invalid payment signature verification failed." } });
     }
@@ -153,6 +105,24 @@ module.exports = async (req, res) => {
 
     if (!SUPABASE_URL || !serviceRoleKey) {
       return res.status(500).json({ error: { message: "Supabase connection is not configured." } });
+    }
+
+    // 3. Idempotency Check: verify that paymentId has not already been processed (prevent replay attacks)
+    const existingTransRes = await fetch(`${SUPABASE_URL}/rest/v1/transactions?reference=eq.${encodeURIComponent(paymentId)}&select=reference`, {
+      method: "GET",
+      headers: {
+        "Authorization": `Bearer ${serviceRoleKey}`,
+        "apikey": serviceRoleKey
+      }
+    });
+
+    if (existingTransRes.ok) {
+      const existingData = await existingTransRes.json();
+      if (existingData && existingData.length > 0) {
+        return res.status(409).json({ 
+          error: { message: "Payment already processed (replay detected). This transaction has already been recorded." } 
+        });
+      }
     }
 
     // Fetch caller profile details

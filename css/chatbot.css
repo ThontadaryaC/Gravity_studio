@@ -627,16 +627,45 @@
   font-size: 0.8rem;
 }
 
-/* Responsiveness */
-@media (max-width: 480px) {
+/* Responsiveness & Mobile Fullscreen Optimization */
+@media (max-width: 640px) {
   .gravity-chatbot-container {
-    bottom: 15px;
-    right: 15px;
+    bottom: 16px;
+    right: 16px;
   }
   .gravity-chatbot-window {
-    width: calc(100vw - 30px);
-    height: calc(100vh - 120px);
-    max-height: 520px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
+    border: none;
+    z-index: 10000000;
+  }
+  .gravity-chatbot-chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding: 0 16px 8px 16px;
+  }
+  .gravity-chatbot-chips::-webkit-scrollbar {
+    display: none;
+  }
+  .gravity-chatbot-chip {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  .gravity-chatbot-footer {
+    position: sticky;
+    bottom: 0;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    background: rgba(8, 11, 18, 0.98);
   }
 }
 

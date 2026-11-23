@@ -3,6 +3,7 @@
 
 const crypto = require("crypto");
 const { 
+  setCorsHeaders,
   validateCSRF, 
   sanitizeInput, 
   checkRateLimit, 
@@ -24,37 +25,7 @@ const ADMIN_ROLE_UUIDS = {
 };
 
 module.exports = async (req, res) => {
-  // Enable CORS
-  const headers = {
-    "Access-Control-Allow-Headers": "Content-Type",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Content-Type": "application/json"
-  };
-
-  const allowedOrigins = [
-    "https://antigravitystudios.in",
-    "https://www.antigravitystudios.in",
-    "http://localhost:3000",
-    "http://localhost:8000",
-    "http://localhost:5173",
-    "http://localhost:5500",
-    "http://127.0.0.1:3000",
-    "http://127.0.0.1:8000",
-    "http://127.0.0.1:5500"
-  ];
-
-  const origin = req.headers.origin;
-  if (origin && (allowedOrigins.includes(origin) || origin.endsWith(".vercel.app"))) {
-    headers["Access-Control-Allow-Origin"] = origin;
-  }
-
-  for (const [key, value] of Object.entries(headers)) {
-    res.setHeader(key, value);
-  }
-
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
-  }
+  if (setCorsHeaders(req, res, { methods: "POST, OPTIONS" })) return;
 
   if (req.method !== "POST") {
     return res.status(405).json({ error: { message: "Method Not Allowed" } });
@@ -122,7 +93,14 @@ module.exports = async (req, res) => {
     }
 
     const codeData = await codeRes.json();
-    if (!codeData || codeData.length === 0 || codeData[0].code_hash !== submittedHash) {
+    let isMatch = false;
+    if (codeData && codeData.length > 0 && codeData[0].code_hash) {
+      const dbBuf = Buffer.from(codeData[0].code_hash, 'utf8');
+      const subBuf = Buffer.from(submittedHash, 'utf8');
+      isMatch = (dbBuf.length === subBuf.length) && crypto.timingSafeEqual(dbBuf, subBuf);
+    }
+
+    if (!isMatch) {
       // Record failed attempts
       await recordFailedAttempt(lockoutIpKey, 900);
       await recordFailedAttempt(lockoutEmailKey, 900);

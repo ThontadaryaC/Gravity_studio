@@ -2,27 +2,14 @@
 // Admin-only diagnostic endpoint — verifies Razorpay key configuration.
 // Blocked in production unless the caller is an authenticated admin.
 
-const { verifySessionAndRole } = require("./security-utils");
+const { setCorsHeaders, verifySessionAndRole } = require("./security-utils");
 
 module.exports = async (req, res) => {
-  res.setHeader("Content-Type", "application/json");
+  if (setCorsHeaders(req, res, { methods: "GET, OPTIONS" })) return;
 
-  // Strict CORS — no wildcard
-  const allowedOrigins = [
-    "https://antigravitystudios.in",
-    "https://www.antigravitystudios.in",
-    "http://localhost:3000",
-    "http://localhost:5500",
-    "http://127.0.0.1:5500"
-  ];
-  const origin = req.headers.origin;
-  if (origin && (allowedOrigins.includes(origin) || origin.endsWith(".vercel.app"))) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
+  if (req.method !== "GET") {
+    return res.status(405).json({ error: { message: "Method Not Allowed" } });
   }
-  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-
-  if (req.method === "OPTIONS") return res.status(200).end();
 
   // --- ADMIN AUTH REQUIRED ---
   const { user, isAdmin, error } = await verifySessionAndRole(req);
@@ -36,7 +23,7 @@ module.exports = async (req, res) => {
   const keyId     = rawKeyId.replace(/[^\x20-\x7E]/g, "").replace(/^["']|["']$/g, "").trim();
   const keySecret = rawKeySecret.replace(/[^\x20-\x7E]/g, "").replace(/^["']|["']$/g, "").trim();
 
-  // Never expose the full secret — only length and first/last 4 chars
+  // Secure diagnostics — never expose secret characters
   const diagnostics = {
     KEY_ID: {
       cleaned_length: keyId.length,
@@ -45,9 +32,8 @@ module.exports = async (req, res) => {
       is_test: keyId.startsWith("rzp_test_"),
     },
     KEY_SECRET: {
+      configured:     keySecret.length > 0,
       cleaned_length: keySecret.length,
-      first_4_chars:  keySecret.substring(0, 4),
-      last_4_chars:   keySecret.slice(-4),
       length_ok:      keySecret.length === 24,
     },
     env: process.env.VERCEL_ENV || "local",

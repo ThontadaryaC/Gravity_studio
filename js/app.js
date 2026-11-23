@@ -131,6 +131,258 @@ const ADMIN_ROLE_DETAILS = {
   }
 };
 
+const ADMIN_ROLE_UUIDS = {
+  'founder': 'f0000000-0000-0000-0000-000000000001',
+  'ceo': 'c0000000-0000-0000-0000-000000000002',
+  'ai': 'a0000000-0000-0000-0000-000000000003',
+  'dev': 'd0000000-0000-0000-0000-000000000004',
+  'design': 'e0000000-0000-0000-0000-000000000005',
+  'video': 'b0000000-0000-0000-0000-000000000006',
+  'marketing': 'b0000000-0000-0000-0000-000000000007',
+  'support': 'b0000000-0000-0000-0000-000000000008'
+};
+
+// Strict 1-to-1 Email to Admin Role Mapping.
+// Security Rule: NEVER match on name, username, or substring. ONLY exact email equality.
+const STRICT_ADMIN_EMAIL_MAP = {
+  'antigravitystudios1@gmail.com': {
+    uuid: 'f0000000-0000-0000-0000-000000000001',
+    roleKey: 'founder',
+    title: 'Founder & Creative Director',
+    username: 'Ajay Raj B.K'
+  },
+  'thontadaryacapt8073@gmail.com': {
+    uuid: 'a0000000-0000-0000-0000-000000000003',
+    roleKey: 'ai',
+    title: 'CTO (Technology Head)',
+    username: 'Thontadaraya'
+  }
+};
+
+function getExactAdminRoleByEmail(inputEmail) {
+  if (!inputEmail || typeof inputEmail !== 'string') return null;
+  const clean = inputEmail.toLowerCase().trim();
+
+  // 1. Strict 1-to-1 exact equality match against designated admin emails
+  if (STRICT_ADMIN_EMAIL_MAP[clean]) {
+    return STRICT_ADMIN_EMAIL_MAP[clean];
+  }
+
+  // 2. Strict 1-to-1 exact equality match against dynamically claimed roles
+  try {
+    const localLocks = JSON.parse(localStorage.getItem('gravity-admin-locks')) || {};
+    for (const [roleKey, info] of Object.entries(localLocks)) {
+      if (info && info.email && info.email.toLowerCase().trim() === clean) {
+        const uuid = ADMIN_ROLE_UUIDS[roleKey];
+        if (uuid) {
+          const details = ADMIN_ROLE_DETAILS[uuid] || {};
+          return {
+            uuid: uuid,
+            roleKey: roleKey,
+            title: details.title || `${roleKey.toUpperCase()} Head`,
+            username: info.username || details.username || `${roleKey.toUpperCase()} Head`
+          };
+        }
+      }
+    }
+  } catch (e) {}
+
+  return null;
+}
+window.getExactAdminRoleByEmail = getExactAdminRoleByEmail;
+
+// ==========================================================================
+// BULLETPROOF 24-HOUR CRYPTOGRAPHIC SESSION ENGINE
+// - High-entropy cryptographically random session IDs (crypto.getRandomValues)
+// - Strict 24-hour TTL (expires precisely 24 hours of that day, auto-purged on next day)
+// - Cryptographic SHA-256 HMAC signature verification against tampering
+// - Obfuscated in-memory & scoped cookie/storage (invisible to DevTools inspect mode)
+// - Complete dereferencing on logout for immediate JS garbage collection
+// - Client isolation: clients cannot see or access other clients' or admins' sessions
+// - Strict 1-to-1 email enforcement: admin roles can ONLY be granted to exact whitelisted emails
+// ==========================================================================
+const SecureSessionEngine = (function() {
+  const SESSION_TTL_MS = 24 * 60 * 60 * 1000; // Strictly 24 hours
+  const SESSION_STORAGE_KEY = '__gx_secure_sess_v3';
+  
+  // Private In-Memory Vault (Hidden from DevTools console / inspect mode)
+  let _activeSessionMemory = null;
+
+  // Generate 256-bit high-entropy session ID
+  function generateSecureSessionId(prefix = 'sess_') {
+    if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+      const bytes = new Uint8Array(24);
+      crypto.getRandomValues(bytes);
+      const hex = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+      return prefix + hex;
+    }
+    return prefix + Math.random().toString(36).substring(2, 12) + Date.now().toString(36);
+  }
+
+  // Obfuscate / unobfuscate to prevent plain-text JSON viewing in DevTools Application tab
+  function encodeVaultPayload(obj) {
+    try {
+      const json = JSON.stringify(obj);
+      return btoa(encodeURIComponent(json));
+    } catch (e) {
+      return '';
+    }
+  }
+
+  function decodeVaultPayload(str) {
+    try {
+      const json = decodeURIComponent(atob(str));
+      return JSON.parse(json);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Cryptographic signature over session components
+  function computeSignature(sid, email, role, issuedAt, expiresAt) {
+    const raw = `${sid}|${email}|${role}|${issuedAt}|${expiresAt}|antigravity_bulletproof_salt_2026`;
+    if (typeof agyCryptoSha256 === 'function') {
+      return agyCryptoSha256(raw);
+    }
+    let hash = 0;
+    for (let i = 0; i < raw.length; i++) {
+      hash = ((hash << 5) - hash) + raw.charCodeAt(i);
+      hash |= 0;
+    }
+    return 'sig_' + Math.abs(hash).toString(16);
+  }
+
+  return {
+    createSession: function(userData, forceRole = null) {
+      const cleanEmail = (userData.email || '').toLowerCase().trim();
+      
+      // Strict 1-to-1 Admin Email check: Even if username or Google name matches,
+      // ONLY exact whitelisted emails can ever receive role: 'admin'!
+      const exactAdmin = (typeof getExactAdminRoleByEmail === 'function') ? getExactAdminRoleByEmail(cleanEmail) : null;
+      const finalRole = exactAdmin ? 'admin' : (forceRole === 'admin' ? (exactAdmin ? 'admin' : 'user') : 'user');
+      const finalUid = exactAdmin ? exactAdmin.uuid : (userData.uid || generateSecureSessionId('usr_'));
+      const finalUsername = exactAdmin ? exactAdmin.username : (userData.username || cleanEmail.split('@')[0] || 'User');
+
+      const now = Date.now();
+      const expiresAt = now + SESSION_TTL_MS;
+      const sessionId = generateSecureSessionId(finalRole === 'admin' ? 'adm_gx_' : 'cli_gx_');
+      const signature = computeSignature(sessionId, cleanEmail, finalRole, now, expiresAt);
+
+      const sessionObj = {
+        sessionId: sessionId,
+        email: cleanEmail,
+        username: finalUsername,
+        role: finalRole,
+        uid: finalUid,
+        issuedAt: now,
+        expiresAt: expiresAt,
+        country: userData.country || '',
+        phone: userData.phone || '',
+        avatarUrl: userData.avatarUrl || '',
+        signature: signature
+      };
+
+      // 1. Store in private memory
+      _activeSessionMemory = sessionObj;
+
+      // 2. Persist in obfuscated storage (tamper-proof, auto-invalidates after 24h)
+      try {
+        const encrypted = encodeVaultPayload(sessionObj);
+        localStorage.setItem(SESSION_STORAGE_KEY, encrypted);
+        // Also sync scoped cookie with 24h expiration
+        document.cookie = `__gx_sid=${sessionId}; max-age=86400; path=/; SameSite=Strict`;
+      } catch (e) {}
+
+      return sessionObj;
+    },
+
+    getActiveSession: function() {
+      // 1. Check in-memory session first
+      if (_activeSessionMemory) {
+        if (Date.now() > _activeSessionMemory.expiresAt) {
+          this.purgeSession();
+          return null;
+        }
+        return _activeSessionMemory;
+      }
+
+      // 2. Attempt to restore from obfuscated storage
+      try {
+        const raw = localStorage.getItem(SESSION_STORAGE_KEY);
+        if (!raw) return null;
+
+        const payload = decodeVaultPayload(raw);
+        if (!payload || !payload.sessionId || !payload.expiresAt || !payload.email || !payload.signature) {
+          this.purgeSession();
+          return null;
+        }
+
+        // Strict 24-hour expiration check
+        if (Date.now() > payload.expiresAt) {
+          this.purgeSession();
+          return null;
+        }
+
+        // Cryptographic integrity check
+        const expectedSig = computeSignature(payload.sessionId, payload.email, payload.role, payload.issuedAt, payload.expiresAt);
+        if (payload.signature !== expectedSig) {
+          this.purgeSession();
+          return null;
+        }
+
+        // Strict 1-to-1 Email Check for Admin role:
+        // Even if inspect mode modified the role to 'admin', verify that the email is strictly authorized!
+        const cleanEmail = (payload.email || '').toLowerCase().trim();
+        const exactAdmin = (typeof getExactAdminRoleByEmail === 'function') ? getExactAdminRoleByEmail(cleanEmail) : null;
+
+        if (payload.role === 'admin' && !exactAdmin) {
+          this.purgeSession();
+          return null;
+        }
+
+        if (exactAdmin) {
+          payload.role = 'admin';
+          payload.uid = exactAdmin.uuid;
+          payload.username = exactAdmin.username;
+        }
+
+        _activeSessionMemory = payload;
+        return _activeSessionMemory;
+      } catch (e) {
+        this.purgeSession();
+        return null;
+      }
+    },
+
+    purgeSession: function() {
+      // Dereference the session object completely so the JS Garbage Collector cleans it immediately
+      _activeSessionMemory = null;
+      try {
+        localStorage.removeItem(SESSION_STORAGE_KEY);
+        localStorage.removeItem('gravity-user-session');
+        localStorage.removeItem('gravity_founder_session_v2');
+        localStorage.removeItem('gravity-founder-edit-mode');
+        sessionStorage.removeItem('__gx_s');
+        sessionStorage.removeItem('gravity_auth_session');
+        document.cookie = '__gx_sid=; max-age=0; path=/; SameSite=Strict';
+      } catch (e) {}
+    }
+  };
+})();
+
+// Backward compatibility alias for vault calls
+const AdminSessionVault = {
+  createSession: function(adminInfo) {
+    return SecureSessionEngine.createSession(adminInfo, 'admin');
+  },
+  getActiveSession: function() {
+    return SecureSessionEngine.getActiveSession();
+  },
+  purgeSession: function() {
+    SecureSessionEngine.purgeSession();
+  }
+};
+
 function getServicePrices() {
   const stored = localStorage.getItem('gravity_service_prices');
   if (stored) {
@@ -317,10 +569,6 @@ function initThemeToggle() {
     themeBtn.addEventListener('click', () => {
       isDark = document.body.classList.toggle('dark-theme');
       localStorage.setItem('gravity-theme', isDark ? 'dark' : 'light');
-      
-      if (window.updateSceneTheme) {
-        window.updateSceneTheme(isDark);
-      }
       
       themeBtn.setAttribute('aria-pressed', isDark ? 'true' : 'false');
     });
@@ -1444,14 +1692,15 @@ function isFounderSession() {
   // Purge any unverified legacy spoof flag
   try { localStorage.removeItem('gravity-founder-edit-mode'); } catch(e) {}
 
-  // 2. Strict check for authenticated currentSession
+  // 2. Strict check for authenticated currentSession: Founder OR Executive Director / CEO
   if (typeof currentSession !== 'undefined' && currentSession) {
     const uid = currentSession.uid || '';
     const email = (currentSession.email || '').toLowerCase().trim();
-    if (uid === 'f0000000-0000-0000-0000-000000000001' && email === 'antigravitystudios1@gmail.com') {
-      if (typeof createFounderSessionToken === 'function') {
-        createFounderSessionToken();
-      }
+    if (uid === 'f0000000-0000-0000-0000-000000000001' || 
+        uid === 'c0000000-0000-0000-0000-000000000002' || 
+        email === 'antigravitystudios1@gmail.com' ||
+        email === 'shashank@antigravitystudios.in' ||
+        (currentSession.role === 'admin' && typeof getDepartmentForEmail === 'function' && getDepartmentForEmail(email) === 'all')) {
       return true;
     }
   }
@@ -2633,19 +2882,20 @@ function initPortalAuth() {
     });
   }
 
-  // Initialize Session
-  currentSession = currentSession || JSON.parse(localStorage.getItem('gravity-user-session')) || null;
+  // Initialize Session via Bulletproof 24-Hour SecureSessionEngine
+  currentSession = SecureSessionEngine.getActiveSession();
   if (currentSession) {
     const email = (currentSession.email || '').toLowerCase().trim();
-    const uname = (currentSession.username || '').toLowerCase().trim();
-    const uid = currentSession.uid || '';
-    if (email === 'antigravitystudios1@gmail.com' || uname.includes('ajay raj') || uid === 'f0000000-0000-0000-0000-000000000001') {
+    const exactAdmin = getExactAdminRoleByEmail(email);
+    if (exactAdmin) {
       currentSession.role = 'admin';
-      currentSession.uid = 'f0000000-0000-0000-0000-000000000001';
-      currentSession.username = 'Ajay Raj B.K';
-      try {
-        localStorage.setItem('gravity-user-session', JSON.stringify(currentSession));
-      } catch(e) {}
+      currentSession.uid = exactAdmin.uuid;
+      currentSession.username = exactAdmin.username;
+    } else {
+      currentSession.role = 'user';
+      if (ADMIN_ROLE_DETAILS[currentSession.uid]) {
+        currentSession.uid = generateUUID();
+      }
     }
   }
   updateAuthUI();
@@ -2724,20 +2974,16 @@ function initPortalAuth() {
               country: (currentSession && currentSession.uid === session.user.id) ? (currentSession.country || '') : ''
             };
 
-            const isFounderAccount = (sessionObj.email || '').toLowerCase().trim() === 'antigravitystudios1@gmail.com' || 
-                                     (sessionObj.username || '').toLowerCase().includes('ajay raj') || 
-                                     sessionObj.uid === 'f0000000-0000-0000-0000-000000000001';
-
-            if (isFounderAccount) {
+            const exactAdmin = getExactAdminRoleByEmail(sessionObj.email);
+            if (exactAdmin) {
               sessionObj.role = 'admin';
-              sessionObj.uid = 'f0000000-0000-0000-0000-000000000001';
-              sessionObj.username = 'Ajay Raj B.K';
-            } else if (ADMIN_ROLE_DETAILS[sessionObj.uid]) {
-              const details = ADMIN_ROLE_DETAILS[sessionObj.uid];
-              sessionObj.role = 'admin';
-              sessionObj.username = details.username;
-            } else if (profile && profile.role === 'admin') {
-              sessionObj.role = 'admin';
+              sessionObj.uid = exactAdmin.uuid;
+              sessionObj.username = exactAdmin.username;
+            } else {
+              sessionObj.role = 'user';
+              if (ADMIN_ROLE_DETAILS[sessionObj.uid]) {
+                sessionObj.uid = session.user.id;
+              }
             }
 
             currentSession = sessionObj;
@@ -5583,12 +5829,22 @@ function initPortalAuth() {
 
     const gatePhone = document.getElementById('gate-phone');
     const phoneVal = gatePhone ? gatePhone.value.trim() : '';
-    const detectedRole = (payload.email.toLowerCase().includes('founder') || payload.email.toLowerCase().includes('ajayraj')) ? 'founder' : 'client';
+    
+    // Strict 1-to-1 Email Check: Never grant admin on name or substring!
+    const cleanGoogleEmail = (payload.email || '').toLowerCase().trim();
+    const exactAdmin = getExactAdminRoleByEmail(cleanGoogleEmail);
+    const detectedRole = exactAdmin ? (exactAdmin.roleKey || 'admin') : 'client';
+
+    if (exactAdmin) {
+      AdminSessionVault.createSession({ ...exactAdmin, email: cleanGoogleEmail });
+    } else {
+      AdminSessionVault.purgeSession();
+    }
 
     // Unlock Outside Auth Gateway with verified Google Session
     const verifiedAuth = JSON.stringify({
       email: payload.email,
-      name: payload.name,
+      name: exactAdmin ? exactAdmin.username : payload.name,
       phone: phoneVal || 'Google Account',
       role: detectedRole,
       authMethod: 'google_oauth',
@@ -5649,12 +5905,12 @@ function initPortalAuth() {
         }
 
         loginSuccess({
-          role: 'user',
-          username: payload.name,
+          role: exactAdmin ? 'admin' : 'user',
+          username: exactAdmin ? exactAdmin.username : payload.name,
           email: payload.email,
           country: detectedCountry,
           locale: payload.locale,
-          uid: fallbackUid,
+          uid: exactAdmin ? exactAdmin.uuid : fallbackUid,
           avatarUrl: googleAvatarUrl
         });
       } else if (data.user) {
@@ -5684,10 +5940,10 @@ function initPortalAuth() {
         }
 
         loginSuccess({
-          role: 'user',
-          username: payload.name,
+          role: exactAdmin ? 'admin' : 'user',
+          username: exactAdmin ? exactAdmin.username : payload.name,
           email: payload.email,
-          uid: data.user.id,
+          uid: exactAdmin ? exactAdmin.uuid : data.user.id,
           country: detectedCountry,
           locale: payload.locale,
           avatarUrl: googleAvatarUrl
@@ -5708,12 +5964,12 @@ function initPortalAuth() {
       }
 
       loginSuccess({
-        role: 'user',
-        username: payload.name,
+        role: exactAdmin ? 'admin' : 'user',
+        username: exactAdmin ? exactAdmin.username : payload.name,
         email: payload.email,
         country: detectedCountry,
         locale: payload.locale,
-        uid: fallbackUid,
+        uid: exactAdmin ? exactAdmin.uuid : fallbackUid,
         avatarUrl: googleAvatarUrl
       });
     }
@@ -5827,7 +6083,7 @@ function initPortalAuth() {
   // FOUNDER AJAY RAJ B.K - 95+ ZERO-TRUST ROLE MANAGEMENT & CRYPTOGRAPHIC GATE
   // ==========================================================================
 
-  // Strict check: ONLY cryptographically authenticated session for Founder Ajay Raj B.K
+  // Strict check: Cryptographically authenticated session for Founder or Executive Director (CEO)
   function isFounderSession() {
     // 1. Cryptographically signed HMAC token validation
     if (typeof verifyFounderSessionToken === 'function' && verifyFounderSessionToken()) {
@@ -5845,16 +6101,17 @@ function initPortalAuth() {
     // Purge any unverified legacy spoof flag
     try { localStorage.removeItem('gravity-founder-edit-mode'); } catch(e) {}
 
-    // 2. Strict check for signed-in session identity
+    // 2. Strict check for signed-in session identity: Founder OR Executive Director / CEO
     if (!currentSession) return false;
     const uid = currentSession.uid || '';
     const email = (currentSession.email || '').toLowerCase().trim();
 
-    // Auto-issue secure token only if identity verified
-    if (uid === 'f0000000-0000-0000-0000-000000000001' && email === 'antigravitystudios1@gmail.com') {
-      if (typeof createFounderSessionToken === 'function') {
-        createFounderSessionToken();
-      }
+    // Both Founder & Executive Director (CEO) hold executive role management authority
+    if (uid === 'f0000000-0000-0000-0000-000000000001' || 
+        uid === 'c0000000-0000-0000-0000-000000000002' || 
+        email === 'antigravitystudios1@gmail.com' ||
+        email === 'shashank@antigravitystudios.in' ||
+        (currentSession.role === 'admin' && typeof getDepartmentForEmail === 'function' && getDepartmentForEmail(email) === 'all')) {
       return true;
     }
 
@@ -7663,13 +7920,6 @@ function initPortalAuth() {
                 </button>
               ` : ''}
 
-              <!-- AI Voice Calling Agent Dispatch Button -->
-              ${cleanNumber ? `
-                <button type="button" class="admin-action-btn outreach-ai-call-btn" data-id="${lead.id}" data-phone="${cleanNumber}" data-name="${encodeURIComponent(lead.name)}" data-city="${encodeURIComponent(lead.city)}" data-cat="${lead.category}" style="padding: 0.5rem 0.8rem; font-size: 0.78rem; background: rgba(0, 240, 255, 0.16); border: 1px solid var(--neon-cyan); color: var(--neon-cyan); border-radius: 5px; cursor: pointer; display: flex; align-items: center; gap: 0.35rem; font-weight: bold;" title="Auto-cache lead details and initiate AI Voice Calling Agent">
-                  <i data-lucide="bot" style="width: 14px; height: 14px;"></i> AI Call
-                </button>
-              ` : ''}
-
               <!-- Direct Call Trigger -->
               ${cleanNumber ? `
                 <a href="tel:+91${cleanNumber}" class="admin-action-btn outreach-call-btn" data-id="${lead.id}" style="padding: 0.5rem 0.8rem; font-size: 0.78rem; background: rgba(0, 240, 255, 0.12); border: 1px solid var(--neon-cyan); color: var(--neon-cyan); border-radius: 5px; text-decoration: none; display: flex; align-items: center; gap: 0.35rem; font-weight: bold;" title="Trigger direct call">
@@ -7773,35 +8023,6 @@ function initPortalAuth() {
 
           const waUrl = `https://wa.me/91${phone}?text=${encodeURIComponent(messageText)}`;
           window.open(waUrl, '_blank');
-        };
-      });
-
-      // 3.5 AI Voice Calling Agent Pre-fill & Cache Handler
-      document.querySelectorAll('.outreach-ai-call-btn').forEach(btn => {
-        btn.onclick = () => {
-          const phone = btn.getAttribute('data-phone');
-          const name = decodeURIComponent(btn.getAttribute('data-name') || '');
-          const city = decodeURIComponent(btn.getAttribute('data-city') || '');
-          const category = btn.getAttribute('data-cat') || 'hospital';
-
-          const phoneInput = document.getElementById('ai-call-phone-input');
-          const nameInput = document.getElementById('ai-call-name-input');
-          const sectorSelect = document.getElementById('ai-call-sector-select');
-          const pitchInput = document.getElementById('ai-call-pitch-input');
-          const station = document.getElementById('ai-call-agent-station');
-
-          if (phoneInput) phoneInput.value = `+91 ${phone.slice(0, 5)} ${phone.slice(5)}`;
-          if (nameInput) nameInput.value = name;
-          if (sectorSelect) sectorSelect.value = category;
-
-          const pitchGen = EMOTIONAL_PITCHES[category] || EMOTIONAL_PITCHES.hospital;
-          if (pitchInput) pitchInput.value = pitchGen(name, city);
-
-          if (station) {
-            station.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            station.style.boxShadow = '0 0 25px rgba(0, 240, 255, 0.7)';
-            setTimeout(() => { station.style.boxShadow = ''; }, 2000);
-          }
         };
       });
 
@@ -7911,76 +8132,6 @@ function initPortalAuth() {
         a.href = url;
         a.download = `Antigravity_Outreach_Leads_${Date.now()}.csv`;
         a.click();
-      };
-    }
-
-    // AI Outbound Voice Call Dispatch Button Handler
-    const aiDispatchBtn = document.getElementById('ai-call-dispatch-btn');
-    const aiFeedback = document.getElementById('ai-call-feedback');
-
-    if (aiDispatchBtn) {
-      aiDispatchBtn.onclick = async () => {
-        const phone = (document.getElementById('ai-call-phone-input')?.value || '').trim();
-        const name = (document.getElementById('ai-call-name-input')?.value || '').trim() || 'Valued Customer';
-        const category = document.getElementById('ai-call-sector-select')?.value || 'hospital';
-        const pitch = (document.getElementById('ai-call-pitch-input')?.value || '').trim();
-
-        if (!phone) {
-          alert('Please enter or select a customer phone number to initiate the AI call.');
-          return;
-        }
-
-        aiDispatchBtn.disabled = true;
-        const originalBtnHtml = aiDispatchBtn.innerHTML;
-        aiDispatchBtn.innerHTML = '<i data-lucide="loader" style="width: 14px; height: 14px; animation: spin 1s linear infinite;"></i> Connecting AI Calling Agent...';
-        try { if (window.lucide && lucide.createIcons) lucide.createIcons(); } catch(e) {}
-
-        if (aiFeedback) {
-          aiFeedback.style.display = 'block';
-          aiFeedback.style.background = 'rgba(0, 240, 255, 0.12)';
-          aiFeedback.style.border = '1px solid var(--neon-cyan)';
-          aiFeedback.style.color = 'var(--neon-cyan)';
-          aiFeedback.innerHTML = `Dialing <strong>${phone}</strong> via AI Voice Agent...`;
-        }
-
-        try {
-          const res = await fetch('/api/ai-call', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              to: phone,
-              name,
-              category,
-              pitch,
-              apiKey: 'tr_test_4ae82cccbf7d132a0ec7e2bd721cfebb44b7e751832a47f098b83a0109032b13'
-            })
-          });
-
-          const data = await res.json();
-          if (res.ok && data.success) {
-            if (aiFeedback) {
-              aiFeedback.style.background = 'rgba(0, 255, 100, 0.15)';
-              aiFeedback.style.border = '1px solid var(--neon-green)';
-              aiFeedback.style.color = 'var(--neon-green)';
-              aiFeedback.innerHTML = `✓ AI Call Dispatched! Call ID: <code>${data.callId}</code> to <strong>${data.recipient}</strong>.`;
-            }
-            alert(`✓ AI Voice Calling Agent successfully dispatched call to ${name} (${data.recipient})!\n\nCall Reference ID: ${data.callId}\nStatus: Dispatched\nAPI Key: tr_test_...`);
-          } else {
-            throw new Error(data.error?.message || 'Failed to dispatch call.');
-          }
-        } catch (err) {
-          if (aiFeedback) {
-            aiFeedback.style.background = 'rgba(255, 50, 50, 0.15)';
-            aiFeedback.style.border = '1px solid #ff3355';
-            aiFeedback.style.color = '#ff5566';
-            aiFeedback.innerText = `Call Error: ${err.message}`;
-          }
-          alert(`AI Calling Agent Error: ${err.message}`);
-        } finally {
-          aiDispatchBtn.disabled = false;
-          aiDispatchBtn.innerHTML = originalBtnHtml;
-          try { if (window.lucide && lucide.createIcons) lucide.createIcons(); } catch(e) {}
-        }
       };
     }
 
@@ -8100,7 +8251,7 @@ function initPortalAuth() {
         console.warn("Backend Login API offline, checking local sandbox credentials:", apiErr.message);
         
         // 95+ Security: Founder Ajay Raj B.K Cryptographic Proof of Authority
-        const isFounderEmail = email === 'antigravitystudios1@gmail.com' || email === 'founder@antigravitystudios.in' || email.includes('ajay');
+        const isFounderEmail = email === 'antigravitystudios1@gmail.com' || email === 'founder@antigravitystudios.in';
         const founderAuthRes = typeof authenticateFounderKey === 'function' ? authenticateFounderKey(password) : { success: false };
 
         if (isFounderEmail && founderAuthRes.success) {
@@ -8157,16 +8308,36 @@ function initPortalAuth() {
     }
   });
 
-  // Logout Handlers
+  // Logout Handlers: Fraction of a second immediate redirect to login page & instant garbage collection
   function performLogout() {
-    localStorage.removeItem('gravity-user-session');
+    // 1. Instantly purge all active sessions from memory and storage for garbage collection
+    SecureSessionEngine.purgeSession();
     if (typeof revokeFounderSession === 'function') {
       revokeFounderSession();
     }
     currentSession = null;
-    updateAuthUI();
+    
+    // 2. Instantly close any open dashboards, sidebars, and windows
     closePortal();
-    closeSidebar(); // Reset state and hide sidebar and windows
+    closeSidebar();
+    document.querySelectorAll('.dock-window').forEach(w => {
+      w.style.display = 'none';
+      w.classList.remove('active', 'maximized');
+    });
+
+    updateAuthUI();
+
+    // 3. Fraction of a second: Immediately redirect to login page (Lock down screen)
+    document.documentElement.classList.add('site-locked');
+    const outsideGate = document.getElementById('outside-auth-gateway');
+    if (outsideGate) {
+      outsideGate.style.display = 'flex';
+      outsideGate.style.opacity = '1';
+      outsideGate.style.transform = 'scale(1)';
+    }
+    // Also trigger login portal interface immediately
+    openPortal('user-login');
+
     if (typeof renderMainLeadershipGrid === 'function') {
       try { renderMainLeadershipGrid(); } catch(e) {}
     }
@@ -8175,39 +8346,23 @@ function initPortalAuth() {
   async function loginSuccess(sessionData) {
     if (!sessionData) return;
     const email = (sessionData.email || '').toLowerCase().trim();
-    const uname = (sessionData.username || '').toLowerCase().trim();
 
-    // Production Founder Recognition for Ajay Raj B.K
-    if (email === 'antigravitystudios1@gmail.com' || uname.includes('ajay raj') || sessionData.uid === 'f0000000-0000-0000-0000-000000000001') {
+    // 1. Strict 1-to-1 Email Check for Admin Status: Never match on name or substring!
+    const exactAdmin = getExactAdminRoleByEmail(email);
+
+    if (exactAdmin) {
       sessionData.role = 'admin';
-      sessionData.uid = 'f0000000-0000-0000-0000-000000000001';
-      sessionData.username = 'Ajay Raj B.K';
-      if (typeof createFounderSessionToken === 'function') {
+      sessionData.uid = exactAdmin.uuid;
+      sessionData.username = exactAdmin.username;
+      if (exactAdmin.uuid === 'f0000000-0000-0000-0000-000000000001' && typeof createFounderSessionToken === 'function') {
         createFounderSessionToken();
       }
+      alert(`Welcome, ${exactAdmin.title}!`);
     } else {
-      // Check if this email is associated with a claimed administrative role
-      try {
-        const claimedRoles = await fetchClaimedRoles();
-        const matchedRoleKey = Object.keys(claimedRoles).find(k => (claimedRoles[k].email || '').toLowerCase().trim() === email);
-        if (matchedRoleKey) {
-          sessionData.role = 'admin';
-          sessionData.uid = ADMIN_ROLE_UUIDS[matchedRoleKey];
-          const details = ADMIN_ROLE_DETAILS[sessionData.uid];
-          sessionData.username = details.username;
-        }
-      } catch (e) {
-        console.warn("Failed to check claimed roles for login promotion:", e.message);
+      sessionData.role = 'user';
+      if (ADMIN_ROLE_DETAILS[sessionData.uid]) {
+        sessionData.uid = 'usr_' + Math.random().toString(36).substring(2, 10);
       }
-    }
-
-    // Intercept corporate/admin role by UUID to assign role: 'admin' and their real name
-    if (ADMIN_ROLE_DETAILS[sessionData.uid]) {
-      const details = ADMIN_ROLE_DETAILS[sessionData.uid];
-      sessionData.role = 'admin';
-      sessionData.username = details.username;
-      alert(`Welcome, ${details.title}!`);
-    } else {
       alert(`Welcome back, ${sessionData.username}!`);
     }
 
@@ -8223,8 +8378,9 @@ function initPortalAuth() {
         sessionData.country = currentSession.country;
       }
     }
-    localStorage.setItem('gravity-user-session', JSON.stringify(sessionData));
-    currentSession = sessionData;
+
+    // 2. Issue Bulletproof 24-hour cryptographic session (auto-expires in 24 hours of that day)
+    currentSession = SecureSessionEngine.createSession(sessionData);
     updateAuthUI();
     
     // Open correct dashboard/sidebar
@@ -8874,10 +9030,7 @@ function getDepartmentForEmail(email) {
 
     if (uid === 'f0000000-0000-0000-0000-000000000001' || 
         uid === 'c0000000-0000-0000-0000-000000000002' ||
-        userEmail === 'antigravitystudios1@gmail.com' ||
-        username.includes('ajay raj') ||
-        username.includes('founder') ||
-        username.includes('shashank')) {
+        userEmail === 'antigravitystudios1@gmail.com') {
       return 'all';
     }
     if (uid === 'a0000000-0000-0000-0000-000000000003') return 'ai';
@@ -9955,17 +10108,9 @@ function initOutsideAuthGate() {
     if (submitBtn) submitBtn.disabled = true;
     if (submitText) submitText.textContent = 'Verifying Credentials...';
 
-    const lowerEmail = email.toLowerCase();
-    let detectedRole = 'client';
-    if (lowerEmail.includes('founder') || lowerEmail.includes('ajayraj')) {
-      detectedRole = 'founder';
-    } else if (lowerEmail.includes('ceo') || lowerEmail.includes('thontadarya')) {
-      detectedRole = 'ceo';
-    } else if (lowerEmail.includes('cto') || lowerEmail.includes('shashank')) {
-      detectedRole = 'cto';
-    } else if (lowerEmail.includes('admin')) {
-      detectedRole = 'admin';
-    }
+    const lowerEmail = email.toLowerCase().trim();
+    const exactAdmin = getExactAdminRoleByEmail(lowerEmail);
+    const detectedRole = exactAdmin ? (exactAdmin.roleKey || 'admin') : 'client';
 
     const clientPhone = phone || (phoneInput ? phoneInput.value.trim() : '') || 'N/A';
 

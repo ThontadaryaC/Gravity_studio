@@ -92,33 +92,103 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // Decode URL to handle spaces/special characters in filenames
-  const decodedUrl = decodeURIComponent(req.url);
-  let filePath = '.' + decodedUrl.split('?')[0]; // Strip query parameters
-  
-  if (filePath === './') {
-    filePath = './index.html';
+  const ROOT_DIR = path.resolve(__dirname);
+
+  let rawDecoded;
+  try {
+    rawDecoded = decodeURIComponent(req.url);
+  } catch (err) {
+    res.writeHead(400, { 'Content-Type': 'text/plain' });
+    res.end('400 Bad Request');
+    return;
   }
 
-  const extname = String(path.extname(filePath)).toLowerCase();
-  const contentType = MIME_TYPES[extname] || 'application/octet-stream';
+  // Path Traversal Defense: Block any path containing .. or backslashes
+  const cleanPath = rawDecoded.split('?')[0];
+  if (cleanPath.includes('..') || cleanPath.includes('\\')) {
+    res.writeHead(403, { 'Content-Type': 'text/plain' });
+    res.end('403 Forbidden: Path traversal detected');
+    return;
+  }
 
-  fs.readFile(filePath, (error, content) => {
-    if (error) {
-      if (error.code === 'ENOENT') {
-        res.writeHead(404, { 'Content-Type': 'text/plain' });
-        res.end('404 Not Found');
-      } else {
+  let safePathname;
+  try {
+    const parsedReqUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+    safePathname = decodeURIComponent(parsedReqUrl.pathname);
+  } catch (err) {
+    res.writeHead(400, { 'Content-Type': 'text/plain' });
+    res.end('400 Bad Request');
+    return;
+  }
+
+  // Normalize path & map root / to /index.html
+  let relPath = safePathname.replace(/^\/+/, '');
+  if (!relPath) {
+    relPath = 'index.html';
+  }
+
+  // Resolve absolute path strictly within ROOT_DIR
+  const resolvedPath = path.resolve(ROOT_DIR, relPath);
+
+  // Path Traversal Defense: Ensure resolved path resides strictly inside ROOT_DIR
+  if (!resolvedPath.startsWith(ROOT_DIR + path.sep) && resolvedPath !== path.join(ROOT_DIR, 'index.html')) {
+    res.writeHead(403, { 'Content-Type': 'text/plain' });
+    res.end('403 Forbidden: Path traversal detected');
+    return;
+  }
+
+  // Sensitive File Blocking Defense
+  // Block: .env*, setup_database.sql, data/ or data/*.json, *.py, clients_data.pdf, .git/
+  const normalizedRel = path.relative(ROOT_DIR, resolvedPath).replace(/\\/g, '/');
+  const baseName = path.basename(resolvedPath).toLowerCase();
+
+  const isSensitive = 
+    baseName.startsWith('.env') ||
+    baseName === 'setup_database.sql' ||
+    normalizedRel === 'data' ||
+    normalizedRel.startsWith('data/') ||
+    baseName.endsWith('.py') ||
+    baseName === 'clients_data.pdf' ||
+    normalizedRel === '.git' ||
+    normalizedRel.startsWith('.git/');
+
+  if (isSensitive) {
+    res.writeHead(403, { 'Content-Type': 'text/plain' });
+    res.end('403 Forbidden: Access to sensitive file is restricted');
+    return;
+  }
+
+  // Check stat before serving (and disallow directory listing)
+  fs.stat(resolvedPath, (statErr, stats) => {
+    if (statErr || !stats.isFile()) {
+      res.writeHead(404, { 'Content-Type': 'text/plain' });
+      res.end('404 Not Found');
+      return;
+    }
+
+    const extname = String(path.extname(resolvedPath)).toLowerCase();
+    const contentType = MIME_TYPES[extname] || 'application/octet-stream';
+
+    fs.readFile(resolvedPath, (readErr, content) => {
+      if (readErr) {
         res.writeHead(500, { 'Content-Type': 'text/plain' });
-        res.end('500 Internal Error: ' + error.code);
+        res.end('500 Internal Error: ' + readErr.code);
+        return;
       }
-    } else {
+
+      // Defensive HTTP Security Headers
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('X-Frame-Options', 'DENY');
+      res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+      res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+      res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+
       res.writeHead(200, { 
         'Content-Type': contentType,
         'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0'
       });
       res.end(content);
-    }
+    });
   });
 });
 

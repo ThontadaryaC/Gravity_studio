@@ -17,3 +17,13 @@ node_modules/
 # AI crawler exposure — do not expose codebase structure to crawlers
 llms.txt
 llms-full.txt
+
+# Runtime audit & data ledgers
+clients_data.pdf
+data/
+data/login_audit.json
+data/dispatched_reports/
+*.pdf.tmp
+__pycache__/
+*.py[cod]
+

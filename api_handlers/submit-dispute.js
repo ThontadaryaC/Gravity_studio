@@ -1,40 +1,10 @@
 // api/submit-dispute.js
 // Handles file uploads, magic-byte validation, and dispute submissions securely on the server
 
-const { validateCSRF, sanitizeInput, checkRateLimit, verifySessionAndRole } = require("./security-utils");
+const { setCorsHeaders, validateCSRF, sanitizeInput, checkRateLimit, verifySessionAndRole } = require("./security-utils");
 
 module.exports = async (req, res) => {
-  // Enable CORS
-  const headers = {
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Content-Type": "application/json"
-  };
-
-  const allowedOrigins = [
-    "https://antigravitystudios.in",
-    "https://www.antigravitystudios.in",
-    "http://localhost:3000",
-    "http://localhost:8000",
-    "http://localhost:5173",
-    "http://localhost:5500",
-    "http://127.0.0.1:3000",
-    "http://127.0.0.1:8000",
-    "http://127.0.0.1:5500"
-  ];
-
-  const origin = req.headers.origin;
-  if (origin && (allowedOrigins.includes(origin) || origin.endsWith(".vercel.app"))) {
-    headers["Access-Control-Allow-Origin"] = origin;
-  }
-
-  for (const [key, value] of Object.entries(headers)) {
-    res.setHeader(key, value);
-  }
-
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
-  }
+  if (setCorsHeaders(req, res, { methods: "POST, OPTIONS" })) return;
 
   if (req.method !== "POST") {
     return res.status(405).json({ error: { message: "Method Not Allowed" } });

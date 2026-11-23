@@ -2,37 +2,23 @@
 // Collects and persists every login event with full audit metadata
 const fs = require('fs');
 const path = require('path');
-const { auditLog } = require('./security-utils');
+const { setCorsHeaders, validateCSRF, verifySessionAndRole, auditLog } = require('./security-utils');
 
 const AUDIT_FILE = path.join(__dirname, '..', 'data', 'login_audit.json');
 
 module.exports = async (req, res) => {
-  // CORS Headers
-  const headers = {
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-    'Content-Type': 'application/json'
-  };
-
-  const origin = req.headers.origin;
-  if (origin) {
-    headers['Access-Control-Allow-Origin'] = origin;
-  } else {
-    headers['Access-Control-Allow-Origin'] = '*';
-  }
-
-  for (const [key, value] of Object.entries(headers)) {
-    res.setHeader(key, value);
-  }
-
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
+  if (setCorsHeaders(req, res, { methods: 'GET, POST, OPTIONS' })) return;
 
   const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
   // GET: Return active 24-hour login ledger for admins (auto-pruned)
   if (req.method === 'GET') {
+    // Require verified admin authentication
+    const { user, isAdmin, error } = await verifySessionAndRole(req);
+    if (error || !isAdmin) {
+      return res.status(403).json({ error: { message: "Access Denied: Administrator privileges required to view login records." } });
+    }
+
     try {
       if (!fs.existsSync(AUDIT_FILE)) {
         return res.status(200).json({ total: 0, logs: [], retentionWindow: '24 Hours' });
@@ -75,6 +61,11 @@ module.exports = async (req, res) => {
 
   if (req.method !== 'POST') {
     return res.status(405).json({ error: { message: 'Method Not Allowed' } });
+  }
+
+  // Enforce CSRF check on login recording
+  if (!validateCSRF(req)) {
+    return res.status(403).json({ error: { message: "Access Denied: CSRF verification failed." } });
   }
 
   try {

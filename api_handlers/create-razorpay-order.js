@@ -1,7 +1,7 @@
 // api/create-razorpay-order.js
 // Securely generates a Razorpay Order ID on the server side
 
-const { validateCSRF, checkRateLimit, verifySessionAndRole } = require("./security-utils");
+const { setCorsHeaders, validateCSRF, checkRateLimit, verifySessionAndRole } = require("./security-utils");
 
 const DEFAULT_SERVICE_PRICES = [
   { id: "ai_chatbot", name: "AI Chatbot", priceINR: 24999, priceUSD: 799, priceMaxINR: 120000, priceMaxUSD: 4000 },
@@ -40,32 +40,11 @@ const DEFAULT_SERVICE_PRICES = [
   { id: "email_marketing", name: "Email Marketing (Monthly)", priceINR: 15000, priceUSD: 600 }
 ];
 
-async function getVerifiedPrice(serviceId, tier, isIndian) {
-  let catalog = [];
-  try {
-    const SUPABASE_URL = process.env.SUPABASE_URL;
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (SUPABASE_URL && serviceRoleKey) {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/notifications?title=eq.%5BSYSTEM_PRICING_CATALOG%5D&select=desc_text`, {
-        headers: {
-          "Authorization": `Bearer ${serviceRoleKey}`,
-          "apikey": serviceRoleKey
-        }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data && data.length > 0) {
-          catalog = JSON.parse(data[0].desc_text);
-        }
-      }
-    }
-  } catch (err) {
-    console.warn("Failed to fetch custom catalog, using defaults:", err.message);
-  }
-
-  const service = catalog.find(s => s.id === serviceId) || DEFAULT_SERVICE_PRICES.find(s => s.id === serviceId);
+// Immutable Pricing Engine: Load pricing strictly from immutable server-defined catalog
+function getVerifiedPrice(serviceId, tier, isIndian) {
+  const service = DEFAULT_SERVICE_PRICES.find(s => s.id === serviceId);
   if (!service) {
-    throw new Error(`Service ${serviceId} not found in catalog`);
+    throw new Error(`Service ${serviceId} not found in verified catalog`);
   }
 
   let totalCost = isIndian ? service.priceINR : service.priceUSD;
@@ -77,36 +56,7 @@ async function getVerifiedPrice(serviceId, tier, isIndian) {
 }
 
 module.exports = async (req, res) => {
-  const headers = {
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Content-Type": "application/json"
-  };
-
-  const allowedOrigins = [
-    "https://antigravitystudios.in",
-    "https://www.antigravitystudios.in",
-    "http://localhost:3000",
-    "http://localhost:8000",
-    "http://localhost:5173",
-    "http://localhost:5500",
-    "http://127.0.0.1:3000",
-    "http://127.0.0.1:8000",
-    "http://127.0.0.1:5500"
-  ];
-
-  const origin = req.headers.origin;
-  if (origin && (allowedOrigins.includes(origin) || origin.endsWith(".vercel.app"))) {
-    headers["Access-Control-Allow-Origin"] = origin;
-  }
-
-  for (const [key, value] of Object.entries(headers)) {
-    res.setHeader(key, value);
-  }
-
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
-  }
+  if (setCorsHeaders(req, res, { methods: "POST, OPTIONS" })) return;
 
   if (req.method !== "POST") {
     return res.status(405).json({ error: { message: "Method Not Allowed" } });

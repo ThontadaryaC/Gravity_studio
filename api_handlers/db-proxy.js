@@ -1,34 +1,17 @@
-const { validateCSRF } = require("./security-utils");
+const { setCorsHeaders, validateCSRF } = require("./security-utils");
 
 module.exports = async (req, res) => {
-  // CORS Headers
-  const origin = req.headers.origin;
-  const allowedOrigins = [
-    "https://antigravitystudios.in",
-    "https://www.antigravitystudios.in",
-    "http://localhost:3000",
-    "http://localhost:8000",
-    "http://localhost:5173",
-    "http://localhost:5500",
-    "http://127.0.0.1:3000",
-    "http://127.0.0.1:8000",
-    "http://127.0.0.1:5500"
-  ];
-
-  if (origin && (allowedOrigins.includes(origin) || origin.endsWith(".vercel.app"))) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
-  }
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, apikey, Prefer, x-client-info, Range");
-  res.setHeader("Access-Control-Expose-Headers", "Content-Range, Content-Length, ETag");
-
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
-  }
+  if (setCorsHeaders(req, res, {
+    methods: "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+    headers: "Content-Type, Authorization, apikey, Prefer, x-client-info, Range",
+    exposeHeaders: "Content-Range, Content-Length, ETag",
+    contentType: false
+  })) return;
 
   // CSRF check for mutating operations
   const mutatingMethods = ['POST', 'PUT', 'PATCH', 'DELETE'];
   if (mutatingMethods.includes((req.method || '').toUpperCase()) && !validateCSRF(req)) {
+    res.setHeader("Content-Type", "application/json");
     return res.status(403).json({ error: { message: "Access Denied: CSRF verification failed." } });
   }
 

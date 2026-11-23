@@ -2,6 +2,8 @@
 // Compiles 24-hour login audit logs and dispatches the daily report to all admins at 10:00 AM
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
+const { setCorsHeaders, sanitizeInput, verifySessionAndRole } = require('./security-utils');
 
 const AUDIT_FILE = path.join(__dirname, '..', 'data', 'login_audit.json');
 const REPORTS_DIR = path.join(__dirname, '..', 'data', 'dispatched_reports');
@@ -48,21 +50,31 @@ async function generateDailyDigest(cutoffHours = 24) {
     logs: recentLogs.reverse()
   };
 
-  // Generate clean HTML digest for email
-  const htmlTableRows = recentLogs.map((l, idx) => `
+  // Generate clean HTML digest for email with strict entity escaping against log poisoning/XSS
+  const htmlTableRows = recentLogs.map((l, idx) => {
+    const safeTime = sanitizeInput(l.timestampIst || l.timestampUtc || '');
+    const safeEmail = sanitizeInput(l.email || '');
+    const safeName = sanitizeInput(l.name || '-');
+    const safeStatus = sanitizeInput(l.status || '');
+    const safeIp = sanitizeInput(l.ip || '');
+    const safeDevice = sanitizeInput(l.device || '-');
+    const isSuccess = l.status === 'SUCCESS';
+
+    return `
     <tr style="background: ${idx % 2 === 0 ? '#f8fafc' : '#ffffff'}; border-bottom: 1px solid #e2e8f0;">
-      <td style="padding: 10px 14px; font-family: monospace; font-size: 13px;">${l.timestampIst || l.timestampUtc}</td>
-      <td style="padding: 10px 14px; font-weight: 600; color: #0f172a;">${l.email}</td>
-      <td style="padding: 10px 14px; color: #475569;">${l.name || '-'}</td>
+      <td style="padding: 10px 14px; font-family: monospace; font-size: 13px;">${safeTime}</td>
+      <td style="padding: 10px 14px; font-weight: 600; color: #0f172a;">${safeEmail}</td>
+      <td style="padding: 10px 14px; color: #475569;">${safeName}</td>
       <td style="padding: 10px 14px; text-transform: uppercase; font-size: 12px; font-weight: 700;">
-        <span style="display: inline-block; padding: 3px 8px; border-radius: 4px; ${l.status === 'SUCCESS' ? 'background: #dcfce7; color: #166534;' : 'background: #fee2e2; color: #991b1b;'}">
-          ${l.status}
+        <span style="display: inline-block; padding: 3px 8px; border-radius: 4px; ${isSuccess ? 'background: #dcfce7; color: #166534;' : 'background: #fee2e2; color: #991b1b;'}">
+          ${safeStatus}
         </span>
       </td>
-      <td style="padding: 10px 14px; font-family: monospace; font-size: 13px; color: #334155;">${l.ip}</td>
-      <td style="padding: 10px 14px; color: #64748b; font-size: 13px;">${l.device || '-'}</td>
+      <td style="padding: 10px 14px; font-family: monospace; font-size: 13px; color: #334155;">${safeIp}</td>
+      <td style="padding: 10px 14px; color: #64748b; font-size: 13px;">${safeDevice}</td>
     </tr>
-  `).join('');
+  `;
+  }).join('');
 
   const htmlContent = `
 <!DOCTYPE html>
@@ -144,22 +156,34 @@ async function generateDailyDigest(cutoffHours = 24) {
 }
 
 module.exports = async (req, res) => {
-  // CORS Headers
-  const headers = {
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Content-Type': 'application/json'
-  };
+  if (setCorsHeaders(req, res, { methods: 'GET, POST, OPTIONS' })) return;
 
-  const origin = req.headers.origin;
-  if (origin) headers['Access-Control-Allow-Origin'] = origin;
-  else headers['Access-Control-Allow-Origin'] = '*';
+  // Authorization: require verified admin session OR secure CRON_SECRET header
+  const authHeader = req.headers.authorization || req.headers.Authorization || '';
+  let isAuthorized = false;
 
-  for (const [key, value] of Object.entries(headers)) {
-    res.setHeader(key, value);
+  const cronSecret = process.env.CRON_SECRET;
+  if (cronSecret && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.split(' ')[1];
+    if (token && token.length === cronSecret.length) {
+      try {
+        if (crypto.timingSafeEqual(Buffer.from(token), Buffer.from(cronSecret))) {
+          isAuthorized = true;
+        }
+      } catch (e) {}
+    }
   }
 
-  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (!isAuthorized) {
+    const { user, isAdmin, error } = await verifySessionAndRole(req);
+    if (!error && isAdmin) {
+      isAuthorized = true;
+    }
+  }
+
+  if (!isAuthorized) {
+    return res.status(403).json({ error: { message: "Access Denied: Administrator privileges or valid CRON_SECRET required." } });
+  }
 
   try {
     const { summary, reportPath } = await generateDailyDigest(24);
